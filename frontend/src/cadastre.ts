@@ -7,7 +7,7 @@ export const CADASTRE_MIN_ZOOM = 17
 const CADASTRE_WMS = 'https://services.cuzk.gov.cz/wms/local-km-wms.asp'
 const CADASTRE_TILES = `${CADASTRE_WMS}?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&LAYERS=KN&STYLES=&FORMAT=image/png&TRANSPARENT=TRUE&SRS=EPSG:3857&BBOX={bbox-epsg-3857}&WIDTH=256&HEIGHT=256`
 
-export function addCadastreLayer(map: Map) {
+export function addCadastreLayer(map: Map, beforeLayerId?: string) {
   map.addSource(CADASTRE_SOURCE_ID, {
     type: 'raster',
     tiles: [CADASTRE_TILES],
@@ -23,7 +23,7 @@ export function addCadastreLayer(map: Map) {
     type: 'raster',
     source: CADASTRE_SOURCE_ID,
     paint: { 'raster-opacity': 0.82 },
-  })
+  }, beforeLayerId)
 }
 
 export function removeCadastreLayer(map: Map) {

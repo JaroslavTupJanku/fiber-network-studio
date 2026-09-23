@@ -11,3 +11,4 @@ obj/
 *.user
 *.suo
 coverage/
+backend/**/App_Data/

@@ -1,250 +1,243 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { AlertCircle, CheckCircle2, Copy, Layers3, LoaderCircle, MapPin, Network, RefreshCw, X, ZoomIn } from 'lucide-react'
-import { Map, Marker, NavigationControl, setWorkerUrl, type ErrorEvent, type MapMouseEvent, type MapSourceDataEvent } from 'maplibre-gl'
-import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
-import 'maplibre-gl/dist/maplibre-gl.css'
-import { addCadastreLayer, CADASTRE_MIN_ZOOM, CADASTRE_SOURCE_ID, removeCadastreLayer } from './cadastre'
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { CircleDot, Copy, Crosshair, House, Network, RefreshCw, Save, Search, Trash2, X } from 'lucide-react'
+import { MapCanvas } from './MapCanvas'
+import {
+  createNetworkPoint,
+  deleteNetworkPoint,
+  listNetworkPoints,
+  updateNetworkPoint,
+  type Coordinates,
+  type NetworkPoint,
+  type NetworkPointInput,
+  type NetworkPointKind,
+} from './networkPoints'
 import './App.css'
 
-type Coordinates = { latitude: number; longitude: number }
-type CadastreStatus = 'loading' | 'ready' | 'error'
+type PointEditor = NetworkPointInput & { id?: string }
 
-setWorkerUrl(workerUrl)
-
-function MapCanvas({ selected, onSelect }: {
-  selected: Coordinates | null
-  onSelect: (location: Coordinates) => void
-}) {
-  const container = useRef<HTMLDivElement>(null)
-  const mapRef = useRef<Map | null>(null)
-  const readyMapRef = useRef<Map | null>(null)
-  const cadastreActive = useRef(false)
-  const cadastreFailed = useRef(false)
-  const loadTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const [mapGeneration, setMapGeneration] = useState(0)
-  const [zoom, setZoom] = useState(12)
-  const [cadastreEnabled, setCadastreEnabled] = useState(false)
-  const [cadastreStatus, setCadastreStatus] = useState<CadastreStatus>('loading')
-  const [retryVersion, setRetryVersion] = useState(0)
-
-  useEffect(() => {
-    if (!container.current) return
-
-    const map = new Map({
-      container: container.current,
-      style: 'https://tiles.openfreemap.org/styles/liberty',
-      center: [14.421, 50.088],
-      zoom: 12,
-    })
-    mapRef.current = map
-    readyMapRef.current = null
-
-    map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
-    const clearLoadTimeout = () => {
-      if (loadTimeout.current) clearTimeout(loadTimeout.current)
-      loadTimeout.current = null
-    }
-    const handleClick = (event: MapMouseEvent) => {
-      onSelect({ latitude: event.lngLat.lat, longitude: event.lngLat.lng })
-    }
-    const handleSourceLoading = (event: MapSourceDataEvent) => {
-      if (!cadastreActive.current || event.sourceId !== CADASTRE_SOURCE_ID || !event.tile) return
-      if (cadastreFailed.current) return
-      setCadastreStatus('loading')
-      clearLoadTimeout()
-      loadTimeout.current = setTimeout(() => {
-        cadastreFailed.current = true
-        setCadastreStatus('error')
-      }, 15000)
-    }
-    const handleSourceData = (event: MapSourceDataEvent) => {
-      if (!cadastreActive.current || event.sourceId !== CADASTRE_SOURCE_ID || !event.tile || !event.isSourceLoaded) return
-      clearLoadTimeout()
-      if (!cadastreFailed.current) setCadastreStatus('ready')
-    }
-    const handleError = (event: ErrorEvent) => {
-      const sourceId = (event as ErrorEvent & { sourceId?: string }).sourceId
-      if (!cadastreActive.current || sourceId !== CADASTRE_SOURCE_ID) return
-      clearLoadTimeout()
-      cadastreFailed.current = true
-      setCadastreStatus('error')
-    }
-    map.on('load', () => {
-      readyMapRef.current = map
-      setZoom(map.getZoom())
-      setMapGeneration((value) => value + 1)
-    })
-    map.on('zoomend', () => setZoom(map.getZoom()))
-    map.on('click', handleClick)
-    map.on('sourcedataloading', handleSourceLoading)
-    map.on('sourcedata', handleSourceData)
-    map.on('error', handleError)
-
-    return () => {
-      clearLoadTimeout()
-      map.off('click', handleClick)
-      map.remove()
-      mapRef.current = null
-      readyMapRef.current = null
-    }
-  }, [onSelect])
-
-  const canShowCadastre = zoom >= CADASTRE_MIN_ZOOM
-
-  useEffect(() => {
-    const map = mapRef.current
-    if (!map || readyMapRef.current !== map) return
-
-    if (!cadastreEnabled || !canShowCadastre) {
-      cadastreActive.current = false
-      if (loadTimeout.current) clearTimeout(loadTimeout.current)
-      loadTimeout.current = null
-      removeCadastreLayer(map)
-      return
-    }
-
-    cadastreActive.current = true
-    cadastreFailed.current = false
-    removeCadastreLayer(map)
-    addCadastreLayer(map)
-  }, [mapGeneration, cadastreEnabled, canShowCadastre, retryVersion])
-
-  useEffect(() => {
-    if (!selected || !mapRef.current) return
-
-    const marker = new Marker({ color: '#26766b' })
-      .setLngLat([selected.longitude, selected.latitude])
-      .addTo(mapRef.current)
-
-    return () => {
-      marker.remove()
-    }
-  }, [selected, mapGeneration])
-
-  const needsZoom = cadastreEnabled && !canShowCadastre
-
-  return (
-    <>
-      <div className="map-canvas" ref={container} aria-label="Mapa" />
-      <div className="map-layer-control">
-        <label className="layer-toggle">
-          <input
-            type="checkbox"
-            checked={cadastreEnabled}
-            onChange={(event) => {
-              setCadastreStatus('loading')
-              setCadastreEnabled(event.target.checked)
-            }}
-          />
-          <Layers3 size={17} aria-hidden="true" />
-          <span>Katastr</span>
-        </label>
-        {cadastreEnabled && (
-          <div className={`layer-status ${cadastreStatus === 'error' && !needsZoom ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
-            {needsZoom ? (
-              <>
-                <ZoomIn size={15} aria-hidden="true" />
-                <span>Přibližte mapu</span>
-                <button type="button" className="layer-action" onClick={() => mapRef.current?.easeTo({ zoom: CADASTRE_MIN_ZOOM, duration: 400 })} title="Přiblížit na parcely" aria-label="Přiblížit na parcely">
-                  <ZoomIn size={16} />
-                </button>
-              </>
-            ) : cadastreStatus === 'error' ? (
-              <>
-                <AlertCircle size={15} aria-hidden="true" />
-                <span>ČÚZK se nenačetl</span>
-                <button type="button" className="layer-action" onClick={() => {
-                  setCadastreStatus('loading')
-                  setRetryVersion((value) => value + 1)
-                }} title="Zkusit načíst znovu" aria-label="Zkusit načíst katastr znovu">
-                  <RefreshCw size={15} />
-                </button>
-              </>
-            ) : cadastreStatus === 'ready' ? (
-              <><CheckCircle2 size={15} aria-hidden="true" /><span>Katastr načten</span></>
-            ) : (
-              <><LoaderCircle size={15} className="spin" aria-hidden="true" /><span>Načítání ČÚZK</span></>
-            )}
-          </div>
-        )}
-      </div>
-    </>
-  )
-}
+const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : 'Šachta'
 
 function App() {
-  const [selected, setSelected] = useState<Coordinates | null>(null)
-  const [copied, setCopied] = useState(false)
-  const handleSelect = useCallback((location: Coordinates) => {
-    setSelected(location)
-    setCopied(false)
+  const [points, setPoints] = useState<NetworkPoint[]>([])
+  const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState(false)
+  const [actionError, setActionError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [reloadVersion, setReloadVersion] = useState(0)
+  const [activeTool, setActiveTool] = useState<NetworkPointKind | null>(null)
+  const [moving, setMoving] = useState(false)
+  const [editor, setEditor] = useState<PointEditor | null>(null)
+  const [selectedLocation, setSelectedLocation] = useState<Coordinates | null>(null)
+  const [query, setQuery] = useState('')
+
+  useEffect(() => {
+    const controller = new AbortController()
+    listNetworkPoints(controller.signal)
+      .then((data) => {
+        setPoints(data)
+        setLoadError(false)
+      })
+      .catch((error: unknown) => {
+        if (!(error instanceof Error && error.name === 'AbortError')) setLoadError(true)
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false)
+      })
+    return () => controller.abort()
+  }, [reloadVersion])
+
+  const handleToolChange = useCallback((kind: NetworkPointKind | null) => {
+    setActiveTool(kind)
+    setMoving(false)
+    setActionError('')
+    if (kind) {
+      setEditor(null)
+      setSelectedLocation(null)
+    }
   }, [])
 
-  const copyCoordinates = async () => {
-    if (!selected) return
-    await navigator.clipboard.writeText(
-      `${selected.latitude.toFixed(6)}, ${selected.longitude.toFixed(6)}`,
-    )
-    setCopied(true)
+  const handleLocationClick = useCallback((location: Coordinates) => {
+    setActionError('')
+    if (activeTool) {
+      setEditor({ kind: activeTool, name: '', ...location })
+      setActiveTool(null)
+    } else if (moving && editor) {
+      setEditor({ ...editor, ...location })
+      setMoving(false)
+    } else {
+      setEditor(null)
+      setSelectedLocation(location)
+    }
+  }, [activeTool, moving, editor])
+
+  const handlePointSelect = useCallback((id: string) => {
+    const point = points.find((item) => item.id === id)
+    if (!point) return
+    setEditor({ ...point })
+    setSelectedLocation(null)
+    setActiveTool(null)
+    setMoving(false)
+    setActionError('')
+  }, [points])
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && (activeTool || moving)) handleToolChange(null)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [activeTool, moving, handleToolChange])
+
+  const startDraft = (kind: NetworkPointKind, location: Coordinates) => {
+    setEditor({ kind, name: '', ...location })
+    setSelectedLocation(null)
+    setActionError('')
   }
+
+  const savePoint = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!editor || !editor.name.trim() || saving) return
+    setSaving(true)
+    setActionError('')
+    try {
+      const saved = editor.id
+        ? await updateNetworkPoint({ ...editor, id: editor.id, name: editor.name.trim() })
+        : await createNetworkPoint({ ...editor, name: editor.name.trim() })
+      setPoints((current) => editor.id
+        ? current.map((point) => point.id === saved.id ? saved : point)
+        : [...current, saved])
+      setEditor(saved)
+      setMoving(false)
+    } catch {
+      setActionError('Uložení se nezdařilo. Zkontrolujte, zda běží API.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const removePoint = async () => {
+    if (!editor?.id || saving || !window.confirm(`Smazat objekt „${editor.name}“?`)) return
+    setSaving(true)
+    setActionError('')
+    try {
+      await deleteNetworkPoint(editor.id)
+      setPoints((current) => current.filter((point) => point.id !== editor.id))
+      setEditor(null)
+      setMoving(false)
+    } catch {
+      setActionError('Objekt se nepodařilo smazat. Zkontrolujte API.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const copyCoordinates = async (location: Coordinates) => {
+    await navigator.clipboard.writeText(
+      `${location.latitude.toFixed(6)}, ${location.longitude.toFixed(6)}`,
+    )
+  }
+
+  const visiblePoints = useMemo(() => points
+    .filter((point) => point.name.toLocaleLowerCase('cs').includes(query.toLocaleLowerCase('cs')))
+    .sort((a, b) => a.name.localeCompare(b.name, 'cs')), [points, query])
+  const buildings = points.filter((point) => point.kind === 'building').length
+  const chambers = points.length - buildings
+  const originalPoint = points.find((point) => point.id === editor?.id)
+  const preview = editor && (!editor.id || (originalPoint && (editor.latitude !== originalPoint.latitude || editor.longitude !== originalPoint.longitude)))
+    ? editor : selectedLocation
 
   return (
     <div className="app-shell">
       <header className="app-header">
-        <div className="app-brand">
-          <Network size={21} strokeWidth={2} aria-hidden="true" />
-          <span>Fiber Network Studio</span>
-        </div>
+        <div className="app-brand"><Network size={21} strokeWidth={2} aria-hidden="true" /><span>Fiber Network Studio</span></div>
         <span className="header-section">Mapa</span>
       </header>
 
       <main className="workspace">
         <section className="map-region" aria-label="Mapa sítě">
-          <MapCanvas selected={selected} onSelect={handleSelect} />
+          <MapCanvas
+            points={points}
+            selectedPointId={editor?.id ?? null}
+            preview={preview}
+            activeTool={activeTool}
+            placementActive={activeTool !== null || moving}
+            toolsDisabled={loading || loadError}
+            onToolChange={handleToolChange}
+            onLocationClick={handleLocationClick}
+            onPointSelect={handlePointSelect}
+          />
         </section>
 
-        <aside className="details-panel" aria-label="Detail výběru">
+        <aside className="details-panel" aria-label="Objekty sítě">
           <div className="panel-heading">
             <div>
-              <span className="section-label">Pracovní plocha</span>
-              <h1>Detail místa</h1>
+              <span className="section-label">Infrastruktura</span>
+              <h1>{editor ? editor.id ? kindLabel(editor.kind) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : selectedLocation ? 'Detail místa' : 'Objekty sítě'}</h1>
             </div>
-            {selected && (
-              <button
-                className="icon-button"
-                type="button"
-                onClick={() => setSelected(null)}
-                title="Zrušit výběr"
-                aria-label="Zrušit výběr"
-              >
-                <X size={18} />
-              </button>
+            {(editor || selectedLocation) && (
+              <button className="icon-button" type="button" onClick={() => {
+                setEditor(null)
+                setSelectedLocation(null)
+                setMoving(false)
+                setActionError('')
+              }} title="Zavřít detail" aria-label="Zavřít detail"><X size={18} /></button>
             )}
           </div>
 
-          {selected ? (
-            <div className="location-details">
-              <div className="location-heading">
-                <MapPin size={19} aria-hidden="true" />
-                <span>Vybrané místo</span>
-              </div>
-              <dl>
-                <div>
-                  <dt>Zeměpisná šířka</dt>
-                  <dd>{selected.latitude.toFixed(6)}°</dd>
-                </div>
-                <div>
-                  <dt>Zeměpisná délka</dt>
-                  <dd>{selected.longitude.toFixed(6)}°</dd>
-                </div>
-              </dl>
-              <button className="copy-button" type="button" onClick={copyCoordinates}>
-                <Copy size={16} aria-hidden="true" />
-                {copied ? 'Zkopírováno' : 'Kopírovat souřadnice'}
-              </button>
+          <div className="point-counts" aria-label="Počet objektů">
+            <span><House size={15} aria-hidden="true" /> Budovy <strong>{buildings}</strong></span>
+            <span><CircleDot size={15} aria-hidden="true" /> Šachty <strong>{chambers}</strong></span>
+          </div>
+
+          {loadError && (
+            <div className="panel-error" role="alert">
+              <span>API není dostupné. Objekty se nenačetly.</span>
+              <button type="button" className="icon-button" title="Načíst znovu" aria-label="Načíst objekty znovu" onClick={() => {
+                setLoading(true)
+                setReloadVersion((value) => value + 1)
+              }}><RefreshCw size={16} /></button>
             </div>
-          ) : (
-            <p className="empty-selection">Žádné místo není vybráno.</p>
+          )}
+
+          {editor && (
+            <form className="point-form" onSubmit={savePoint}>
+              <label htmlFor="point-name">Název</label>
+              <input id="point-name" autoFocus required maxLength={80} value={editor.name} onChange={(event) => setEditor({ ...editor, name: event.target.value })} placeholder={editor.kind === 'building' ? 'Např. Dům 12' : 'Např. Šachta S-01'} />
+              <div className="point-kind"><span className={`kind-dot ${editor.kind}`} />{kindLabel(editor.kind)}</div>
+              <div className="coordinates-row">
+                <span>{editor.latitude.toFixed(6)}°, {editor.longitude.toFixed(6)}°</span>
+                <button type="button" className="icon-button" onClick={() => copyCoordinates(editor)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button>
+              </div>
+              <button type="button" className={moving ? 'move-button active' : 'move-button'} onClick={() => {
+                setMoving((value) => !value)
+                setActiveTool(null)
+              }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Přesouvání' : 'Přesunout na mapě'}</button>
+              {actionError && <p className="form-error" role="alert">{actionError}</p>}
+              <div className="form-actions">
+                <button className="primary-button" type="submit" disabled={saving || !editor.name.trim()}><Save size={16} aria-hidden="true" /> {saving ? 'Ukládání…' : 'Uložit'}</button>
+                {editor.id && <button className="danger-button" type="button" disabled={saving} onClick={removePoint} title="Smazat objekt"><Trash2 size={16} aria-hidden="true" /> Smazat</button>}
+              </div>
+            </form>
+          )}
+
+          {!editor && selectedLocation && (
+            <div className="location-details">
+              <div className="location-heading"><Crosshair size={18} aria-hidden="true" /> Vybrané místo</div>
+              <div className="coordinates-row"><span>{selectedLocation.latitude.toFixed(6)}°, {selectedLocation.longitude.toFixed(6)}°</span><button type="button" className="icon-button" onClick={() => copyCoordinates(selectedLocation)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button></div>
+              <div className="quick-add">
+                <button type="button" onClick={() => startDraft('building', selectedLocation)}><House size={16} aria-hidden="true" /> Budova</button>
+                <button type="button" onClick={() => startDraft('chamber', selectedLocation)}><CircleDot size={16} aria-hidden="true" /> Šachta</button>
+              </div>
+            </div>
+          )}
+
+          {!editor && !selectedLocation && !loadError && (
+            <div className="point-list">
+              <label className="search-field"><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Hledat objekt" aria-label="Hledat objekt" /></label>
+              {loading ? <p className="empty-selection">Načítání objektů…</p> : visiblePoints.length === 0 ? <p className="empty-selection">{query ? 'Nic nenalezeno.' : 'Zatím žádné objekty.'}</p> : (
+                <ul>{visiblePoints.map((point) => <li key={point.id}><button type="button" onClick={() => handlePointSelect(point.id)}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}</small></span></button></li>)}</ul>
+              )}
+            </div>
           )}
         </aside>
       </main>
