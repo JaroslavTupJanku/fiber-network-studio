@@ -44,6 +44,65 @@
 .map-canvas { position: absolute; inset: 0; }
 .maplibregl-control-container { font-family: inherit; }
 
+.map-layer-control {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 1;
+  width: 200px;
+  padding: 8px 10px;
+  border: 1px solid #bfcfca;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: 0 1px 5px rgb(20 45 38 / 14%);
+}
+
+.layer-toggle, .layer-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.layer-toggle {
+  min-height: 25px;
+  cursor: pointer;
+  color: #28433c;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.layer-toggle input { width: 16px; height: 16px; margin: 0; accent-color: #26766b; cursor: pointer; }
+.layer-toggle svg { color: #26766b; }
+
+.layer-status {
+  min-height: 24px;
+  margin-top: 5px;
+  padding-left: 2px;
+  color: #60736c;
+  font-size: 11px;
+}
+
+.layer-status span { flex: 1; }
+.layer-status-error { color: #a03e2e; }
+
+.layer-action {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 25px;
+  height: 25px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.layer-action:hover { background: #eef3f0; }
+.spin { animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
 .details-panel {
   min-width: 0;
   padding: 25px 22px;
@@ -130,6 +189,7 @@ dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
 
 @media (max-width: 720px) {
   .app-header { padding: 0 16px; }
+  .map-layer-control { top: 10px; left: 10px; }
   .workspace {
     grid-template-columns: 1fr;
     grid-template-rows: minmax(280px, 1fr) auto;
