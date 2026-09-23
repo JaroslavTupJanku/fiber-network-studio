@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, CheckCircle2, CircleDot, HousePlus, Layers3, LoaderCircle, RefreshCw, X, ZoomIn } from 'lucide-react'
+import { AlertCircle, CheckCircle2, CircleDot, House, HousePlus, Layers3, LoaderCircle, RefreshCw, X, ZoomIn } from 'lucide-react'
 import { GeoJSONSource, Map, Marker, NavigationControl, setWorkerUrl, type ErrorEvent, type MapMouseEvent, type MapSourceDataEvent } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -22,20 +22,25 @@ type MapCanvasProps = {
   placementActive: boolean
   toolsDisabled: boolean
   onToolChange: (kind: NetworkPointKind | null) => void
+  onToolDrop: (kind: NetworkPointKind, location: Coordinates) => void
   onLocationClick: (location: Coordinates, lookupParcel: boolean) => void
   onPointSelect: (id: string) => void
   onCadastreDisable: () => void
 }
 
 type CadastreStatus = 'loading' | 'ready' | 'error'
+type PlacementPointer = { kind: NetworkPointKind, x: number, y: number }
+type ToolDrag = { kind: NetworkPointKind, pointerId: number, startX: number, startY: number, dragging: boolean }
 
 setWorkerUrl(workerUrl)
 
-export function MapCanvas({ points, selectedPointId, selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onLocationClick, onPointSelect, onCadastreDisable }: MapCanvasProps) {
+export function MapCanvas({ points, selectedPointId, selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop, onLocationClick, onPointSelect, onCadastreDisable }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const readyMapRef = useRef<Map | null>(null)
-  const interactionRef = useRef({ placementActive, onLocationClick, onPointSelect })
+  const interactionRef = useRef({ placementActive, activeTool, onLocationClick, onPointSelect })
+  const toolDrag = useRef<ToolDrag | null>(null)
+  const suppressToolClick = useRef(false)
   const cadastreActive = useRef(false)
   const cadastreFailed = useRef(false)
   const refreshCursor = useRef<(() => void) | null>(null)
@@ -45,10 +50,12 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   const [cadastreEnabled, setCadastreEnabled] = useState(false)
   const [cadastreStatus, setCadastreStatus] = useState<CadastreStatus>('loading')
   const [retryVersion, setRetryVersion] = useState(0)
+  const [placementPointer, setPlacementPointer] = useState<PlacementPointer | null>(null)
+  const [dragPointer, setDragPointer] = useState<PlacementPointer | null>(null)
 
   useEffect(() => {
-    interactionRef.current = { placementActive, onLocationClick, onPointSelect }
-  }, [placementActive, onLocationClick, onPointSelect])
+    interactionRef.current = { placementActive, activeTool, onLocationClick, onPointSelect }
+  }, [placementActive, activeTool, onLocationClick, onPointSelect])
 
   useEffect(() => {
     if (!container.current) return
@@ -98,13 +105,20 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
       )
     }
     const handleMouseMove = (event: MapMouseEvent) => {
-      overPoint = !interactionRef.current.placementActive
+      const { activeTool, placementActive } = interactionRef.current
+      if (activeTool && !dragging) setPlacementPointer({ kind: activeTool, x: event.point.x, y: event.point.y })
+      else setPlacementPointer(null)
+      overPoint = !placementActive
         && Boolean(map.getLayer(POINT_LAYER_ID))
         && Boolean(map.getLayer(PARCEL_FILL_LAYER_ID))
         && map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID, PARCEL_FILL_LAYER_ID] }).length > 0
       updateCursor()
     }
-    const handleMouseLeave = () => { overPoint = false; updateCursor() }
+    const handleMouseLeave = () => {
+      overPoint = false
+      setPlacementPointer(null)
+      updateCursor()
+    }
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.altKey || event.ctrlKey || event.metaKey) return
       const offsets: Record<string, [number, number]> = {
@@ -206,7 +220,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     map.on('click', handleClick)
     map.on('mousemove', handleMouseMove)
     canvas.addEventListener('mouseleave', handleMouseLeave)
-    map.on('dragstart', () => { dragging = true; updateCursor() })
+    map.on('dragstart', () => { dragging = true; setPlacementPointer(null); updateCursor() })
     map.on('dragend', () => { dragging = false; updateCursor() })
     canvas.addEventListener('keydown', handleKeyDown)
     map.on('sourcedataloading', handleSourceLoading)
@@ -298,15 +312,61 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
 
   const needsZoom = cadastreEnabled && !canShowCadastre
 
+  const handleToolPointerDown = (kind: NetworkPointKind, event: React.PointerEvent<HTMLButtonElement>) => {
+    if (event.pointerType !== 'mouse' || event.button !== 0) return
+    toolDrag.current = { kind, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, dragging: false }
+    event.currentTarget.setPointerCapture(event.pointerId)
+  }
+  const handleToolPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = toolDrag.current
+    const rect = container.current?.getBoundingClientRect()
+    if (!drag || !rect || drag.pointerId !== event.pointerId) return
+    if (!drag.dragging && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6) return
+    drag.dragging = true
+    event.preventDefault()
+    setDragPointer({ kind: drag.kind, x: event.clientX - rect.left, y: event.clientY - rect.top })
+  }
+  const handleToolPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
+    const drag = toolDrag.current
+    if (!drag || drag.pointerId !== event.pointerId) return
+    toolDrag.current = null
+    setDragPointer(null)
+    if (!drag.dragging) return
+    event.preventDefault()
+    suppressToolClick.current = true
+    window.setTimeout(() => { suppressToolClick.current = false }, 0)
+    const map = mapRef.current
+    if (!map || !map.getCanvasContainer().contains(document.elementFromPoint(event.clientX, event.clientY))) return
+    const rect = map.getCanvas().getBoundingClientRect()
+    const location = map.unproject([event.clientX - rect.left, event.clientY - rect.top])
+    onToolDrop(drag.kind, { latitude: location.lat, longitude: location.lng })
+  }
+  const handleToolPointerCancel = () => {
+    toolDrag.current = null
+    setDragPointer(null)
+  }
+  const handleToolClick = (kind: NetworkPointKind) => {
+    if (suppressToolClick.current) { suppressToolClick.current = false; return }
+    setPlacementPointer(null)
+    onToolChange(activeTool === kind ? null : kind)
+  }
+  const cursorPreview = dragPointer ?? (activeTool ? placementPointer : null)
+
   return (
     <>
       <div className="map-canvas" ref={container} aria-label="Mapa" />
+      {cursorPreview && (
+        <div className={`placement-cursor ${cursorPreview.kind}`} style={{ left: cursorPreview.x, top: cursorPreview.y }} aria-hidden="true">
+          <span className="placement-cursor-figure">{cursorPreview.kind === 'building' ? <House size={38} strokeWidth={2.5} /> : <CircleDot size={30} strokeWidth={2.4} />}</span>
+          <span className="placement-cursor-target" />
+        </div>
+      )}
       <div className="map-toolbar">
         <div className="map-tool-actions" role="group" aria-label="Přidat objekt">
-          <button type="button" className={activeTool === 'building' ? 'map-tool active' : 'map-tool'} aria-pressed={activeTool === 'building'} disabled={toolsDisabled} onClick={() => onToolChange(activeTool === 'building' ? null : 'building')} title="Přidat budovu">
+          <button type="button" className={activeTool === 'building' ? 'map-tool active' : 'map-tool'} aria-pressed={activeTool === 'building'} disabled={toolsDisabled} onClick={() => handleToolClick('building')} onPointerDown={(event) => handleToolPointerDown('building', event)} onPointerMove={handleToolPointerMove} onPointerUp={handleToolPointerUp} onPointerCancel={handleToolPointerCancel} title="Přidat budovu nebo přetáhnout na mapu">
             <HousePlus size={17} aria-hidden="true" /> Budova
           </button>
-          <button type="button" className={activeTool === 'chamber' ? 'map-tool active' : 'map-tool'} aria-pressed={activeTool === 'chamber'} disabled={toolsDisabled} onClick={() => onToolChange(activeTool === 'chamber' ? null : 'chamber')} title="Přidat šachtu">
+          <button type="button" className={activeTool === 'chamber' ? 'map-tool active' : 'map-tool'} aria-pressed={activeTool === 'chamber'} disabled={toolsDisabled} onClick={() => handleToolClick('chamber')} onPointerDown={(event) => handleToolPointerDown('chamber', event)} onPointerMove={handleToolPointerMove} onPointerUp={handleToolPointerUp} onPointerCancel={handleToolPointerCancel} title="Přidat šachtu nebo přetáhnout na mapu">
             <CircleDot size={17} aria-hidden="true" /> Šachta
           </button>
         </div>

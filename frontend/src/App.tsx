@@ -125,6 +125,15 @@ function App() {
     setActionError('')
   }
 
+  const handleToolDrop = (kind: NetworkPointKind, location: Coordinates) => {
+    clearParcel()
+    setEditor({ kind, name: '', ...location })
+    setSelectedLocation(null)
+    setActiveTool(null)
+    setMoving(false)
+    setActionError('')
+  }
+
   const savePoint = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!editor || !editor.name.trim() || saving) return
@@ -196,6 +205,7 @@ function App() {
             placementActive={activeTool !== null || moving}
             toolsDisabled={loading || loadError}
             onToolChange={handleToolChange}
+            onToolDrop={handleToolDrop}
             onLocationClick={handleLocationClick}
             onPointSelect={handlePointSelect}
             onCadastreDisable={clearParcel}
