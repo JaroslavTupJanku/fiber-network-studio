@@ -1,0 +1,13 @@
+node_modules/
+dist/
+bin/
+obj/
+.vs/
+.vscode/
+.idea/
+.env
+.env.*
+!.env.example
+*.user
+*.suo
+coverage/
