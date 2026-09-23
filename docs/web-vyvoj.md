@@ -16,4 +16,4 @@
 
 **CRUD** znamená založit, načíst, upravit a smazat záznam. Takto teď frontend přes API spravuje budovy a šachty; katastr je pouze podklad, nikoli zdroj těchto záznamů.
 
-**Gesto** je způsob ovládání myší nebo dotykem. MapLibre zde zajišťuje posun tažením a přiblížení pomocí Ctrl + kolečka; aplikace jen nastavuje jeho chování a vzhled kurzoru.
+**Gesto** je způsob ovládání myší nebo dotykem. MapLibre zde zajišťuje posun tažením a přiblížení kolečkem; aplikace nastavuje vzhled kurzoru.

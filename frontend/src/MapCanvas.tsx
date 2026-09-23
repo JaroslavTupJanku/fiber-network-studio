@@ -58,14 +58,10 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
       style: 'https://tiles.openfreemap.org/styles/liberty',
       center: [14.421, 50.088],
       zoom: 12,
-      cooperativeGestures: true,
       locale: {
         'Map.Title': 'Mapa',
         'NavigationControl.ZoomIn': 'Přiblížit',
         'NavigationControl.ZoomOut': 'Oddálit',
-        'CooperativeGesturesHandler.WindowsHelpText': 'Pro přiblížení podržte Ctrl a použijte kolečko myši',
-        'CooperativeGesturesHandler.MacHelpText': 'Pro přiblížení podržte ⌘ a použijte kolečko myši',
-        'CooperativeGesturesHandler.MobileHelpText': 'Mapu posouvejte dvěma prsty',
       },
     })
     mapRef.current = map
