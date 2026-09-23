@@ -1,0 +1,149 @@
+#root { min-height: 100vh; }
+
+.app-shell {
+  display: grid;
+  grid-template-rows: 58px minmax(0, 1fr);
+  min-height: 100vh;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 22px;
+  border-bottom: 1px solid #d8e2df;
+  background: #ffffff;
+  z-index: 2;
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #1e3d38;
+}
+
+.app-brand svg { color: #26766b; }
+
+.header-section, .section-label {
+  color: #6d7f79;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 308px;
+  min-height: 0;
+  height: calc(100vh - 58px);
+}
+
+.map-region { position: relative; min-width: 0; }
+.map-canvas { position: absolute; inset: 0; }
+.maplibregl-control-container { font-family: inherit; }
+
+.details-panel {
+  min-width: 0;
+  padding: 25px 22px;
+  border-left: 1px solid #d8e2df;
+  background: #ffffff;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+h1 {
+  margin: 5px 0 0;
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 650;
+}
+
+.icon-button {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 1px solid #d8e2df;
+  border-radius: 4px;
+  color: #36524b;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+.icon-button:hover { background: #f2f6f5; }
+
+.empty-selection {
+  margin: 28px 0;
+  font-size: 14px;
+  color: #6d7f79;
+}
+
+.location-details { margin-top: 29px; }
+
+.location-heading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.location-heading svg { color: #26766b; }
+
+dl { margin: 23px 0; }
+
+dl > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #e5ece9;
+  font-size: 13px;
+}
+
+dt { color: #6d7f79; }
+dd { margin: 0; font-variant-numeric: tabular-nums; font-weight: 600; }
+
+.copy-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1px solid #bfcfca;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #225e55;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.copy-button:hover { background: #f2f8f5; }
+
+@media (max-width: 720px) {
+  .app-header { padding: 0 16px; }
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(280px, 1fr) auto;
+    height: calc(100dvh - 58px);
+  }
+  .details-panel {
+    min-height: 135px;
+    max-height: 45dvh;
+    overflow-y: auto;
+    padding: 16px;
+    border-left: 0;
+    border-top: 1px solid #d8e2df;
+  }
+  .location-details { margin-top: 15px; }
+  dl { margin: 12px 0; }
+  .empty-selection { margin: 18px 0 0; }
+}
