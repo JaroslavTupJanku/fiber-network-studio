@@ -76,7 +76,7 @@ function App() {
       <header className="app-header">
         <div className="app-brand">
           <Network size={21} strokeWidth={2} aria-hidden="true" />
-          <span>Síťová evidence</span>
+          <span>Fiber Network Studio</span>
         </div>
         <span className="header-section">Mapa</span>
       </header>
