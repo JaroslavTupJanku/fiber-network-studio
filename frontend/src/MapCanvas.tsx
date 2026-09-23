@@ -38,6 +38,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   const interactionRef = useRef({ placementActive, onLocationClick, onPointSelect })
   const cadastreActive = useRef(false)
   const cadastreFailed = useRef(false)
+  const refreshCursor = useRef<(() => void) | null>(null)
   const loadTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [mapGeneration, setMapGeneration] = useState(0)
   const [zoom, setZoom] = useState(12)
@@ -57,10 +58,30 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
       style: 'https://tiles.openfreemap.org/styles/liberty',
       center: [14.421, 50.088],
       zoom: 12,
+      cooperativeGestures: true,
+      locale: {
+        'Map.Title': 'Mapa',
+        'NavigationControl.ZoomIn': 'Přiblížit',
+        'NavigationControl.ZoomOut': 'Oddálit',
+        'CooperativeGesturesHandler.WindowsHelpText': 'Pro přiblížení podržte Ctrl a použijte kolečko myši',
+        'CooperativeGesturesHandler.MacHelpText': 'Pro přiblížení podržte ⌘ a použijte kolečko myši',
+        'CooperativeGesturesHandler.MobileHelpText': 'Mapu posouvejte dvěma prsty',
+      },
     })
     mapRef.current = map
     readyMapRef.current = null
     map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
+    const canvas = map.getCanvas()
+    let overPoint = false
+    let dragging = false
+    const updateCursor = () => {
+      if (dragging) canvas.style.cursor = 'grabbing'
+      else if (interactionRef.current.placementActive) canvas.style.cursor = 'crosshair'
+      else if (overPoint) canvas.style.cursor = 'pointer'
+      else canvas.style.cursor = 'grab'
+    }
+    refreshCursor.current = updateCursor
+    updateCursor()
 
     const clearLoadTimeout = () => {
       if (loadTimeout.current) clearTimeout(loadTimeout.current)
@@ -81,9 +102,22 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
       )
     }
     const handleMouseMove = (event: MapMouseEvent) => {
-      const overPoint = !interactionRef.current.placementActive && map.getLayer(POINT_LAYER_ID)
-        && map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] }).length > 0
-      map.getCanvas().style.cursor = interactionRef.current.placementActive ? 'crosshair' : overPoint ? 'pointer' : ''
+      overPoint = !interactionRef.current.placementActive
+        && Boolean(map.getLayer(POINT_LAYER_ID))
+        && Boolean(map.getLayer(PARCEL_FILL_LAYER_ID))
+        && map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID, PARCEL_FILL_LAYER_ID] }).length > 0
+      updateCursor()
+    }
+    const handleMouseLeave = () => { overPoint = false; updateCursor() }
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.altKey || event.ctrlKey || event.metaKey) return
+      const offsets: Record<string, [number, number]> = {
+        w: [0, -100], a: [-100, 0], s: [0, 100], d: [100, 0],
+      }
+      const offset = offsets[event.key.toLowerCase()]
+      if (!offset) return
+      event.preventDefault()
+      map.panBy(offset, { duration: 300 })
     }
     const handleSourceLoading = (event: MapSourceDataEvent) => {
       if (!cadastreActive.current || event.sourceId !== CADASTRE_SOURCE_ID || !event.tile || cadastreFailed.current) return
@@ -160,13 +194,13 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
         id: PARCEL_FILL_LAYER_ID,
         type: 'fill',
         source: PARCEL_SOURCE_ID,
-        paint: { 'fill-color': '#e7a943', 'fill-opacity': 0.22 },
+        paint: { 'fill-color': '#3b82d6', 'fill-opacity': 0.24 },
       }, POINT_LAYER_ID)
       map.addLayer({
         id: 'selected-parcel-outline',
         type: 'line',
         source: PARCEL_SOURCE_ID,
-        paint: { 'line-color': '#a34e25', 'line-width': 3 },
+        paint: { 'line-color': '#1769b8', 'line-width': 3 },
       }, POINT_LAYER_ID)
       readyMapRef.current = map
       setZoom(map.getZoom())
@@ -175,12 +209,19 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     map.on('zoomend', () => setZoom(map.getZoom()))
     map.on('click', handleClick)
     map.on('mousemove', handleMouseMove)
+    canvas.addEventListener('mouseleave', handleMouseLeave)
+    map.on('dragstart', () => { dragging = true; updateCursor() })
+    map.on('dragend', () => { dragging = false; updateCursor() })
+    canvas.addEventListener('keydown', handleKeyDown)
     map.on('sourcedataloading', handleSourceLoading)
     map.on('sourcedata', handleSourceData)
     map.on('error', handleError)
 
     return () => {
       clearLoadTimeout()
+      canvas.removeEventListener('keydown', handleKeyDown)
+      canvas.removeEventListener('mouseleave', handleMouseLeave)
+      refreshCursor.current = null
       map.remove()
       mapRef.current = null
       readyMapRef.current = null
@@ -229,8 +270,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   }, [selectedPointId, points, mapGeneration])
 
   useEffect(() => {
-    const map = mapRef.current
-    if (map) map.getCanvas().style.cursor = placementActive ? 'crosshair' : ''
+    refreshCursor.current?.()
   }, [placementActive, mapGeneration])
 
   useEffect(() => {
