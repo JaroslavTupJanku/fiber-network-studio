@@ -1,12 +1,33 @@
 using FiberNetworkStudio.Api;
+using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
 var dataPath = builder.Configuration["NetworkPoints:Path"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "network-points.json");
 builder.Services.AddSingleton(new NetworkPointStore(dataPath));
+builder.Services.AddHttpClient<ParcelLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
 var app = builder.Build();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/api/parcels/at", async (double latitude, double longitude, ParcelLookup lookup,
+    ILogger<ParcelLookup> logger, CancellationToken cancellationToken) =>
+{
+    if (!double.IsFinite(latitude) || !double.IsFinite(longitude)
+        || latitude is < -90 or > 90 || longitude is < -180 or > 180)
+        return Results.BadRequest(new { error = "Neplatné souřadnice." });
+
+    try
+    {
+        var parcel = await lookup.FindAtAsync(latitude, longitude, cancellationToken);
+        return parcel is null ? Results.NoContent() : Results.Ok(parcel);
+    }
+    catch (Exception exception) when (!cancellationToken.IsCancellationRequested
+        && exception is HttpRequestException or JsonException or TaskCanceledException)
+    {
+        logger.LogWarning(exception, "Parcel lookup failed");
+        return Results.Problem("Katastrální údaje se nepodařilo načíst.", statusCode: 503);
+    }
+});
 app.MapGet("/api/network-points", async (NetworkPointStore store) =>
     Results.Ok(await store.ListAsync()));
 

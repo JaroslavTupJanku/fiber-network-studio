@@ -68,6 +68,11 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .form-error { margin: 0; color: #a03e2e; font-size: 12px; }
 .location-details { display: grid; gap: 13px; }
 .location-heading { display: flex; align-items: center; gap: 8px; color: #294a41; font-size: 13px; font-weight: 650; }
+.parcel-message { margin: 0; color: #60736c; font-size: 12px; }
+.parcel-facts { display: grid; gap: 9px; margin: 2px 0; }
+.parcel-facts div { display: flex; justify-content: space-between; gap: 10px; font-size: 12px; }
+.parcel-facts dt { color: #6d7f79; }
+.parcel-facts dd { margin: 0; color: #294a41; font-weight: 600; text-align: right; }
 .quick-add { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 @media (max-width: 720px) {
   .app-header { padding: 0 16px; }

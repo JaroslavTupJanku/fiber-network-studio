@@ -12,4 +12,6 @@
 
 **Mapová vrstva** je samostatný obsah nad základní mapou. **WMS** je služba, která podle polohy a měřítka vrací obrázky mapy; zde přes ni zobrazujeme katastr ČÚZK. Není to knihovna ani kopie celého katastru uložená v aplikaci.
 
+**Parcela** je evidovaný pozemek, ne naše budova. **Polygon** je tvar její hranice. Po kliknutí backend požádá online službu RÚIAN o data jedné parcely ve formátu **GeoJSON**; číslo a obrys zobrazíme, ale neukládáme. **WMTS** (hotové mapové dlaždice) a **WFS** (dotazy na mapové objekty) jsou další typy mapových služeb, které zatím nepoužíváme.
+
 **CRUD** znamená založit, načíst, upravit a smazat záznam. Takto teď frontend přes API spravuje budovy a šachty; katastr je pouze podklad, nikoli zdroj těchto záznamů.

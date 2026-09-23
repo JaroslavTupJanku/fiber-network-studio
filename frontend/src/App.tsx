@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
-import { CircleDot, Copy, Crosshair, House, Network, RefreshCw, Save, Search, Trash2, X } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
+import { CircleDot, Copy, Crosshair, House, MapPin, Network, RefreshCw, Save, Search, Trash2, X } from 'lucide-react'
 import { MapCanvas } from './MapCanvas'
+import { findParcelAt, type Parcel } from './parcels'
 import {
   createNetworkPoint,
   deleteNetworkPoint,
@@ -14,6 +15,7 @@ import {
 import './App.css'
 
 type PointEditor = NetworkPointInput & { id?: string }
+type ParcelStatus = 'idle' | 'loading' | 'not-found' | 'error'
 
 const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : 'Šachta'
 
@@ -28,7 +30,12 @@ function App() {
   const [moving, setMoving] = useState(false)
   const [editor, setEditor] = useState<PointEditor | null>(null)
   const [selectedLocation, setSelectedLocation] = useState<Coordinates | null>(null)
+  const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null)
+  const [parcelStatus, setParcelStatus] = useState<ParcelStatus>('idle')
+  const parcelRequest = useRef<AbortController | null>(null)
   const [query, setQuery] = useState('')
+
+  useEffect(() => () => parcelRequest.current?.abort(), [])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -46,17 +53,26 @@ function App() {
     return () => controller.abort()
   }, [reloadVersion])
 
+  const clearParcel = useCallback(() => {
+    parcelRequest.current?.abort()
+    parcelRequest.current = null
+    setSelectedParcel(null)
+    setParcelStatus('idle')
+  }, [])
+
   const handleToolChange = useCallback((kind: NetworkPointKind | null) => {
     setActiveTool(kind)
     setMoving(false)
     setActionError('')
     if (kind) {
+      clearParcel()
       setEditor(null)
       setSelectedLocation(null)
     }
-  }, [])
+  }, [clearParcel])
 
-  const handleLocationClick = useCallback((location: Coordinates) => {
+  const handleLocationClick = useCallback((location: Coordinates, lookupParcel: boolean) => {
+    clearParcel()
     setActionError('')
     if (activeTool) {
       setEditor({ kind: activeTool, name: '', ...location })
@@ -67,18 +83,33 @@ function App() {
     } else {
       setEditor(null)
       setSelectedLocation(location)
+      if (lookupParcel) {
+        const controller = new AbortController()
+        parcelRequest.current = controller
+        setParcelStatus('loading')
+        findParcelAt(location, controller.signal)
+          .then((parcel) => {
+            if (controller.signal.aborted) return
+            setSelectedParcel(parcel)
+            setParcelStatus(parcel ? 'idle' : 'not-found')
+          })
+          .catch((error: unknown) => {
+            if (!(error instanceof Error && error.name === 'AbortError')) setParcelStatus('error')
+          })
+      }
     }
-  }, [activeTool, moving, editor])
+  }, [activeTool, moving, editor, clearParcel])
 
   const handlePointSelect = useCallback((id: string) => {
     const point = points.find((item) => item.id === id)
     if (!point) return
+    clearParcel()
     setEditor({ ...point })
     setSelectedLocation(null)
     setActiveTool(null)
     setMoving(false)
     setActionError('')
-  }, [points])
+  }, [points, clearParcel])
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -107,6 +138,7 @@ function App() {
         ? current.map((point) => point.id === saved.id ? saved : point)
         : [...current, saved])
       setEditor(saved)
+      clearParcel()
       setMoving(false)
     } catch {
       setActionError('Uložení se nezdařilo. Zkontrolujte, zda běží API.')
@@ -158,6 +190,7 @@ function App() {
           <MapCanvas
             points={points}
             selectedPointId={editor?.id ?? null}
+            selectedParcel={selectedParcel}
             preview={preview}
             activeTool={activeTool}
             placementActive={activeTool !== null || moving}
@@ -165,19 +198,21 @@ function App() {
             onToolChange={handleToolChange}
             onLocationClick={handleLocationClick}
             onPointSelect={handlePointSelect}
+            onCadastreDisable={clearParcel}
           />
         </section>
 
         <aside className="details-panel" aria-label="Objekty sítě">
           <div className="panel-heading">
             <div>
-              <span className="section-label">Infrastruktura</span>
-              <h1>{editor ? editor.id ? kindLabel(editor.kind) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : selectedLocation ? 'Detail místa' : 'Objekty sítě'}</h1>
+              <span className="section-label">{selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
+              <h1>{editor ? editor.id ? kindLabel(editor.kind) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
             </div>
             {(editor || selectedLocation) && (
               <button className="icon-button" type="button" onClick={() => {
                 setEditor(null)
                 setSelectedLocation(null)
+                clearParcel()
                 setMoving(false)
                 setActionError('')
               }} title="Zavřít detail" aria-label="Zavřít detail"><X size={18} /></button>
@@ -222,7 +257,11 @@ function App() {
 
           {!editor && selectedLocation && (
             <div className="location-details">
-              <div className="location-heading"><Crosshair size={18} aria-hidden="true" /> Vybrané místo</div>
+              <div className="location-heading">{selectedParcel ? <MapPin size={18} aria-hidden="true" /> : <Crosshair size={18} aria-hidden="true" />}{selectedParcel ? 'Vybraná parcela' : 'Vybrané místo'}</div>
+              {parcelStatus === 'loading' && <p className="parcel-message" role="status">Načítání parcely…</p>}
+              {parcelStatus === 'not-found' && <p className="parcel-message" role="status">Na tomto místě není parcela dostupná.</p>}
+              {parcelStatus === 'error' && <div className="panel-error" role="alert"><span>Parcela se nenačetla.</span><button type="button" className="icon-button" onClick={() => handleLocationClick(selectedLocation, true)} title="Načíst parcelu znovu" aria-label="Načíst parcelu znovu"><RefreshCw size={16} /></button></div>}
+              {selectedParcel && <dl className="parcel-facts"><div><dt>Katastrální území</dt><dd>{selectedParcel.cadastralAreaName ?? selectedParcel.cadastralAreaCode}</dd></div><div><dt>Výměra</dt><dd>{selectedParcel.areaSquareMeters?.toLocaleString('cs-CZ') ?? '–'} m²</dd></div></dl>}
               <div className="coordinates-row"><span>{selectedLocation.latitude.toFixed(6)}°, {selectedLocation.longitude.toFixed(6)}°</span><button type="button" className="icon-button" onClick={() => copyCoordinates(selectedLocation)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button></div>
               <div className="quick-add">
                 <button type="button" onClick={() => startDraft('building', selectedLocation)}><House size={16} aria-hidden="true" /> Budova</button>

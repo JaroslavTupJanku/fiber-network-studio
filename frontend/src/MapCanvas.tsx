@@ -5,28 +5,33 @@ import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { addCadastreLayer, CADASTRE_MIN_ZOOM, CADASTRE_SOURCE_ID, removeCadastreLayer } from './cadastre'
 import type { Coordinates, NetworkPoint, NetworkPointKind } from './networkPoints'
+import type { Parcel } from './parcels'
 
 const POINT_SOURCE_ID = 'network-points'
 const POINT_LAYER_ID = 'network-point-dots'
 const SELECTED_LAYER_ID = 'network-point-selected'
+const PARCEL_SOURCE_ID = 'selected-parcel'
+const PARCEL_FILL_LAYER_ID = 'selected-parcel-fill'
 
 type MapCanvasProps = {
   points: NetworkPoint[]
   selectedPointId: string | null
+  selectedParcel: Parcel | null
   preview: (Coordinates & { kind?: NetworkPointKind }) | null
   activeTool: NetworkPointKind | null
   placementActive: boolean
   toolsDisabled: boolean
   onToolChange: (kind: NetworkPointKind | null) => void
-  onLocationClick: (location: Coordinates) => void
+  onLocationClick: (location: Coordinates, lookupParcel: boolean) => void
   onPointSelect: (id: string) => void
+  onCadastreDisable: () => void
 }
 
 type CadastreStatus = 'loading' | 'ready' | 'error'
 
 setWorkerUrl(workerUrl)
 
-export function MapCanvas({ points, selectedPointId, preview, activeTool, placementActive, toolsDisabled, onToolChange, onLocationClick, onPointSelect }: MapCanvasProps) {
+export function MapCanvas({ points, selectedPointId, selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onLocationClick, onPointSelect, onCadastreDisable }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const readyMapRef = useRef<Map | null>(null)
@@ -70,7 +75,10 @@ export function MapCanvas({ points, selectedPointId, preview, activeTool, placem
           return
         }
       }
-      onLocationClick({ latitude: event.lngLat.lat, longitude: event.lngLat.lng })
+      onLocationClick(
+        { latitude: event.lngLat.lat, longitude: event.lngLat.lng },
+        !placementActive && cadastreActive.current && !cadastreFailed.current && map.getZoom() >= CADASTRE_MIN_ZOOM,
+      )
     }
     const handleMouseMove = (event: MapMouseEvent) => {
       const overPoint = !interactionRef.current.placementActive && map.getLayer(POINT_LAYER_ID)
@@ -144,6 +152,22 @@ export function MapCanvas({ points, selectedPointId, preview, activeTool, placem
           'text-halo-width': 1.5,
         },
       })
+      map.addSource(PARCEL_SOURCE_ID, {
+        type: 'geojson',
+        data: { type: 'FeatureCollection', features: [] },
+      })
+      map.addLayer({
+        id: PARCEL_FILL_LAYER_ID,
+        type: 'fill',
+        source: PARCEL_SOURCE_ID,
+        paint: { 'fill-color': '#e7a943', 'fill-opacity': 0.22 },
+      }, POINT_LAYER_ID)
+      map.addLayer({
+        id: 'selected-parcel-outline',
+        type: 'line',
+        source: PARCEL_SOURCE_ID,
+        paint: { 'line-color': '#a34e25', 'line-width': 3 },
+      }, POINT_LAYER_ID)
       readyMapRef.current = map
       setZoom(map.getZoom())
       setMapGeneration((value) => value + 1)
@@ -175,6 +199,19 @@ export function MapCanvas({ points, selectedPointId, preview, activeTool, placem
       })),
     })
   }, [points, mapGeneration])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || readyMapRef.current !== map) return
+    map.getSource<GeoJSONSource>(PARCEL_SOURCE_ID)?.setData({
+      type: 'FeatureCollection',
+      features: selectedParcel ? [{
+        type: 'Feature',
+        geometry: selectedParcel.geometry,
+        properties: { id: selectedParcel.id },
+      }] : [],
+    })
+  }, [selectedParcel, mapGeneration])
 
   useEffect(() => {
     const map = mapRef.current
@@ -220,7 +257,7 @@ export function MapCanvas({ points, selectedPointId, preview, activeTool, placem
     cadastreActive.current = true
     cadastreFailed.current = false
     removeCadastreLayer(map)
-    addCadastreLayer(map, POINT_LAYER_ID)
+    addCadastreLayer(map, PARCEL_FILL_LAYER_ID)
   }, [mapGeneration, cadastreEnabled, canShowCadastre, retryVersion])
 
   const needsZoom = cadastreEnabled && !canShowCadastre
@@ -247,6 +284,7 @@ export function MapCanvas({ points, selectedPointId, preview, activeTool, placem
           <input type="checkbox" checked={cadastreEnabled} onChange={(event) => {
             setCadastreStatus('loading')
             setCadastreEnabled(event.target.checked)
+            if (!event.target.checked) onCadastreDisable()
           }} />
           <Layers3 size={17} aria-hidden="true" />
           <span>Katastr</span>
