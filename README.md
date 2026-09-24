@@ -141,3 +141,29 @@ společná evidence uživatelů a projektů zatím není součástí prototypu.
 Pro první proklikání použijte v panelu Optické ztráty tlačítko Ukázka. Skutečné
 profily OLT/ONT se vyplňují podle technických listů. Výsledek pro oba směry vznikne
 až po výběru kompatibilních zařízení a doplnění ztrát celé cesty.
+
+## Katalog chrániček a mikrotrubiček
+
+V horní navigaci otevřete **Chráničky**. Katalog obsahuje samostatné chráničky,
+mikrotrubičky a schematické sestavy pozic (např. 2 × 5 chrániček). Základní
+šablony nemají vymyšlené rozměry ani výrobce. Jeden vzorový typ Hexatronic 7/3,5 mm
+má údaje převzaté z [technického listu výrobce](https://www.hexatronic.com/hubfs/datasheets/28701-MPB30284BK1AX_en-uk_Hexatronic.pdf).
+Vytvořte kopii šablony a doplňte
+parametry konkrétního výrobku z technického listu. Pro každou pozici sestavy lze
+zadat druh, název, barvu a vnější/vnitřní průměr. Grafický průřez je přehledové
+schéma; u sestav není instalačním výkresem v měřítku.
+
+Katalog kabelů nově ukládá nepovinný vnější průměr kabelu a výrobcem uváděný
+nejmenší vnitřní průměr trubičky. Starší kabely tyto údaje nemají. Výběr kabelu
+v detailu chráničky provede pouze předběžnou rozměrovou kontrolu. Výsledek
+„možný“ neznamená, že výrobce schvaluje zafouknutí nebo zatažení; závisí také
+na typu výrobku, způsobu instalace a trase. Chybějící rozměr se nebere jako nula.
+
+API `/api/duct-catalog` ukládá vlastní typy do `App_Data/duct-catalog.json`;
+cestu lze změnit přes `DuctCatalog:Path`. Záznamy jsou verzované proti souběžnému
+přepsání. Modul `frontend/src/features/duct-catalog` odděluje datový model,
+komunikaci, stav a UI. Jde o katalog **typů**; skutečné kusy vložené do mapové
+trasy, jejich návaznost a obsazení pozic přijdou v navazujícím issue #8.
+
+Podklady: školení NetStork str. 5–6, [ITU-T L.162](https://www.itu.int/itu-t/recommendations/rec.aspx?lang=en&rec=13112),
+[Prysmian Sirocco](https://www.prysmiangroup.com/sites/default/files/atoms/files/122698-pry-sirocco-2023-210x297mm-aw-v06.pdf).

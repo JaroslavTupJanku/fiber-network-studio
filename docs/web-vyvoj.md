@@ -35,8 +35,15 @@ ztrátě při kontrole, zda do přijímače dorazí dostatečně silný signál.
 kontroluje zvlášť podle nejvyššího výkonu vysílače a hranice přetížení přijímače.
 Výsledek je odhad podle zadaných údajů, nikoli náhrada měření hotové sítě.
 
+**Katalogový typ** popisuje výrobek nebo opakovaně použitelné rozložení. **Instalovaný
+kus** bude konkrétní chránička či kabel v určité mapové trase; ten zatím aplikace
+neeviduje. **Mikrotrubička** chrání kabel zvenku. **Tuba kabelu** je naopak součást
+samotného kabelu a obsahuje optická vlákna. Jejich průměry ani barvy se nezaměňují.
+**Předběžná rozměrová kontrola** porovná kabel s vnitřkem trubičky; sama nepotvrzuje,
+že je výrobek vhodný pro zvolený způsob instalace.
+
 **Uložení prototypu:** rozpracovaný výpočet a katalog profilů zařízení jsou nyní
 v tomto prohlížeči. Pro přenos na jiný počítač se exportují dva soubory: nejprve se
-tam importuje katalog profilů, potom výpočet. Katalog kabelů ukládá současné API na
+tam importuje katalog profilů, potom výpočet. Katalog kabelů i chrániček ukládá API na
 backendu. Zákazníkovi lze nasazenou aplikaci otevřít jedním odkazem; frontend a
 backend spouští zvlášť jen vývojář při práci na vlastním počítači.
