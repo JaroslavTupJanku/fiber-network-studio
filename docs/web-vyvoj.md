@@ -19,3 +19,24 @@
 **Gesto** je způsob ovládání myší nebo dotykem. MapLibre zde zajišťuje posun tažením a přiblížení kolečkem; aplikace nastavuje vzhled kurzoru.
 
 **Drag and drop** znamená přetáhnout prvek a pustit ho na cílovém místě. U nás mapa převede místo puštění na souřadnice; objekt se uloží až po potvrzení formuláře.
+
+**Optické ztráty** jsou úbytek signálu na kabelu, spojích a rozbočovačích. V aplikaci se
+počítají pro jednu zadanou cestu. **dB** je jednotka ztráty; **dBm** vyjadřuje výkon signálu
+na výstupu nebo vstupu zařízení. Stejné číslo v dB a dBm proto neznamená totéž.
+
+**OLT** je zařízení provozovatele sítě; **ONT/ONU** je koncové zařízení u zákazníka.
+**GPON** a **XGS-PON** jsou dva způsoby přenosu po pasivní optické síti. Každý má svůj
+směr k zákazníkovi a zpět, odlišné vlnové délky a vhodné typy zařízení. **Profil zařízení**
+je katalogový typ portu, karty, koncového zařízení nebo optického modulu s hodnotami
+z technického listu výrobce, ne jednotlivý namontovaný kus.
+
+**Návrhová rezerva** je prostor pro budoucí zhoršení cesty. Kalkulačka ji připočte ke
+ztrátě při kontrole, zda do přijímače dorazí dostatečně silný signál. Příliš silný signál
+kontroluje zvlášť podle nejvyššího výkonu vysílače a hranice přetížení přijímače.
+Výsledek je odhad podle zadaných údajů, nikoli náhrada měření hotové sítě.
+
+**Uložení prototypu:** rozpracovaný výpočet a katalog profilů zařízení jsou nyní
+v tomto prohlížeči. Pro přenos na jiný počítač se exportují dva soubory: nejprve se
+tam importuje katalog profilů, potom výpočet. Katalog kabelů ukládá současné API na
+backendu. Zákazníkovi lze nasazenou aplikaci otevřít jedním odkazem; frontend a
+backend spouští zvlášť jen vývojář při práci na vlastním počítači.

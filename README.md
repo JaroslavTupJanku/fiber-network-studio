@@ -108,7 +108,10 @@ Chybějící útlum se neodhaduje z jiné vlnové délky. Katalog zatím dodáv�
 převzetí jiného kabelu vymaže dříve zadané útlumy ostatních vlnových délek.
 Základní zobrazení obsahuje cestu, technologii a směr, Pokročilé přidává limit a rezervu.
 Skrytí nastavení nemění výpočet. PON zobrazuje výsledky obou směrů samostatně.
-Profily nepřednastavují třídu optiky, výkon vysílače ani citlivost přijímače.
+V katalogu zařízení lze zadat profily OLT, ONT/ONU a optických modulů podle datasheetu;
+žádné produktové hodnoty nejsou předvyplněné. Výběr dvojice posuzuje oba směry:
+nejnižší přijímaný výkon po započtení rezervy proti citlivosti a nejvyšší proti přetížení.
+Výkon je v dBm, ztráta v dB. Neúplné údaje nebo chybějící rezerva nedají kladný verdikt.
 Vlnové délky: [VeEX GPON/XGS-PON](https://resources.veexinc.com/assets/productdocs/FX120/content/procedures/gpon/opm-results.htm).
 JSON verze 2 automaticky převede soubory verze 1 na vlastní nastavení a zachová jejich údaje.
 Požadovaná návrhová rezerva je společná. Zbývající prostor = povolená ztráta − součet ztrát − rezerva.
@@ -128,6 +131,13 @@ uložení (`storage.ts`), stav/externí operace (`useOpticalBudget.ts`) a UI kom
 Ověření výpočtů a importu: `node --test tests/optical-budget.test.mjs` (Node 24).
 
 Metodika: [FOA – Calculating Fiber Optic Loss Budgets](https://thefoa.org/tech/lossbudg.htm).
-Kalkulačka posuzuje horní limit ztráty. Neověřuje minimální útlum proti přetížení přijímače,
-disperzi, odrazy ani další přenosové parametry; výsledek je návrhový odhad, nikoliv měření
-či úplná certifikace spoje. Limit musí odpovídat konkrétní aplikaci a zařízení.
+Samostatná bilance ztrát posuzuje zadaný horní limit; kontrola zařízení navíc používá
+zadané meze vysílačů a přijímačů. Neověřuje disperzi, odrazy ani další přenosové
+parametry; výsledek je návrhový odhad, nikoliv měření či úplná certifikace spoje.
+Výpočet a katalog profilů zařízení se zatím ukládají v prohlížeči odděleně. Pro přenos
+mezi počítači je nutné exportovat oba soubory a na cíli nejprve importovat katalog.
+Katalog kabelů ukládá backend prototypu. Zákaznický proklik může běžet z jednoho odkazu;
+společná evidence uživatelů a projektů zatím není součástí prototypu.
+Pro první proklikání použijte v panelu Optické ztráty tlačítko Ukázka. Skutečné
+profily OLT/ONT se vyplňují podle technických listů. Výsledek pro oba směry vznikne
+až po výběru kompatibilních zařízení a doplnění ztrát celé cesty.

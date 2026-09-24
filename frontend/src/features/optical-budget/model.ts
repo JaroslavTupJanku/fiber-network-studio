@@ -5,6 +5,7 @@ type Losses = { loss1270: string; loss1310: string; loss1490: string; loss1550: 
 export type Section = Losses & { id: string; name: string; lengthM: string; source: string }
 export type Element = Losses & { id: string; kind: 'splice' | 'connection' | 'splitter' | 'other'; name: string; count: string }
 export type Scenario = { version: 2; name: string; technology: Technology; wavelength: Wavelength; sections: Section[]; elements: Element[];
+  equipment?: { oltId: string; onuId: string; oltModuleId: string; onuModuleId: string };
   limit1310: string; limit1550: string; reserve: string; limit1270: string; limit1490: string; limit1577: string;
   ponLimits: { gpon: { upstream: string; downstream: string }; xgspon: { upstream: string; downstream: string } } }
 export const technologies = { manual: 'Vlastní nastavení', gpon: 'GPON', xgspon: 'XGS-PON · základní pásmo' }
@@ -33,7 +34,7 @@ export const newElement = (): Element => ({ ...emptyLosses, id: crypto.randomUUI
 export const newScenario = (): Scenario => ({ version: 2, technology: 'manual', name: '', wavelength: '1310', sections: [newSection()], elements: [], limit1310: '', limit1550: '', limit1270: '', limit1490: '', limit1577: '', reserve: '', ponLimits: emptyPonLimits() })
 
 export function hasScenarioContent(scenario: Scenario): boolean {
-  return [scenario.name, scenario.reserve, ...wavelengths.map(wave => scenario[limitKeyFor(wave)]), ...Object.values(scenario.ponLimits).flatMap(value => Object.values(value))].some(value => value.trim() !== '')
+  return [scenario.name, scenario.reserve, ...Object.values(scenario.equipment ?? {}), ...wavelengths.map(wave => scenario[limitKeyFor(wave)]), ...Object.values(scenario.ponLimits).flatMap(value => Object.values(value))].some(value => value.trim() !== '')
     || scenario.elements.length > 0 || scenario.sections.length !== 1
     || scenario.sections.some(row => [row.name, row.lengthM, ...wavelengths.map(wave => row[lossKeyFor(wave)]), row.source].some(value => value.trim() !== ''))
 }

@@ -26,7 +26,7 @@ export function BudgetResult({ result, scenario, onAdvanced }: { result: ReturnT
           <span>{value.total === null ? 'Chybí údaje o ztrátách' : `${format(value.total)} dB`}</span><small>{titles[value.verdict as keyof typeof titles]}</small></div>
       })}<p className="ob-muted">Každý směr se posuzuje zvlášť. Vyhovující výsledek jednoho směru neznamená, že vyhovuje celý spoj.</p>
     </div>}
-    <p className="ob-muted">Posuzujeme pouze horní limit ztráty. Výsledek neověřuje přetížení přijímače, disperzi ani další parametry přenosu. Skutečnou trasu ověřte měřením.</p>
+    <p className="ob-muted">Tento přehled kontroluje limit ztráty trasy. Kontrolu citlivosti a přetížení přijímačů podle vybraných profilů najdete v části Zařízení. Skutečnou trasu ověřte měřením.</p>
     <details className="ob-method"><summary>Jak se výsledek počítá</summary>
       <p>Kabel: délka v metrech ÷ 1000 × útlum v dB/km. Pasivní prvek: počet × ztráta v dB. Vše pro vybranou vlnovou délku.</p>
       <p>Zbývající prostor = povolená ztráta − ztráta trasy − požadovaná rezerva. Útlum se nenásobí počtem vláken; počítáme jednu optickou cestu.</p>

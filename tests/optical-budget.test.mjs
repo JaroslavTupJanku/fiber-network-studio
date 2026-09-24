@@ -84,4 +84,12 @@ test('legacy files migrate without inventing losses or technology limits', () =>
   assert.equal(calculate(migrated).total, 1.6)
   assert.equal(migrated.sections[0].loss1490, '')
   assert.equal(migrated.ponLimits.gpon.upstream, '')
+  assert.equal(migrated.equipment, undefined)
+})
+
+test('scenario transfer keeps selected profile IDs while older scenario files remain valid', () => {
+  const scenario = demoScenario()
+  scenario.equipment = { oltId: 'olt', onuId: 'onu', oltModuleId: '', onuModuleId: '' }
+  assert.deepEqual(parseScenario(JSON.stringify(scenario)).equipment, scenario.equipment)
+  assert.throws(() => parseScenario(JSON.stringify({ ...scenario, equipment: { ...scenario.equipment, onuId: null } })))
 })
