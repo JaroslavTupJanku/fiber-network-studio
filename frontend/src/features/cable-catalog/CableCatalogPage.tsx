@@ -2,12 +2,13 @@ import { useState } from 'react'
 import { ArrowUpRight, Cable, Check, Copy, Layers, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { CableEditor } from './CableEditor'
 import { CableStructure } from './CableStructure'
-import { countFibers, type CableSpecification } from './model'
+import { countFibers, type CableSpecification, type ColorCodeData } from './model'
+import { ColorCodeInfo } from './ColorCodeInfo'
 import { useCableCatalog } from './useCableCatalog'
 import './cable-catalog.css'
 
-function CableDetail({ cable, busy, onEdit, onDuplicate, onRemove }: {
-  cable: CableSpecification; busy: boolean; onEdit: () => void; onDuplicate: () => void; onRemove: () => void
+function CableDetail({ cable, data, busy, onEdit, onDuplicate, onRemove }: {
+  cable: CableSpecification; data: ColorCodeData; busy: boolean; onEdit: () => void; onDuplicate: () => void; onRemove: () => void
 }) {
   const [activeTube, setActiveTube] = useState(0)
   return <>
@@ -23,8 +24,9 @@ function CableDetail({ cable, busy, onEdit, onDuplicate, onRemove }: {
       <div><strong>{cable.tubes.length}</strong><span>{cable.tubes.length === 1 ? 'tuba' : cable.tubes.length < 5 ? 'tuby' : 'tub'}</span></div>
       <div><strong>{new Set(cable.tubes.map(tube => tube.fibers.length)).size === 1 ? cable.tubes[0].fibers.length : 'Různý'}</strong><span>vláken v tubě</span></div></div>
     {cable.notes && <p className="cc-notes">{cable.notes}</p>}
+    <ColorCodeInfo cable={cable} data={data} />
     <div className="cc-section-title"><Layers size={18} /><h3>Struktura kabelu</h3><span>Vyberte tubu pro detail</span></div>
-    <CableStructure cable={cable} activeTube={activeTube} onSelect={setActiveTube} />
+    <CableStructure cable={cable} data={data} activeTube={activeTube} onSelect={setActiveTube} />
     {cable.isPreset && <p className="cc-preset-note"><Copy size={16} /> Potřebujete jiné barvy nebo označení? Vytvořte si vlastní kopii.</p>}
   </>
 }
@@ -66,9 +68,9 @@ export function CableCatalogPage() {
       <section className="cc-detail" aria-label="Detail kabelu" aria-busy={catalog.busy}>
         {catalog.error && <div className="cc-error" role="alert"><span>{catalog.error}</span><button className="cc-button" type="button" disabled={catalog.busy || catalog.loading} onClick={catalog.reload}>Načíst znovu</button></div>}
         {catalog.notice && <div className="cc-success" role="status"><Check size={16} />{catalog.notice}</div>}
-        {catalog.draft ? <CableEditor key={catalog.draftSession} draft={catalog.draft} busy={catalog.busy} dirty={catalog.dirty}
+        {catalog.draft && catalog.colorCodes ? <CableEditor key={catalog.draftSession} data={catalog.colorCodes} draft={catalog.draft} busy={catalog.busy} dirty={catalog.dirty}
           onChange={catalog.setDraft} onSave={catalog.save} onCancel={catalog.cancel} />
-          : catalog.selected ? <CableDetail key={catalog.selected.id} cable={catalog.selected} busy={catalog.busy}
+          : catalog.selected && catalog.colorCodes ? <CableDetail key={catalog.selected.id} data={catalog.colorCodes} cable={catalog.selected} busy={catalog.busy}
             onEdit={() => catalog.edit(catalog.selected!)} onDuplicate={() => catalog.duplicate(catalog.selected!)} onRemove={() => catalog.remove(catalog.selected!)} />
             : <div className="cc-empty"><Cable size={36} /><h2>{catalog.loading ? 'Připravujeme katalog' : 'Vyberte typ kabelu'}</h2><p>Prohlédněte si jeho strukturu nebo vytvořte vlastní specifikaci.</p></div>}
       </section>

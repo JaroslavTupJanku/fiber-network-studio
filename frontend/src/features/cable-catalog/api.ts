@@ -1,4 +1,4 @@
-import type { CableInput, CableSpecification } from './model'
+import { normalizeCable, type CableInput, type CableSpecification, type ColorCodeData } from './model'
 
 async function request<T>(path = '', options?: RequestInit): Promise<T> {
   const response = await fetch(`/api/cable-catalog${path}`, options).catch((error: unknown) => {
@@ -13,7 +13,8 @@ async function request<T>(path = '', options?: RequestInit): Promise<T> {
   return response.status === 204 ? undefined as T : response.json()
 }
 
-export const listCables = (signal?: AbortSignal) => request<CableSpecification[]>('', { signal })
+export const listCables = async (signal?: AbortSignal) => (await request<CableSpecification[]>('', { signal })).map(normalizeCable)
+export const listColorCodes = (signal?: AbortSignal) => request<ColorCodeData>('/color-codes', { signal })
 export const saveCable = (input: CableInput, id?: string) => request<CableSpecification>(id ? `/${id}` : '', {
   method: id ? 'PUT' : 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(input),
 })

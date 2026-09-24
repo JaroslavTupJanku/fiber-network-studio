@@ -12,6 +12,11 @@ public static class CableCatalogEndpoints
     public static void MapCableCatalog(this WebApplication app)
     {
         var group = app.MapGroup("/api/cable-catalog");
+        group.MapGet("/color-codes", () => Results.Ok(ColorCodes.Data));
+        group.MapGet("/color-codes/download", () => Results.File(
+            System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(ColorCodes.Data,
+                new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web) { WriteIndented = true }),
+            "application/json", "cable-color-codes.json"));
         group.MapGet("/", async (CableCatalogStore store) => Results.Ok(await store.ListAsync()));
         group.MapPost("/", async (CableInput input, CableCatalogStore store) =>
         {

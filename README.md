@@ -25,8 +25,8 @@ Stručné vysvětlení pojmů je v [poznámkách k webovému vývoji](docs/web-v
 ## Katalog kabelů
 
 V horní navigaci otevřete **Katalog kabelů**. Obsahuje obecné šablony 12, 24, 48 a 96 vláken
-(1, 2, 4 nebo 8 tub po 12 vláknech). Nejde o specifikace konkrétního výrobce; barevné pořadí je
-ilustrační a před použitím je potřeba ověřit je proti dokumentaci skutečného kabelu.
+(1, 2, 4 nebo 8 tub po 12 vláknech) se základním pořadím TIA-598. Nejde o specifikace konkrétního
+výrobce; před použitím je potřeba ověřit provedení proti dokumentaci skutečného kabelu.
 
 Šablonu lze zkopírovat, vlastní typ vytvořit, upravit nebo smazat. Editor nabízí názvy a barvy
 každé tuby a vlákna, výrobce, poznámku a přestavění struktury (1–24 tub, 1–24 vláken v tubě).
@@ -52,3 +52,32 @@ node --test tests/cable-catalog.test.mjs
 pnpm --dir frontend build
 pnpm --dir frontend lint
 ```
+
+### Barevné značení a zdroje
+
+Barva vlákna označuje jeho pořadí podle zvoleného systému; neoznačuje službu ani zákazníka.
+Výrobce kabelu a barevný systém jsou samostatné údaje. Profily vláken a tub se vybírají odděleně.
+Přejmenování vlákna profil zachovává. Ruční změna barvy nebo značky přepne příslušný profil na
+**Vlastní značení**. API kontroluje shodu označeného profilu se skutečnými barvami a značkami.
+
+Datový soubor `backend/FiberNetworkStudio.Api/CableCatalog/color-codes.json` je společným zdrojem
+pro server, editor i stahování přes `/api/cable-catalog/color-codes/download`. Obsahuje datum
+ověření, odkazy na zdroje a tyto profily:
+
+- **TIA-598, pozice 1–12:** základní pořadí pro vlákna i tuby. Nad 12 položek vyžaduje jiný profil.
+- **Corning AEN029, rev. 13, tabulky 1–2:** konkrétní provedení až do 24 položek. Vlákno 20
+  MiniXtend HD je bezbarvé s černou značkou; tuba 20 je černá s bílou značkou. Toto není
+  univerzální pravidlo pro všechny výrobky označené TIA-598.
+- **Prysmian E18, DE10_E18_20260908, strana 2:** značení vláken dané řady dle IEC 60794-2 /
+  VDE 0888; pozice 13–24 mají značky po 70 mm, pozice 22 je bílá se značkami po 35 mm.
+  Barvu značek použitý list neurčuje, proto ji data ponechávají neurčenou. Profil neurčuje tuby.
+
+Zdroje: [Corning AEN029](https://www.corning.com/catalog/coc/documents/application-engineering-notes/AEN029.pdf),
+[Prysmian E18](https://datasheet.prysmian.com/pdf/datasheet/en/239099).
+Jde o malou ručně ověřenou referenční tabulku, nikoliv úplný katalog produktů výrobců nebo text
+normy. RGB hodnoty a kresba značek slouží jen k zobrazení, nejsou kolorimetrickou specifikací.
+Každý vlastní kabel může mít odkaz na svůj technický list.
+
+Starší uložené typy zůstávají beze změny barev i názvů; chybějící profil se čte jako vlastní a
+chybějící značka jako žádná. Při přestavbě vlastního značení se vytvoří neutrální šedé položky,
+které je potřeba vyplnit podle kabelu. Vybraný ověřený profil nikdy tiše neopakuje barvy nad svůj limit.

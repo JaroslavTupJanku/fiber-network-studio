@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { deleteCable, listCables, saveCable } from './api'
-import { newCable, validateCable, type CableDraft, type CableSpecification } from './model'
+import { deleteCable, listCables, listColorCodes, saveCable } from './api'
+import { newCable, validateCable, type CableDraft, type CableSpecification, type ColorCodeData } from './model'
 
 export function useCableCatalog() {
   const [items, setItems] = useState<CableSpecification[]>([])
+  const [colorCodes, setColorCodes] = useState<ColorCodeData | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [draft, setDraft] = useState<CableDraft | null>(null)
   const [loading, setLoading] = useState(true)
@@ -18,7 +19,9 @@ export function useCableCatalog() {
 
   useEffect(() => {
     const abort = new AbortController()
-    listCables(abort.signal).then(data => {
+    Promise.all([listCables(abort.signal), listColorCodes(abort.signal)]).then(([data, codes]) => {
+      if (abort.signal.aborted) return
+      setColorCodes(codes)
       setItems(data)
       setSelectedId(id => data.some(item => item.id === id) ? id : data[0]?.id ?? null)
       setError('')
@@ -46,7 +49,7 @@ export function useCableCatalog() {
     setDraftSession(session => session + 1)
     setDraft(value); setError(''); setNotice('')
   }
-  const create = () => begin(newCable())
+  const create = () => { if (colorCodes) begin(newCable(colorCodes)) }
   const edit = (item: CableSpecification) => begin(structuredClone(item))
   const duplicate = (item: CableSpecification) => begin({
     ...structuredClone(item), id: undefined, name: `${item.name.slice(0, 92)} – kopie`, version: 0,
@@ -82,6 +85,6 @@ export function useCableCatalog() {
     finally { mutationPending.current = false; setBusy(false) }
   }
 
-  return { items, selected: items.find(item => item.id === selectedId), draft, draftSession, setDraft, loading, busy, dirty,
+  return { items, colorCodes, selected: items.find(item => item.id === selectedId), draft, draftSession, setDraft, loading, busy, dirty,
     error, notice, select, create, edit, duplicate, cancel, reload, save, remove }
 }

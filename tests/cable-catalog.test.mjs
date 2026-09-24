@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict'
 import { spawn } from 'node:child_process'
 import { once } from 'node:events'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
@@ -48,14 +48,38 @@ test('catalog presets, validation, persistence and concurrent edits', { timeout:
   try {
     await start()
     const presets = await (await request()).json()
+    const codeResponse = await request('/color-codes')
+    assert.equal(codeResponse.status, 200)
+    const codes = await codeResponse.json()
+    const basic = codes.profiles.find(profile => profile.id === 'tia-598-12')
+    const corning = codes.profiles.find(profile => profile.id === 'corning-aen029-24')
+    const prysmian = codes.profiles.find(profile => profile.id === 'prysmian-e18-24')
+    assert.equal(basic.fibers.length, 12)
+    assert.equal(corning.fibers[19].transparent, true)
+    assert.equal(corning.tubes[19].color, '#171717')
+    assert.equal(corning.tubes[19].markerColor, '#ffffff')
+    assert.equal(prysmian.fibers[21].color, '#ffffff')
+    assert.equal(prysmian.fibers[21].markingSpacingMm, 35)
+    assert.equal(prysmian.fibers[12].markingSpacingMm, 70)
+    assert.equal(prysmian.fibers[12].markerColor, null)
+    const download = await request('/color-codes/download')
+    assert.ok(download.headers.get('content-disposition').includes('cable-color-codes.json'))
+    assert.deepEqual(await download.json(), codes)
     assert.deepEqual(presets.map(item => item.tubes.reduce((n, tube) => n + tube.fibers.length, 0)), [12, 24, 48, 96])
     assert.ok(presets.every(item => item.isPreset))
+    assert.ok(presets.every(item => item.fiberColorCode === 'tia-598-12'))
     const input = { name: '  Test cable  ', manufacturer: ' Example ', notes: 'Persistent test', tubes: presets[1].tubes }
     for (const invalid of [
       { ...input, name: ' ' }, { ...input, name: 'x'.repeat(101) }, { ...input, tubes: [] },
       { ...input, tubes: [null] }, { ...input, tubes: [{ ...input.tubes[0], fibers: [null] }] },
       { ...input, tubes: [{ ...input.tubes[0], color: 'red' }] },
       { ...input, tubes: [{ ...input.tubes[0], fibers: Array(25).fill(input.tubes[0].fibers[0]) }] },
+      { ...input, fiberColorCode: 'unknown' },
+      { ...input, tubeColorCode: 'prysmian-e18-24' },
+      { ...input, fiberColorCode: 'tia-598-12', tubes: [{ ...input.tubes[0], fibers: Array(24).fill(input.tubes[0].fibers[0]) }] },
+      { ...input, sourceUrl: 'javascript:alert(1)' },
+      { ...input, tubes: [{ ...input.tubes[0], marking: 'invalid' }] },
+      { ...input, tubes: [{ ...input.tubes[0], markerColor: 'red' }] },
     ]) assert.equal((await request('', 'POST', invalid)).status, 400)
     assert.equal((await request(`/${presets[0].id}`, 'PUT', input)).status, 409)
     assert.equal((await request(`/${presets[0].id}?version=1`, 'DELETE')).status, 409)
@@ -80,6 +104,40 @@ test('catalog presets, validation, persistence and concurrent edits', { timeout:
     assert.equal((await request(`/${created.id}?version=2`, 'DELETE')).status, 204)
     assert.equal((await request(`/${created.id}?version=2`, 'DELETE')).status, 404)
     assert.equal((await (await request()).json()).length, 4)
+
+    // Profiles remain separate for fibers/tubes and marks survive a write/read cycle.
+    const markedInput = { ...input, fiberColorCode: corning.id, tubeColorCode: corning.id,
+      tubes: corning.tubes.map((mark, i) => ({ ...mark, name: `Tube ${i + 1}`,
+        fibers: corning.fibers.map((fiber, j) => ({ ...fiber, name: `Fiber ${j + 1}` })) })) }
+    const markedResponse = await request('', 'POST', markedInput)
+    assert.equal(markedResponse.status, 201)
+    const marked = await markedResponse.json()
+    assert.equal(marked.tubes[19].markerColor, '#ffffff')
+    assert.equal(marked.tubes[0].fibers[19].transparent, true)
+    const badColor = structuredClone(marked)
+    badColor.tubes[0].fibers[0].color = '#abcdef'
+    assert.equal((await request(`/${marked.id}`, 'PUT', badColor)).status, 400)
+    badColor.fiberColorCode = 'custom'
+    assert.equal((await request(`/${marked.id}`, 'PUT', badColor)).status, 200)
+    await stop()
+    await start()
+    const markedStored = (await (await request()).json()).find(item => item.id === marked.id)
+    assert.equal(markedStored.fiberColorCode, 'custom')
+    assert.equal(markedStored.tubes[0].fibers[19].transparent, true)
+
+    // Old files had no profile/mark fields. Loading must preserve colors and names.
+    await stop()
+    const legacy = { id: created.id, name: 'Legacy', manufacturer: '', notes: '', isPreset: false, version: 7,
+      tubes: [{ name: 'Old tube', color: '#123456', fibers: [{ name: 'Old fiber', color: '#654321' }] }] }
+    await writeFile(join(directory, 'catalog.json'), JSON.stringify([legacy]))
+    await start()
+    const migrated = (await (await request()).json()).find(item => item.id === legacy.id)
+    assert.equal(migrated.fiberColorCode, 'custom')
+    assert.equal(migrated.tubeColorCode, 'custom')
+    assert.equal(migrated.tubes[0].fibers[0].color, '#654321')
+    assert.equal(migrated.tubes[0].fibers[0].name, 'Old fiber')
+    assert.equal(migrated.tubes[0].fibers[0].marking, 'none')
+    assert.equal(migrated.version, 7)
   } finally {
     await stop()
     await rm(directory, { recursive: true, force: true })
