@@ -3,6 +3,7 @@ import { Calculator, Download, FlaskConical, Plus, RefreshCw, Trash2, Upload } f
 import { BudgetResult } from './BudgetResult'
 import { changeLimit, demoScenario, emptyLosses, kinds, limitFor, lossKeyFor, newElement, newScenario, newSection, number, type Element, type Section } from './model'
 import { TechnologySettings } from './TechnologySettings'
+import { EquipmentProfiles } from './EquipmentProfiles'
 import { parseScenario } from './storage'
 import { useOpticalBudget } from './useOpticalBudget'
 import './optical-budget.css'
@@ -50,6 +51,7 @@ export function OpticalBudgetPage() {
         {!advanced && <p className="ob-muted">Základní zobrazení počítá ztráty. Limity a rezervu upravíte v Pokročilém nastavení; již zadané se uplatňují v obou zobrazeních.</p>}
         <p className="ob-muted">{state.storageError ? 'Automatické ukládání není dostupné.' : 'Zadání se automaticky ukládá pouze v tomto prohlížeči.'} Přenos souborem najdete v nabídce Další možnosti. Katalog kabelů ani mapu tím neměníte.</p>
       </section>
+      <EquipmentProfiles scenario={scenario} onChange={setScenario} />
       <section className="ob-panel"><div className="ob-section-heading"><h2>1. Kabelové úseky</h2><button disabled={scenario.sections.length >= 100} onClick={() => setScenario({ ...scenario, sections: [...scenario.sections, newSection()] })}><Plus size={16} /> Přidat úsek</button></div>
         <p className="ob-muted">Zadejte skutečnou délku kabelu včetně kabelových rezerv. Výběr z katalogu převezme údaje; katalog tím nezměníte.</p>
         {state.catalogError && <p role="alert" className="ob-message">{state.catalogError}</p>}

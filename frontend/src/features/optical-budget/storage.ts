@@ -20,6 +20,7 @@ export function parseScenario(raw: string): Scenario {
     || (value.technology === 'xgspon' && !['1577', '1270'].includes(value.wavelength))
     || !['name', 'reserve', 'limit1270', 'limit1310', 'limit1490', 'limit1550', 'limit1577'].every(key => text(value[key]))
     || !['gpon', 'xgspon'].every(technology => value.ponLimits?.[technology] && ['upstream', 'downstream'].every(direction => text(value.ponLimits[technology][direction])))
+    || (value.equipment !== undefined && (!value.equipment || !['oltId', 'onuId', 'oltModuleId', 'onuModuleId'].every(key => text(value.equipment[key]))))
     || !rows(value.sections) || !rows(value.elements)
     || !value.sections.every((x: Record<string, unknown>) => x && ['id', 'name', 'lengthM', ...lossKeys, 'source'].every(key => text(x[key])))
     || !value.elements.every((x: Record<string, unknown>) => x && ['id', 'name', 'count', ...lossKeys].every(key => text(x[key])) && ['splice', 'connection', 'splitter', 'other'].includes(String(x.kind)))
