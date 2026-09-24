@@ -4,6 +4,7 @@ import { CableEditor } from './CableEditor'
 import { CableStructure } from './CableStructure'
 import { countFibers, type CableSpecification, type ColorCodeData } from './model'
 import { ColorCodeInfo } from './ColorCodeInfo'
+import { CableAttenuation } from './CableAttenuation'
 import { useCableCatalog } from './useCableCatalog'
 import './cable-catalog.css'
 
@@ -24,6 +25,7 @@ function CableDetail({ cable, data, busy, onEdit, onDuplicate, onRemove }: {
       <div><strong>{cable.tubes.length}</strong><span>{cable.tubes.length === 1 ? 'tuba' : cable.tubes.length < 5 ? 'tuby' : 'tub'}</span></div>
       <div><strong>{new Set(cable.tubes.map(tube => tube.fibers.length)).size === 1 ? cable.tubes[0].fibers.length : 'Různý'}</strong><span>vláken v tubě</span></div></div>
     {cable.notes && <p className="cc-notes">{cable.notes}</p>}
+    <CableAttenuation cable={cable} />
     <ColorCodeInfo cable={cable} data={data} />
     <div className="cc-section-title"><Layers size={18} /><h3>Struktura kabelu</h3><span>Vyberte tubu pro detail</span></div>
     <CableStructure cable={cable} data={data} activeTube={activeTube} onSelect={setActiveTube} />

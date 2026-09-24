@@ -38,6 +38,12 @@ vlákno nelze odebrat. Po odebrání uprostřed se příslušný profil přepne 
 aby se zbývající barvy nepřepisovaly podle nového pořadí. Výchozí šablony jsou chráněné.
 Katalog eviduje specifikace; skutečné kabely, trasy a jejich vazby zatím nevytváří.
 
+Specifikace může obsahovat nepovinný útlum pro 1310 a 1550 nm v dB/km, podle technického listu.
+API používá pole `attenuation1310DbPerKm` a `attenuation1550DbPerKm`: nezáporná konečná čísla
+nebo `null` pro neuvedenou hodnotu. Nula je platná explicitní hodnota, nikoli náhrada chybějícího
+údaje. Staré záznamy a obecné šablony útlum nemají vyplněný. Kopie specifikace jej zachovává.
+Výpočty ztrát tras a projektová nastavení nejsou součástí tohoto modulu.
+
 API `/api/cable-catalog` ukládá vlastní typy do `App_Data/cable-catalog.json`; cestu lze změnit
 konfigurací `CableCatalog:Path`. Soubor není verzovaný. Verze záznamu brání přepsání novější
 úpravy jiným uživatelem. Stejně jako současná evidence bodů je úložiště určeno pro jednu instanci

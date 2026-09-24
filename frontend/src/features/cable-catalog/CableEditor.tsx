@@ -4,6 +4,7 @@ import { CableStructure } from './CableStructure'
 import { countFibers, sequence, markSignature, type CableDraft, type ColorCodeData } from './model'
 import { appendTube, removeFiber, removeTube, resizeFibers, resizeStructure } from './structure'
 import { ColorCodeInfo } from './ColorCodeInfo'
+import { CableAttenuation } from './CableAttenuation'
 
 type Props = { draft: CableDraft; data: ColorCodeData; busy: boolean; dirty: boolean; onChange: (draft: CableDraft) => void; onSave: () => void; onCancel: () => void }
 
@@ -78,6 +79,7 @@ export function CableEditor({ draft, data, busy, dirty, onChange, onSave, onCanc
         <select aria-label={scope === 'fibers' ? 'Barevný profil vláken' : 'Barevný profil tub'} value={scope === 'fibers' ? draft.fiberColorCode : draft.tubeColorCode} onChange={event => changeProfile(scope, event.target.value)}>
           <option value="custom">Vlastní značení</option>{data.profiles.filter(profile => profile[scope].length > 0).map(profile => <option key={profile.id} value={profile.id}>{profile.label}</option>)}
         </select></label>)}</div>
+      <CableAttenuation cable={draft} onChange={(key, value) => onChange({ ...draft, [key]: value })} />
       <ColorCodeInfo cable={draft} data={data} />
       <div className="cc-section-title"><Layers size={18} /><h3>Struktura kabelu</h3><span>{countFibers(draft)} vláken celkem</span></div>
       <details className="cc-bulk-structure"><summary>Hromadná úprava počtů</summary><div className="cc-generator">

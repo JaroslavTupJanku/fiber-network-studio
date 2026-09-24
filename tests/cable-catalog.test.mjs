@@ -67,9 +67,12 @@ test('catalog presets, validation, persistence and concurrent edits', { timeout:
     assert.deepEqual(await download.json(), codes)
     assert.deepEqual(presets.map(item => item.tubes.reduce((n, tube) => n + tube.fibers.length, 0)), [12, 24, 48, 96])
     assert.ok(presets.every(item => item.isPreset))
+    assert.ok(presets.every(item => item.attenuation1310DbPerKm === null && item.attenuation1550DbPerKm === null))
     assert.ok(presets.every(item => item.fiberColorCode === 'tia-598-12'))
     const input = { name: '  Test cable  ', manufacturer: ' Example ', notes: 'Persistent test', tubes: presets[1].tubes }
     for (const invalid of [
+      { ...input, attenuation1310DbPerKm: -0.1 }, { ...input, attenuation1550DbPerKm: -1 },
+      { ...input, attenuation1310DbPerKm: 'NaN' }, { ...input, attenuation1550DbPerKm: 'Infinity' },
       { ...input, name: ' ' }, { ...input, name: 'x'.repeat(101) }, { ...input, tubes: [] },
       { ...input, tubes: [null] }, { ...input, tubes: [{ ...input.tubes[0], fibers: [null] }] },
       { ...input, tubes: [{ ...input.tubes[0], color: 'red' }] },
@@ -90,7 +93,8 @@ test('catalog presets, validation, persistence and concurrent edits', { timeout:
     assert.equal(created.manufacturer, 'Example')
     assert.equal(created.isPreset, false)
     assert.equal(created.version, 1)
-    const changes = { ...created, name: 'Changed', tubes: structuredClone(created.tubes) }
+    assert.equal(created.attenuation1310DbPerKm, null)
+    const changes = { ...created, name: 'Changed', tubes: structuredClone(created.tubes), attenuation1310DbPerKm: 0.35, attenuation1550DbPerKm: 0.21 }
     changes.tubes[1].fibers[3] = { name: 'Custom fiber', color: '#123456' }
     const updates = await Promise.all([request(`/${created.id}`, 'PUT', changes), request(`/${created.id}`, 'PUT', changes)])
     assert.deepEqual(updates.map(response => response.status).sort(), [200, 409])
@@ -98,11 +102,18 @@ test('catalog presets, validation, persistence and concurrent edits', { timeout:
     await start()
     const persisted = (await (await request()).json()).find(item => item.id === created.id)
     assert.equal(persisted.version, 2)
+    assert.equal(persisted.attenuation1310DbPerKm, 0.35)
+    assert.equal(persisted.attenuation1550DbPerKm, 0.21)
+    const clearedResponse = await request(`/${created.id}`, 'PUT', { ...persisted, attenuation1310DbPerKm: null, attenuation1550DbPerKm: 0 })
+    assert.equal(clearedResponse.status, 200)
+    const cleared = await clearedResponse.json()
+    assert.equal(cleared.attenuation1310DbPerKm, null)
+    assert.equal(cleared.attenuation1550DbPerKm, 0)
     assert.equal(persisted.tubes[1].fibers[3].color, '#123456')
     assert.equal(persisted.tubes[1].fibers[3].name, 'Custom fiber')
     assert.equal((await request(`/${created.id}?version=1`, 'DELETE')).status, 409)
-    assert.equal((await request(`/${created.id}?version=2`, 'DELETE')).status, 204)
-    assert.equal((await request(`/${created.id}?version=2`, 'DELETE')).status, 404)
+    assert.equal((await request(`/${created.id}?version=3`, 'DELETE')).status, 204)
+    assert.equal((await request(`/${created.id}?version=3`, 'DELETE')).status, 404)
     assert.equal((await (await request()).json()).length, 4)
 
     // Profiles remain separate for fibers/tubes and marks survive a write/read cycle.
@@ -138,6 +149,8 @@ test('catalog presets, validation, persistence and concurrent edits', { timeout:
     assert.equal(migrated.tubes[0].fibers[0].name, 'Old fiber')
     assert.equal(migrated.tubes[0].fibers[0].marking, 'none')
     assert.equal(migrated.version, 7)
+    assert.equal(migrated.attenuation1310DbPerKm, null)
+    assert.equal(migrated.attenuation1550DbPerKm, null)
   } finally {
     await stop()
     await rm(directory, { recursive: true, force: true })
