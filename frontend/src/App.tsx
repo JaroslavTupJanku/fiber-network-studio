@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
-import { Cable, CircleDot, Copy, Crosshair, House, MapPin, Network, RefreshCw, Save, Search, Trash2, X } from 'lucide-react'
+import { Calculator, Cable, CircleDot, Copy, Crosshair, House, MapPin, Network, RefreshCw, Save, Search, Trash2, X } from 'lucide-react'
 import { CableCatalogPage } from './features/cable-catalog/CableCatalogPage'
+import { OpticalBudgetPage } from './features/optical-budget/OpticalBudgetPage'
 import { MapCanvas } from './MapCanvas'
 import { findParcelAt, type Parcel } from './parcels'
 import {
@@ -21,8 +22,9 @@ type ParcelStatus = 'idle' | 'loading' | 'not-found' | 'error'
 const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : 'Šachta'
 
 function App() {
-  const [section, setSection] = useState<'map' | 'catalog'>('map')
+  const [section, setSection] = useState<'map' | 'catalog' | 'budget'>('map')
   const [catalogOpened, setCatalogOpened] = useState(false)
+  const [budgetOpened, setBudgetOpened] = useState(false)
   useEffect(() => {
     if (section === 'map') window.dispatchEvent(new Event('resize'))
   }, [section])
@@ -200,6 +202,7 @@ function App() {
         <nav className="workspace-navigation" aria-label="Hlavní navigace">
           <button type="button" aria-pressed={section === 'map'} onClick={() => setSection('map')}><MapPin size={15} />Mapa</button>
           <button type="button" aria-pressed={section === 'catalog'} onClick={() => { setCatalogOpened(true); setSection('catalog') }}><Cable size={15} />Katalog kabelů</button>
+          <button type="button" aria-pressed={section === 'budget'} onClick={() => { setBudgetOpened(true); setSection('budget') }}><Calculator size={15} />Optické ztráty</button>
         </nav>
       </header>
 
@@ -300,6 +303,7 @@ function App() {
         </aside>
       </main>
       {catalogOpened && <div className="catalog-view" hidden={section !== 'catalog'}><CableCatalogPage /></div>}
+      {budgetOpened && <div className="budget-view" hidden={section !== 'budget'}><OpticalBudgetPage /></div>}
     </div>
   )
 }

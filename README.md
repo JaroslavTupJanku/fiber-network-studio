@@ -93,3 +93,31 @@ Každý vlastní kabel může mít odkaz na svůj technický list.
 Starší uložené typy zůstávají beze změny barev i názvů; chybějící profil se čte jako vlastní a
 chybějící značka jako žádná. Nově přidané položky s vlastním značením jsou neutrální šedé,
 které je potřeba vyplnit podle kabelu. Vybraný ověřený profil nikdy tiše neopakuje barvy nad svůj limit.
+
+### Kalkulačka optických ztrát
+
+Panel **Optické ztráty** počítá jednu zadanou optickou cestu bez vazeb na mapové objekty.
+Obsahuje kabelové úseky (metry × dB/km / 1000), svary, konektorové spoje, splittery a jiné
+pasivní prvky (počet × dB). Konektorový spoj znamená spojený pár; u splitteru se zadává
+ztráta konkrétní vstupní–výstupní cesty. Počet vláken kabelu se do ztráty nenásobí.
+Pro 1310 a 1550 nm se uchovávají oddělené útlumy všech položek i povolené ztráty zařízení.
+Požadovaná návrhová rezerva je společná. Zbývající prostor = povolená ztráta − součet ztrát − rezerva.
+Prázdné a neplatné hodnoty neznamenají nulu; neúplná cesta nemá celkový výsledek. Neznámý
+limit nebo rezerva dovolují zobrazit součet, ale ne kladné posouzení. Hraniční výsledek se
+zobrazuje samostatně. Hodnoty v ukázce jsou ilustrační, nejsou normovými výchozími hodnotami.
+
+Výběr kabelu kopíruje aktuální útlumy a název/verzi katalogové specifikace do zadání. Další
+změny katalogu zadání automaticky nepřepisují. Ruční změna útlumu zruší označení převzatého
+zdroje. Při nedostupném katalogu lze hodnoty zadávat ručně. Ukládá se jeden rozpracovaný
+výpočet v localStorage daného prohlížeče; JSON stažení/načtení umožňuje přenos a archivaci.
+Import má kontrolu verze, struktury a velikosti, vadná uložená data se nepřepíší automaticky.
+Nejde o sdílené projektové nastavení ani serverovou evidenci výpočtů.
+
+Feature `frontend/src/features/optical-budget` odděluje čistý výpočet (`model.ts`), formát
+uložení (`storage.ts`), stav/externí operace (`useOpticalBudget.ts`) a UI komponenty.
+Ověření výpočtů a importu: `node --test tests/optical-budget.test.mjs` (Node 24).
+
+Metodika: [FOA – Calculating Fiber Optic Loss Budgets](https://thefoa.org/tech/lossbudg.htm).
+Kalkulačka posuzuje horní limit ztráty. Neověřuje minimální útlum proti přetížení přijímače,
+disperzi, odrazy ani další přenosové parametry; výsledek je návrhový odhad, nikoliv měření
+či úplná certifikace spoje. Limit musí odpovídat konkrétní aplikaci a zařízení.
