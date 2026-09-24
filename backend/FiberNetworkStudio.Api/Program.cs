@@ -9,6 +9,8 @@ var dataPath = builder.Configuration["NetworkPoints:Path"]
 builder.Services.AddSingleton(new NetworkPointStore(dataPath));
 builder.Services.AddHttpClient<ParcelLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
 var app = builder.Build();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.MapCableCatalog();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
@@ -60,6 +62,9 @@ app.MapPut("/api/network-points/{id:guid}", async (Guid id, UpdateNetworkPointRe
 app.MapDelete("/api/network-points/{id:guid}", async (Guid id, NetworkPointStore store) =>
     await store.DeleteAsync(id) ? Results.NoContent() : Results.NotFound());
 
+// A single published server serves both the SPA and its API. Unknown API routes stay 404.
+app.MapFallback("/api/{**path}", () => Results.NotFound());
+app.MapFallbackToFile("index.html");
 app.Run();
 
 static Dictionary<string, string[]> Validate(string? name, double? latitude, double? longitude)

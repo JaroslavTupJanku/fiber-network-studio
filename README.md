@@ -18,7 +18,28 @@ Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z n�
 2. Frontend: `pnpm --dir frontend install` a `pnpm --dir frontend dev`
 3. Otevřít adresu, kterou vypíše Vite (obvykle `http://localhost:5173`).
 
-API odpovídá na `http://localhost:5291/api/health`; objekty přes `/api/network-points` a parcely přes `/api/parcels/at`. Aktuální práce je na větvi `codex/placement-cursor`.
+API odpovídá na `http://localhost:5291/api/health`; objekty přes `/api/network-points` a parcely přes `/api/parcels/at`.
+
+## Zákaznická ukázka na jedné adrese
+
+`Dockerfile` sestaví frontend i ASP.NET API do jedné aplikace. Pro místní kontrolu:
+
+```sh
+docker build -t fiber-network-studio-preview:local .
+docker volume create fiber-network-studio-demo-data
+docker run --rm -p 127.0.0.1:8080:8080 -v fiber-network-studio-demo-data:/app/App_Data fiber-network-studio-preview:local
+```
+
+Otevřete `http://localhost:8080`. Ze stejné adresy fungují mapa, katalog kabelů,
+optické ztráty a `/api/health`; obnovit lze i vnitřní cestu aplikace. Pojmenovaný
+svazek uchovává backendové katalogy a body i po restartu kontejneru. Výpočty a
+profily zařízení se nyní ukládají v prohlížeči uživatele; pro přenos na jiný počítač
+je nutné exportovat jejich dva soubory. Zobrazení katastru závisí na dostupnosti
+služeb ČÚZK.
+
+Zákazník při nasazení otevírá jediný odkaz, Docker nespouští. Konkrétní veřejné
+nasazení vyžaduje zvolený hosting, trvalé úložiště pro `/app/App_Data` a způsob
+omezení přístupu k ukázce. Tento repozitář zatím veřejnou adresu nevytváří.
 
 Stručné vysvětlení pojmů je v [poznámkách k webovému vývoji](docs/web-vyvoj.md).
 
