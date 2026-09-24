@@ -1,0 +1,761 @@
+{
+  "schemaVersion": 1,
+  "reviewedOn": "2026-09-24",
+  "displayNote": "Odstíny RGB a kresba značek slouží k zobrazení. Nejsou kolorimetrickou specifikací normy.",
+  "colors": [
+    {
+      "name": "Modrá",
+      "hex": "#2563eb"
+    },
+    {
+      "name": "Oranžová",
+      "hex": "#f97316"
+    },
+    {
+      "name": "Zelená",
+      "hex": "#16a34a"
+    },
+    {
+      "name": "Hnědá",
+      "hex": "#92400e"
+    },
+    {
+      "name": "Šedá",
+      "hex": "#64748b"
+    },
+    {
+      "name": "Bílá",
+      "hex": "#ffffff"
+    },
+    {
+      "name": "Červená",
+      "hex": "#dc2626"
+    },
+    {
+      "name": "Černá",
+      "hex": "#171717"
+    },
+    {
+      "name": "Žlutá",
+      "hex": "#eab308"
+    },
+    {
+      "name": "Fialová",
+      "hex": "#9333ea"
+    },
+    {
+      "name": "Růžová",
+      "hex": "#ec4899"
+    },
+    {
+      "name": "Tyrkysová",
+      "hex": "#06b6d4"
+    }
+  ],
+  "profiles": [
+    {
+      "id": "tia-598-12",
+      "label": "TIA-598 · 12 barev",
+      "sourceUrl": "https://www.corning.com/catalog/coc/documents/application-engineering-notes/AEN029.pdf",
+      "sourceLabel": "Corning AEN029, rev. 13, 12. 3. 2026",
+      "note": "Základní pořadí 1–12. Pro více vláken či tub zvolte doložené provedení se značkami.",
+      "fibers": [
+        {
+          "color": "#2563eb",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#f97316",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#16a34a",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#92400e",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#64748b",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ffffff",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#dc2626",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#171717",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#eab308",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#9333ea",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ec4899",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#06b6d4",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        }
+      ],
+      "tubes": [
+        {
+          "color": "#2563eb",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#f97316",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#16a34a",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#92400e",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#64748b",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ffffff",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#dc2626",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#171717",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#eab308",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#9333ea",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ec4899",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#06b6d4",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        }
+      ]
+    },
+    {
+      "id": "corning-aen029-24",
+      "label": "TIA-598 · Corning AEN029 (24)",
+      "sourceUrl": "https://www.corning.com/catalog/coc/documents/application-engineering-notes/AEN029.pdf",
+      "sourceLabel": "Corning AEN029, rev. 13, tabulky 1–2",
+      "note": "Konkrétní provedení Corning: vlákna MiniXtend HD 13–24 mají černou značku; vlákno 20 je bezbarvé. Tuba 20 je černá s bílou značkou. Nejde o univerzální pravidlo pro každý kabel TIA.",
+      "fibers": [
+        {
+          "color": "#2563eb",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#f97316",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#16a34a",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#92400e",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#64748b",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ffffff",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#dc2626",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#171717",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#eab308",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#9333ea",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ec4899",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#06b6d4",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#2563eb",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#f97316",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#16a34a",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#92400e",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#64748b",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ffffff",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#dc2626",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ffffff",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": true
+        },
+        {
+          "color": "#eab308",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#9333ea",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ec4899",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#06b6d4",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        }
+      ],
+      "tubes": [
+        {
+          "color": "#2563eb",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#f97316",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#16a34a",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#92400e",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#64748b",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ffffff",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#dc2626",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#171717",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#eab308",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#9333ea",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ec4899",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#06b6d4",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#2563eb",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#f97316",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#16a34a",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#92400e",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#64748b",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ffffff",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#dc2626",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#171717",
+          "marking": "mark",
+          "markerColor": "#ffffff",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#eab308",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#9333ea",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ec4899",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#06b6d4",
+          "marking": "mark",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        }
+      ]
+    },
+    {
+      "id": "prysmian-e18-24",
+      "label": "VDE 0888 · Prysmian E18 (24)",
+      "sourceUrl": "https://datasheet.prysmian.com/pdf/datasheet/en/239099",
+      "sourceLabel": "Prysmian UCFIBRE E18, DE10_E18_20260908, strana 2",
+      "note": "Značení vláken konkrétní řady E18, dle listu IEC 60794-2 / VDE 0888. Vlákna 13–24: značka po 70 mm, vlákno 22: bílá po 35 mm. Barvu značky tento list neuvádí; je nutné ji doplnit podle kabelu.",
+      "fibers": [
+        {
+          "color": "#dc2626",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#16a34a",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#2563eb",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#eab308",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ffffff",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#64748b",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#92400e",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#9333ea",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#06b6d4",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#171717",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#f97316",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#ec4899",
+          "marking": "none",
+          "markerColor": "#171717",
+          "markingSpacingMm": null,
+          "transparent": false
+        },
+        {
+          "color": "#dc2626",
+          "marking": "mark",
+          "markerColor": null,
+          "markingSpacingMm": 70,
+          "transparent": false
+        },
+        {
+          "color": "#16a34a",
+          "marking": "mark",
+          "markerColor": null,
+          "markingSpacingMm": 70,
+          "transparent": false
+        },
+        {
+          "color": "#2563eb",
+          "marking": "mark",
+          "markerColor": null,
+          "markingSpacingMm": 70,
+          "transparent": false
+        },
+        {
+          "color": "#eab308",
+          "marking": "mark",
+          "markerColor": null,
+          "markingSpacingMm": 70,
+          "transparent": false
+        },
+        {
+          "color": "#ffffff",
+          "marking": "mark",
+          "markerColor": null,
+          "markingSpacingMm": 70,
+          "transparent": false
+        },
+        {
+          "color": "#64748b",
+          "marking": "mark",
+          "markerColor": null,
+          "markingSpacingMm": 70,
+          "transparent": false
+        },
+        {
+          "color": "#92400e",
+          "marking": "mark",
+          "markerColor": null,
+          "markingSpacingMm": 70,
+          "transparent": false
+        },
+        {
+          "color": "#9333ea",
+          "marking": "mark",
+          "markerColor": null,
+          "markingSpacingMm": 70,
+          "transparent": false
+        },
+        {
+          "color": "#06b6d4",
+          "marking": "mark",
+          "markerColor": null,
+          "markingSpacingMm": 70,
+          "transparent": false
+        },
+        {
+          "color": "#ffffff",
+          "marking": "mark",
+          "markerColor": null,
+          "markingSpacingMm": 35,
+          "transparent": false
+        },
+        {
+          "color": "#f97316",
+          "marking": "mark",
+          "markerColor": null,
+          "markingSpacingMm": 70,
+          "transparent": false
+        },
+        {
+          "color": "#ec4899",
+          "marking": "mark",
+          "markerColor": null,
+          "markingSpacingMm": 70,
+          "transparent": false
+        }
+      ],
+      "tubes": []
+    }
+  ]
+}
