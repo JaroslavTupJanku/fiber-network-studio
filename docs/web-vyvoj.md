@@ -1,28 +1,39 @@
 # Webový vývoj: krátké poznámky
 
-**Frontend** běží v prohlížeči. Skládá obrazovku, reaguje na kliknutí a zobrazuje odpovědi serveru. Tady používáme React a TypeScript; Vite pomáhá při vývoji a sestaví výsledné soubory.
+## Jak o našem projektu mluvit
+
+> Stavíme webovou aplikaci pro návrh optických sítí. React v prohlížeči zobrazuje mapu, katalogy a kalkulačku. Backend v ASP.NET Core přijímá požadavky, kontroluje data a ukládá katalogy kabelů a chrániček i mapové objekty. Frontend s backendem komunikují přes API. Zatím je to prototyp; část dat ukládá server do JSON souborů a rozpracovaný výpočet zůstává v prohlížeči.
+
+Po nasazení uživatel otevře jen webovou adresu. Dva vývojové procesy spouštíme pouze při práci na kódu; sestavený frontend lze podávat spolu s API z jedné adresy.
+
+## Co se stane po kliknutí na „Uložit“
+
+1. React vezme hodnoty z formuláře. Dokud je uživatel mění, tvoří **stav** stránky a ještě nemusí být uložené.
+2. Frontend odešle přes **HTTP** požadavek na **API**. Typicky pošle data jako **JSON**; například `POST` založí nový typ chráničky.
+3. Backend zkontroluje pravidla (například že vnitřní průměr je menší než vnější) a platný záznam uloží. Při chybě vrátí vysvětlení a nic neuloží.
+4. Frontend zobrazí výsledek nebo chybovou zprávu. Po novém načtení stránky si uložený záznam opět vyžádá od serveru.
+
+## Pojmy webového vývoje
+
+**Frontend** běží v prohlížeči. Skládá obrazovku, reaguje na kliknutí a zobrazuje odpovědi serveru. Tady používáme React a TypeScript.
 
 **Backend** běží na serveru. Přijímá požadavky, kontroluje pravidla a pracuje s uloženými daty. Tady ho píšeme v C# na ASP.NET Core.
 
-**API** je domluvené rozhraní mezi frontendem a backendem. Například požadavek na seznam objektů vrátí data, která frontend zobrazí na mapě.
+**API** je domluvené rozhraní mezi frontendem a backendem, ne další obrazovka. Určuje, jaké požadavky lze poslat a jaká data se vrátí. **HTTP** je způsob přenosu požadavku; **JSON** je běžný textový formát přenášených dat. `GET` načítá, `POST` zakládá, `PUT` upravuje a `DELETE` maže záznamy.
 
-**Uložení dat** zatím zajišťuje lokální JSON soubor na backendu, takže objekty zůstanou i po restartu. Pro společný provoz později použijeme databázi PostgreSQL; PostGIS přidává práci s polohou a tvary na mapě.
+**Uložení dat** má dvě místa. Katalogy a mapové objekty ukládá backend do JSON souborů, takže zůstanou i po restartu serveru a vidí je uživatelé stejné instance. Rozpracovanou kalkulaci a katalog profilů zařízení drží **localStorage** konkrétního prohlížeče. Pro společný provoz později použijeme databázi PostgreSQL; PostGIS přidává práci s polohou a tvary na mapě.
 
-**Komponenta** je část uživatelského rozhraní. **Stav** jsou hodnoty, které se během používání mění. V duchu MVVM oddělujeme vzhled od práce se stavem tam, kde to skutečně zjednoduší kód; v Reactu k tomu často slouží vlastní hooks. Backend dělíme podle odpovědností na API, aplikační pravidla a přístup k datům.
+**Komponenta** je část obrazovky, třeba seznam kabelů. **Stav** jsou hodnoty, které se při používání mění, třeba rozepsaný formulář. V Reactu nepoužíváme formální MVVM: komponenty zobrazují rozhraní, vlastní **hook** spravuje stav a akce, model obsahuje pravidla a modul API komunikuje se serverem. Backend dělíme na endpointy, pravidla a ukládání dat.
+
+**Vite** spouští frontend při vývoji a připraví jeho soubory pro nasazení. **Nasazení** znamená umístit sestavenou aplikaci na server, aby ji lidé otevřeli přes webovou adresu.
+
+**CRUD** je zkratka pro založení, načtení, úpravu a smazání záznamu. Takto naše API spravuje například katalog chrániček. Katastr je naproti tomu online podklad od ČÚZK, jehož data při kliknutí pouze čteme.
+
+## Pojmy mapy a optické sítě
 
 **Mapová vrstva** je samostatný obsah nad základní mapou. **WMS** je služba, která podle polohy a měřítka vrací obrázky mapy; zde přes ni zobrazujeme katastr ČÚZK. Není to knihovna ani kopie celého katastru uložená v aplikaci.
 
-**Parcela** je evidovaný pozemek, ne naše budova. **Polygon** je tvar její hranice. Po kliknutí backend požádá online službu RÚIAN o data jedné parcely ve formátu **GeoJSON**; číslo a obrys zobrazíme, ale neukládáme. **WMTS** (hotové mapové dlaždice) a **WFS** (dotazy na mapové objekty) jsou další typy mapových služeb, které zatím nepoužíváme.
-
-**CRUD** znamená založit, načíst, upravit a smazat záznam. Takto teď frontend přes API spravuje budovy a šachty; katastr je pouze podklad, nikoli zdroj těchto záznamů.
-
-**Task v Codexu** je náš pracovní rozhovor. **Issue na GitHubu** je konkrétně popsaný úkol v projektu; u nás mu odpovídá jedna **větev** kódu. Větev odděluje rozpracovanou změnu od společné větve **dev**.
-
-**Commit** uloží změny do historie větve. **Push** odešle větev na GitHub. **Pull request (PR)** ukáže změny k revizi a navrhne jejich sloučení do dev; **draft PR** je zatím označený jako rozpracovaný. Samotný PR ještě nic neslučuje.
-
-**Gesto** je způsob ovládání myší nebo dotykem. MapLibre zde zajišťuje posun tažením a přiblížení kolečkem; aplikace nastavuje vzhled kurzoru.
-
-**Drag and drop** znamená přetáhnout prvek a pustit ho na cílovém místě. U nás mapa převede místo puštění na souřadnice; objekt se uloží až po potvrzení formuláře.
+**Parcela** je evidovaný pozemek, ne naše budova. **Polygon** je tvar její hranice. Po kliknutí backend požádá online službu RÚIAN o data jedné parcely ve formátu **GeoJSON**; číslo a obrys zobrazíme, ale neukládáme.
 
 **Optické ztráty** jsou úbytek signálu na kabelu, spojích a rozbočovačích. V aplikaci se
 počítají pro jednu zadanou cestu. **dB** je jednotka ztráty; **dBm** vyjadřuje výkon signálu
