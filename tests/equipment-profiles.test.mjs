@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { demoScenario } from '../frontend/src/features/optical-budget/model.ts'
-import { emptyCatalog, emptyEndpointSelection, parseEquipmentCatalog, profileErrors, evaluateEquipment } from '../frontend/src/features/optical-budget/equipment.ts'
+import { emptyCatalog, emptyEndpointSelection, mergeEquipmentCatalog, parseEquipmentCatalog, profileErrors, evaluateEquipment } from '../frontend/src/features/optical-budget/equipment.ts'
 
 function pair() {
   const profile = (id, kind, txWavelength, rxWavelength, txMin = '-18', txMax = '-15') => ({
@@ -30,6 +30,19 @@ test('equipment catalog is empty by default and rejects incomplete or invalid st
   assert.ok(profileErrors({ ...catalog.profiles[0], txMin: '-10', txMax: '-15' }).length > 0)
 })
 
+test('catalog file roundtrip merges profiles and requires explicit replacement for duplicate IDs', () => {
+  const incoming = pair().catalog
+  const decoded = parseEquipmentCatalog(JSON.stringify(incoming))
+  assert.deepEqual(decoded, incoming)
+  const local = { version: 1, profiles: [{ ...incoming.profiles[0], model: 'Local version' }] }
+  const safe = mergeEquipmentCatalog(local, decoded)
+  assert.deepEqual(safe.conflicts, ['olt'])
+  assert.equal(safe.catalog.profiles.length, 2)
+  assert.equal(safe.catalog.profiles[0].model, 'Local version')
+  assert.equal(mergeEquipmentCatalog(local, decoded, true).catalog.profiles[0].model, incoming.profiles[0].model)
+  assert.throws(() => parseEquipmentCatalog(JSON.stringify({ version: 1, profiles: [{ ...incoming.profiles[0], rxOverload: 'invalid' }] })))
+})
+
 test('both directions check receiver sensitivity and overload; missing loss cannot pass', () => {
   const { catalog, selection, scenario } = pair()
   let result = evaluateEquipment(scenario, catalog, selection)
@@ -37,13 +50,24 @@ test('both directions check receiver sensitivity and overload; missing loss cann
   catalog.profiles[0].txMin = '-30'
   result = evaluateEquipment(scenario, catalog, selection)
   assert.equal(result.directions[0].verdict, 'weak')
-  catalog.profiles[0].txMin = '-18'; catalog.profiles[0].txMax = '-5'
+  catalog.profiles[0].txMin = '-18'; catalog.profiles[0].txMax = '-5'; scenario.reserve = '1'
   result = evaluateEquipment(scenario, catalog, selection)
   assert.equal(result.directions[0].verdict, 'overload')
+  assert.equal(result.directions[0].receivedMax, -5, 'reserve must not be added to the overload path loss')
+  scenario.reserve = '100'
+  result = evaluateEquipment(scenario, catalog, selection)
+  assert.equal(result.directions[0].overloadExceeded, true, 'reserve must not affect the overload check')
   catalog.profiles[0].txMin = '-30'
   result = evaluateEquipment(scenario, catalog, selection)
   assert.equal(result.directions[0].verdict, 'outside')
-  catalog.profiles[0].txMin = '-18'; catalog.profiles[0].txMax = '-15'
+  catalog.profiles[0].txMin = '-18'; catalog.profiles[0].txMax = '-15'; scenario.reserve = ''
+  result = evaluateEquipment(scenario, catalog, selection)
+  assert.equal(result.directions[0].verdict, 'unknown')
+  assert.ok(result.errors.some(e => e.includes('rezervu')))
+  scenario.reserve = '-1'
+  result = evaluateEquipment(scenario, catalog, selection)
+  assert.equal(result.directions[0].verdict, 'unknown')
+  scenario.reserve = '1'
   scenario.sections[0].loss1310 = ''
   result = evaluateEquipment(scenario, catalog, selection)
   assert.equal(result.directions[1].verdict, 'unknown')

@@ -1,4 +1,4 @@
-import { ponWavelengths, type Scenario, type Technology, type Wavelength, calculate } from './model.ts'
+import { ponWavelengths, type Scenario, type Technology, type Wavelength, calculate, number } from './model.ts'
 
 export type EquipmentKind = 'olt' | 'onu' | 'module'
 export type EquipmentProfile = {
@@ -24,7 +24,17 @@ export function parseEquipmentCatalog(raw: string): EquipmentCatalog {
       && waves.includes(String(p.txWavelength)) && waves.includes(String(p.rxWavelength))
       && ['txMin', 'txMax', 'rxSensitivity', 'rxOverload', 'source'].every(k => validText(p[k])))
     || new Set(profiles.map((p: EquipmentProfile) => p.id)).size !== profiles.length) throw new Error('Katalog zařízení má neplatný formát.')
+  if (profiles.some((p: EquipmentProfile) => profileErrors(p).length > 0)) throw new Error('Katalog obsahuje neúplný nebo neplatný profil.')
   return value
+}
+
+export function mergeEquipmentCatalog(local: EquipmentCatalog, incoming: EquipmentCatalog, replaceConflicts = false) {
+  const localIds = new Set(local.profiles.map(p => p.id))
+  const conflicts = incoming.profiles.filter(p => localIds.has(p.id)).map(p => p.id)
+  const replacements = new Map(incoming.profiles.map(p => [p.id, p]))
+  const profiles = local.profiles.map(p => replaceConflicts ? replacements.get(p.id) ?? p : p)
+  profiles.push(...incoming.profiles.filter(p => !localIds.has(p.id)))
+  return { catalog: { version: 1 as const, profiles }, conflicts }
 }
 
 export function profileErrors(p: EquipmentProfile): string[] {
@@ -60,6 +70,8 @@ export function evaluateEquipment(scenario: Scenario, catalog: EquipmentCatalog,
     || onuOptic.txWavelength !== waves.upstream || onuOptic.rxWavelength !== waves.downstream)) errors.push('Profily zařízení nebo modulů nejsou vlnovou délkou kompatibilní.')
   for (const profile of [olt, onu, oltModule, onuModule]) if (profile) errors.push(...profileErrors(profile).map(e => `${profile.manufacturer} ${profile.model}: ${e}`))
   if (scenario.technology === 'manual' || (technology && scenario.technology !== technology)) errors.push('Vyberte shodnou technologii PON ve výpočtu i v profilech.')
+  const reserve = number(scenario.reserve)
+  if (reserve === null) errors.push('Zadejte platnou návrhovou rezervu pro posouzení slabého signálu.')
   const directions = waves ? (['downstream', 'upstream'] as const).map(direction => {
     const tx = direction === 'downstream' ? oltOptic : onuOptic
     const rx = direction === 'downstream' ? onuOptic : oltOptic
@@ -69,11 +81,12 @@ export function evaluateEquipment(scenario: Scenario, catalog: EquipmentCatalog,
     const txMin = parse(tx?.txMin), txMax = parse(tx?.txMax), sensitivity = parse(rx?.rxSensitivity), overload = parse(rx?.rxOverload)
     const receivedMin = txMin !== null && path.total !== null ? txMin - path.total : null
     const receivedMax = txMax !== null && path.total !== null ? txMax - path.total : null
-    const complete = !errors.length && receivedMin !== null && receivedMax !== null && sensitivity !== null && overload !== null
-    const weak = complete && receivedMin < sensitivity
+    const designReceivedMin = txMin !== null && path.total !== null && reserve !== null ? txMin - (path.total + reserve) : null
+    const complete = !errors.length && receivedMin !== null && receivedMax !== null && designReceivedMin !== null && sensitivity !== null && overload !== null
+    const weak = complete && designReceivedMin < sensitivity
     const overloadExceeded = complete && receivedMax > overload
     const verdict = !complete ? 'unknown' : weak && overloadExceeded ? 'outside' : weak ? 'weak' : overloadExceeded ? 'overload' : 'pass'
-    return { direction, wavelength, pathLoss: path.total, receivedMin, receivedMax, sensitivity, overload, weak, overloadExceeded, verdict }
+    return { direction, wavelength, pathLoss: path.total, reserve, receivedMin, receivedMax, designReceivedMin, sensitivity, overload, weak, overloadExceeded, verdict }
   }) : []
   return { errors: [...new Set(errors)], directions }
 }
