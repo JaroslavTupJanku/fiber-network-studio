@@ -21,3 +21,34 @@ Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z n�
 API odpovídá na `http://localhost:5291/api/health`; objekty přes `/api/network-points` a parcely přes `/api/parcels/at`. Aktuální práce je na větvi `codex/placement-cursor`.
 
 Stručné vysvětlení pojmů je v [poznámkách k webovému vývoji](docs/web-vyvoj.md).
+
+## Katalog kabelů
+
+V horní navigaci otevřete **Katalog kabelů**. Obsahuje obecné šablony 12, 24, 48 a 96 vláken
+(1, 2, 4 nebo 8 tub po 12 vláknech). Nejde o specifikace konkrétního výrobce; barevné pořadí je
+ilustrační a před použitím je potřeba ověřit je proti dokumentaci skutečného kabelu.
+
+Šablonu lze zkopírovat, vlastní typ vytvořit, upravit nebo smazat. Editor nabízí názvy a barvy
+každé tuby a vlákna, výrobce, poznámku a přestavění struktury (1–24 tub, 1–24 vláken v tubě).
+Přestavění vyžaduje potvrzení, protože nahradí vlastní názvy a barvy. Výchozí šablony jsou chráněné.
+Katalog eviduje specifikace; skutečné kabely, trasy a jejich vazby zatím nevytváří.
+
+API `/api/cable-catalog` ukládá vlastní typy do `App_Data/cable-catalog.json`; cestu lze změnit
+konfigurací `CableCatalog:Path`. Soubor není verzovaný. Verze záznamu brání přepsání novější
+úpravy jiným uživatelem. Stejně jako současná evidence bodů je úložiště určeno pro jednu instanci
+API; pro více instancí je potřeba databáze. Před zavřením stránky s neuloženými úpravami prohlížeč
+zobrazí upozornění. Přepínání mezi mapou a katalogem zachovává rozpracované formuláře.
+
+Frontend je seskupený v `frontend/src/features/cable-catalog`: komponenty zobrazují UI,
+`useCableCatalog` spravuje stav a akce, `model.ts` obsahuje typy a pravidla a `api.ts` komunikaci
+se serverem. Backend je v `backend/FiberNetworkStudio.Api/CableCatalog`. Integrace zasahuje pouze
+do navigace v `App.tsx` a registrace služby a endpointů v `Program.cs`.
+
+Ověření API včetně persistence po restartu a konfliktu souběžných změn:
+
+```sh
+dotnet build backend/FiberNetworkStudio.Api
+node --test tests/cable-catalog.test.mjs
+pnpm --dir frontend build
+pnpm --dir frontend lint
+```
