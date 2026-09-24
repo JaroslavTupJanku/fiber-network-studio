@@ -100,7 +100,17 @@ Panel **Optické ztráty** počítá jednu zadanou optickou cestu bez vazeb na m
 Obsahuje kabelové úseky (metry × dB/km / 1000), svary, konektorové spoje, splittery a jiné
 pasivní prvky (počet × dB). Konektorový spoj znamená spojený pár; u splitteru se zadává
 ztráta konkrétní vstupní–výstupní cesty. Počet vláken kabelu se do ztráty nenásobí.
-Pro 1310 a 1550 nm se uchovávají oddělené útlumy všech položek i povolené ztráty zařízení.
+Pro 1270, 1310, 1490, 1550 a 1577 nm se uchovávají oddělené útlumy všech položek.
+Profil GPON nabízí downstream 1490 / upstream 1310 nm, XGS-PON (základní pásmo)
+1577 / 1270 nm. Přepnutí PON technologie zachovává směr přenosu, mění vlnovou délku
+a používá samostatný limit dané technologie a směru. Vlastní nastavení má vlastní limity.
+Chybějící útlum se neodhaduje z jiné vlnové délky. Katalog zatím dodává pouze 1310/1550 nm;
+převzetí jiného kabelu vymaže dříve zadané útlumy ostatních vlnových délek.
+Základní zobrazení obsahuje cestu, technologii a směr, Pokročilé přidává limit a rezervu.
+Skrytí nastavení nemění výpočet. PON zobrazuje výsledky obou směrů samostatně.
+Profily nepřednastavují třídu optiky, výkon vysílače ani citlivost přijímače.
+Vlnové délky: [VeEX GPON/XGS-PON](https://resources.veexinc.com/assets/productdocs/FX120/content/procedures/gpon/opm-results.htm).
+JSON verze 2 automaticky převede soubory verze 1 na vlastní nastavení a zachová jejich údaje.
 Požadovaná návrhová rezerva je společná. Zbývající prostor = povolená ztráta − součet ztrát − rezerva.
 Prázdné a neplatné hodnoty neznamenají nulu; neúplná cesta nemá celkový výsledek. Neznámý
 limit nebo rezerva dovolují zobrazit součet, ale ne kladné posouzení. Hraniční výsledek se

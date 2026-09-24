@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { calculate, demoScenario, newScenario, newElement, number } from '../frontend/src/features/optical-budget/model.ts'
+import { calculate, changeTechnology, changeLimit, limitFor, demoScenario, newScenario, newElement, number } from '../frontend/src/features/optical-budget/model.ts'
 import { parseScenario } from '../frontend/src/features/optical-budget/storage.ts'
 
 test('physical loss and design reserve remain separate, metres convert to kilometres', () => {
@@ -44,9 +44,44 @@ test('limits and splitter path loss use specified values, exact boundary is expl
 test('download roundtrip retains inputs; invalid or duplicate imported rows rejected', () => {
   const scenario = demoScenario()
   assert.deepEqual(parseScenario(JSON.stringify(scenario)), scenario)
-  for (const value of [null, {}, { ...scenario, version: 2 }, { ...scenario, wavelength: '850' },
+  for (const value of [null, {}, { ...scenario, version: 3 }, { ...scenario, wavelength: '850' },
     { ...scenario, sections: [null] }, { ...scenario, sections: [scenario.sections[0], scenario.sections[0]] },
     { ...scenario, elements: [{ ...scenario.elements[0], kind: 'unknown' }] }]) {
     assert.throws(() => parseScenario(JSON.stringify(value)))
   }
+})
+
+test('technology selects valid wavelengths, preserves direction and isolates equipment limits', () => {
+  let scenario = changeTechnology(demoScenario(), 'gpon')
+  assert.equal(scenario.wavelength, '1490')
+  assert.equal(calculate(scenario).total, null)
+  scenario.wavelength = '1310'
+  assert.equal(calculate(scenario).total, 1.6)
+  assert.equal(limitFor(scenario), '')
+  scenario = changeLimit(scenario, '28')
+  scenario = changeTechnology(scenario, 'xgspon')
+  assert.equal(scenario.wavelength, '1270')
+  assert.equal(limitFor(scenario), '')
+  assert.equal(calculate(scenario).total, null)
+  scenario = changeTechnology(scenario, 'gpon')
+  assert.equal(limitFor(scenario), '28')
+  scenario = changeTechnology(scenario, 'manual')
+  assert.equal(limitFor(scenario), '3')
+  assert.equal(calculate(scenario).total, 1.6)
+  assert.throws(() => parseScenario(JSON.stringify({ ...scenario, technology: 'xgspon' })))
+})
+
+test('legacy files migrate without inventing losses or technology limits', () => {
+  const old = demoScenario()
+  old.version = 1
+  delete old.technology; delete old.ponLimits
+  for (const wave of ['1270', '1490', '1577']) {
+    delete old[`limit${wave}`]
+    for (const row of [...old.sections, ...old.elements]) delete row[`loss${wave}`]
+  }
+  const migrated = parseScenario(JSON.stringify(old))
+  assert.equal(migrated.version, 2)
+  assert.equal(calculate(migrated).total, 1.6)
+  assert.equal(migrated.sections[0].loss1490, '')
+  assert.equal(migrated.ponLimits.gpon.upstream, '')
 })

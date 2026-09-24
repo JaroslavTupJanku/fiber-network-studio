@@ -1,17 +1,41 @@
-export type Wavelength = '1310' | '1550'
-export type Section = { id: string; name: string; lengthM: string; loss1310: string; loss1550: string; source: string }
-export type Element = { id: string; kind: 'splice' | 'connection' | 'splitter' | 'other'; name: string; count: string; loss1310: string; loss1550: string }
-export type Scenario = { version: 1; name: string; wavelength: Wavelength; sections: Section[]; elements: Element[];
-  limit1310: string; limit1550: string; reserve: string }
+export const wavelengths = ['1270', '1310', '1490', '1550', '1577'] as const
+export type Wavelength = typeof wavelengths[number]
+export type Technology = 'manual' | 'gpon' | 'xgspon'
+type Losses = { loss1270: string; loss1310: string; loss1490: string; loss1550: string; loss1577: string }
+export type Section = Losses & { id: string; name: string; lengthM: string; source: string }
+export type Element = Losses & { id: string; kind: 'splice' | 'connection' | 'splitter' | 'other'; name: string; count: string }
+export type Scenario = { version: 2; name: string; technology: Technology; wavelength: Wavelength; sections: Section[]; elements: Element[];
+  limit1310: string; limit1550: string; reserve: string; limit1270: string; limit1490: string; limit1577: string;
+  ponLimits: { gpon: { upstream: string; downstream: string }; xgspon: { upstream: string; downstream: string } } }
+export const technologies = { manual: 'Vlastní nastavení', gpon: 'GPON', xgspon: 'XGS-PON · základní pásmo' }
+export const ponWavelengths = { gpon: { downstream: '1490', upstream: '1310' }, xgspon: { downstream: '1577', upstream: '1270' } } as const
+export const emptyLosses: Losses = { loss1270: '', loss1310: '', loss1490: '', loss1550: '', loss1577: '' }
+export const emptyPonLimits = () => ({ gpon: { upstream: '', downstream: '' }, xgspon: { upstream: '', downstream: '' } })
+export const lossKeyFor = (wavelength: Wavelength): keyof Losses => `loss${wavelength}`
+export const limitKeyFor = (wavelength: Wavelength) => `limit${wavelength}` as const
+export const directionFor = (scenario: Scenario) => scenario.technology === 'manual' ? null
+  : scenario.wavelength === ponWavelengths[scenario.technology].downstream ? 'downstream' : 'upstream'
+export function changeTechnology(scenario: Scenario, technology: Technology): Scenario {
+  const direction = directionFor(scenario) ?? 'downstream'
+  return { ...scenario, technology, wavelength: technology === 'manual' ? scenario.wavelength : ponWavelengths[technology][direction] }
+}
+export const limitFor = (scenario: Scenario) => scenario.technology === 'manual' ? scenario[limitKeyFor(scenario.wavelength)]
+  : scenario.ponLimits[scenario.technology][directionFor(scenario)!]
+export function changeLimit(scenario: Scenario, value: string): Scenario {
+  if (scenario.technology === 'manual') return { ...scenario, [limitKeyFor(scenario.wavelength)]: value }
+  return { ...scenario, ponLimits: { ...scenario.ponLimits, [scenario.technology]: { ...scenario.ponLimits[scenario.technology], [directionFor(scenario)!]: value } } }
+}
+export const directionLabel = (scenario: Scenario) => scenario.technology === 'manual' ? 'Vlastní vlnová délka'
+  : directionFor(scenario) === 'downstream' ? 'K zákazníkovi · OLT → ONT' : 'Od zákazníka · ONT → OLT'
 export const kinds = { splice: 'Svar', connection: 'Konektorový spoj', splitter: 'Splitter', other: 'Jiný prvek' }
-export const newSection = (): Section => ({ id: crypto.randomUUID(), name: '', lengthM: '', loss1310: '', loss1550: '', source: '' })
-export const newElement = (): Element => ({ id: crypto.randomUUID(), kind: 'splice', name: '', count: '1', loss1310: '', loss1550: '' })
-export const newScenario = (): Scenario => ({ version: 1, name: '', wavelength: '1310', sections: [newSection()], elements: [], limit1310: '', limit1550: '', reserve: '' })
+export const newSection = (): Section => ({ ...emptyLosses, id: crypto.randomUUID(), name: '', lengthM: '', source: '' })
+export const newElement = (): Element => ({ ...emptyLosses, id: crypto.randomUUID(), kind: 'splice', name: '', count: '1' })
+export const newScenario = (): Scenario => ({ version: 2, technology: 'manual', name: '', wavelength: '1310', sections: [newSection()], elements: [], limit1310: '', limit1550: '', limit1270: '', limit1490: '', limit1577: '', reserve: '', ponLimits: emptyPonLimits() })
 
 export function hasScenarioContent(scenario: Scenario): boolean {
-  return [scenario.name, scenario.reserve, scenario.limit1310, scenario.limit1550].some(value => value.trim() !== '')
+  return [scenario.name, scenario.reserve, ...wavelengths.map(wave => scenario[limitKeyFor(wave)]), ...Object.values(scenario.ponLimits).flatMap(value => Object.values(value))].some(value => value.trim() !== '')
     || scenario.elements.length > 0 || scenario.sections.length !== 1
-    || scenario.sections.some(row => [row.name, row.lengthM, row.loss1310, row.loss1550, row.source].some(value => value.trim() !== ''))
+    || scenario.sections.some(row => [row.name, row.lengthM, ...wavelengths.map(wave => row[lossKeyFor(wave)]), row.source].some(value => value.trim() !== ''))
 }
 
 // Keep input text until calculation so blank, invalid and explicit zero remain distinct.
@@ -23,7 +47,8 @@ export function number(value: string): number | null {
 }
 export function calculate(scenario: Scenario) {
   const errors: string[] = []
-  const lossKey = scenario.wavelength === '1310' ? 'loss1310' : 'loss1550'
+  const lossKey = lossKeyFor(scenario.wavelength)
+  if (scenario.technology !== 'manual' && !Object.values(ponWavelengths[scenario.technology]).some(wave => wave === scenario.wavelength)) errors.push('Vlnová délka neodpovídá zvolené technologii.')
   const rows: { id: string; name: string; loss: number | null; category: 'fiber' | 'element' }[] = []
   if (!scenario.sections.length) errors.push('Přidejte alespoň jeden kabelový úsek.')
   scenario.sections.forEach((section, index) => {
@@ -43,7 +68,7 @@ export function calculate(scenario: Scenario) {
   const sum = rows.reduce((total, row) => total + (row.loss ?? 0), 0)
   if (!Number.isFinite(sum)) errors.push('Součet je příliš velký. Zkontrolujte vstupy.')
   const total = errors.length ? null : sum
-  const limit = number(scenario.wavelength === '1310' ? scenario.limit1310 : scenario.limit1550)
+  const limit = number(limitFor(scenario))
   const reserve = number(scenario.reserve)
   const margin = total !== null && limit !== null && reserve !== null ? limit - total - reserve : null
   return { rows, errors, total, limit, reserve, margin,
