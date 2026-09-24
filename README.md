@@ -29,8 +29,13 @@ V horní navigaci otevřete **Katalog kabelů**. Obsahuje obecné šablony 12, 2
 výrobce; před použitím je potřeba ověřit provedení proti dokumentaci skutečného kabelu.
 
 Šablonu lze zkopírovat, vlastní typ vytvořit, upravit nebo smazat. Editor nabízí názvy a barvy
-každé tuby a vlákna, výrobce, poznámku a přestavění struktury (1–24 tub, 1–24 vláken v tubě).
-Přestavění vyžaduje potvrzení, protože nahradí vlastní názvy a barvy. Výchozí šablony jsou chráněné.
+každé tuby a vlákna, výrobce, poznámku a úpravu struktury (1–24 tub, 1–24 vláken v tubě).
+Tuby i vlákna lze přidávat a odebírat jednotlivě; tuby mohou mít různé počty vláken.
+Nová tuba přebírá pouze počet vláken vybrané tuby, značení se vytvoří podle zvolených profilů.
+Hromadná úprava sjednotí počty vláken a přidává nebo odebírá položky na konci. Zachované
+položky si ponechají názvy, barvy i značky. Odebrání vyžaduje potvrzení a poslední tubu či
+vlákno nelze odebrat. Po odebrání uprostřed se příslušný profil přepne na vlastní značení,
+aby se zbývající barvy nepřepisovaly podle nového pořadí. Výchozí šablony jsou chráněné.
 Katalog eviduje specifikace; skutečné kabely, trasy a jejich vazby zatím nevytváří.
 
 API `/api/cable-catalog` ukládá vlastní typy do `App_Data/cable-catalog.json`; cestu lze změnit
@@ -49,6 +54,7 @@ Ověření API včetně persistence po restartu a konfliktu souběžných změn:
 ```sh
 dotnet build backend/FiberNetworkStudio.Api
 node --test tests/cable-catalog.test.mjs
+node --test tests/cable-structure.test.mjs # Node 24
 pnpm --dir frontend build
 pnpm --dir frontend lint
 ```
@@ -79,5 +85,5 @@ normy. RGB hodnoty a kresba značek slouží jen k zobrazení, nejsou kolorimetr
 Každý vlastní kabel může mít odkaz na svůj technický list.
 
 Starší uložené typy zůstávají beze změny barev i názvů; chybějící profil se čte jako vlastní a
-chybějící značka jako žádná. Při přestavbě vlastního značení se vytvoří neutrální šedé položky,
+chybějící značka jako žádná. Nově přidané položky s vlastním značením jsou neutrální šedé,
 které je potřeba vyplnit podle kabelu. Vybraný ověřený profil nikdy tiše neopakuje barvy nad svůj limit.

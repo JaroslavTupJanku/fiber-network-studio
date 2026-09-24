@@ -1,10 +1,11 @@
 import { useId } from 'react'
+import { Plus, Trash2 } from 'lucide-react'
 import { ColorMarkFields, ColorSwatch } from './ColorMark'
 import { colorName, markingLabel, type CableInput, type CableTube, type ColorCodeData } from './model'
 
-type Props = { cable: CableInput; data: ColorCodeData; activeTube: number; onSelect: (index: number) => void; onChange?: (tube: CableTube) => void }
+type Props = { cable: CableInput; data: ColorCodeData; activeTube: number; onSelect: (index: number) => void; onChange?: (tube: CableTube) => void; onAddFiber?: () => void; onRemoveFiber?: (index: number) => void }
 
-export function CableStructure({ cable, data, activeTube, onSelect, onChange }: Props) {
+export function CableStructure({ cable, data, activeTube, onSelect, onChange, onAddFiber, onRemoveFiber }: Props) {
   const tube = cable.tubes[activeTube] ?? cable.tubes[0]
   const id = useId()
   return <div className="cc-structure">
@@ -24,6 +25,7 @@ export function CableStructure({ cable, data, activeTube, onSelect, onChange }: 
           <ColorMarkFields part={tube} data={data} label="tuby" onChange={mark => onChange({ ...tube, ...mark })} />
         </div> : <h3><ColorSwatch part={tube} data={data} />{tube.name} · {colorName(tube, data)}</h3>}
         <span className="cc-muted">{tube.fibers.length} vláken · pořadí v tubě</span>
+        {onAddFiber && <button type="button" className="cc-button" disabled={tube.fibers.length >= 24} onClick={onAddFiber}><Plus size={16} /> Přidat vlákno</button>}
       </div>
       <div className={`cc-fibers ${onChange ? 'cc-fibers-edit' : ''}`}>
         {tube.fibers.map((fiber, index) => <div className="cc-fiber" key={index}>
@@ -36,8 +38,9 @@ export function CableStructure({ cable, data, activeTube, onSelect, onChange }: 
               ...tube, fibers: tube.fibers.map((item, i) => i === index ? { ...item, ...mark } : item),
             })} />
           </div> : <><ColorSwatch part={fiber} data={data} /><span className="cc-fiber-description"><strong>{colorName(fiber, data)}</strong>
-            {!/^Vlákno \d+$/.test(fiber.name) && <span>{fiber.name}</span>}
+            {fiber.name !== `Vlákno ${index + 1}` && <span>{fiber.name}</span>}
             {fiber.marking === 'mark' && <small>{markingLabel(fiber, data)}</small>}</span></>}
+          {onRemoveFiber && <button type="button" className="cc-icon-button cc-remove-fiber" aria-label={`Odebrat vlákno ${index + 1}`} title="Odebrat vlákno" disabled={tube.fibers.length <= 1} onClick={() => onRemoveFiber(index)}><Trash2 size={16} /></button>}
         </div>)}
       </div>
     </div>
