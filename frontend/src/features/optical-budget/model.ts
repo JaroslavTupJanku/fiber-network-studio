@@ -8,6 +8,12 @@ export const newSection = (): Section => ({ id: crypto.randomUUID(), name: '', l
 export const newElement = (): Element => ({ id: crypto.randomUUID(), kind: 'splice', name: '', count: '1', loss1310: '', loss1550: '' })
 export const newScenario = (): Scenario => ({ version: 1, name: '', wavelength: '1310', sections: [newSection()], elements: [], limit1310: '', limit1550: '', reserve: '' })
 
+export function hasScenarioContent(scenario: Scenario): boolean {
+  return [scenario.name, scenario.reserve, scenario.limit1310, scenario.limit1550].some(value => value.trim() !== '')
+    || scenario.elements.length > 0 || scenario.sections.length !== 1
+    || scenario.sections.some(row => [row.name, row.lengthM, row.loss1310, row.loss1550, row.source].some(value => value.trim() !== ''))
+}
+
 // Keep input text until calculation so blank, invalid and explicit zero remain distinct.
 export function number(value: string): number | null {
   const text = value.trim().replace(',', '.')

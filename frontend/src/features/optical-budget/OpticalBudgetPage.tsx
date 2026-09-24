@@ -25,22 +25,26 @@ export function OpticalBudgetPage() {
   }
   return <main className="optical-budget" aria-label="Optické ztráty">
     <header className="ob-heading"><div><span className="ob-eyebrow">NÁVRH OPTICKÉ CESTY</span><h1><Calculator size={27} /> Optické ztráty</h1>
-      <p>Sestavte jednu cestu signálu a ověřte její ztrátu pro zvolenou vlnovou délku.</p></div>
-      <div className="ob-actions"><button onClick={() => state.replace(demoScenario())}><FlaskConical size={16} /> Ukázka</button>
-        <button onClick={() => state.replace(newScenario())}><Plus size={16} /> Nový výpočet</button>
-        <button onClick={state.download}><Download size={16} /> Stáhnout</button>
-        <button onClick={() => fileInput.current?.click()}><Upload size={16} /> Načíst</button>
+      <p>Ručně sestavte celou cestu signálu z kabelových úseků a spojů. Výběr cesty z mapy zatím není připojený.</p></div>
+      <div className="ob-actions"><button onClick={() => state.replace(demoScenario(), 'demo')}><FlaskConical size={16} /> Ukázka</button>
+        <button onClick={() => state.replace(newScenario(), 'new')}><Plus size={16} /> Nový výpočet</button>
+        <details className="ob-more"><summary>Další možnosti</summary><div className="ob-more-panel">
+          <p>Soubor uchová celé zadání cesty pro zálohu, sdílení nebo přenos na jiný počítač. Pro běžné vyplnění není potřeba.</p>
+          <button onClick={state.download}><Download size={16} /> Uložit výpočet do souboru</button>
+          <button onClick={() => fileInput.current?.click()}><Upload size={16} /> Otevřít výpočet ze souboru</button>
+        </div></details>
         <input ref={fileInput} hidden type="file" accept="application/json,.json" aria-label="Soubor výpočtu" onChange={async event => {
           const file = event.target.files?.[0]; event.target.value = ''; if (!file) return
-          try { if (file.size > 1000000) throw new Error('Soubor je příliš velký (maximum 1 MB).'); const value = parseScenario(await file.text()); state.replace(value); setImportError('') }
+          try { if (file.size > 1000000) throw new Error('Soubor je příliš velký (maximum 1 MB).'); const value = parseScenario(await file.text()); state.replace(value, 'import'); setImportError('') }
           catch (error) { setImportError(error instanceof Error ? error.message : 'Soubor nelze načíst.') }
         }} /></div></header>
     <div className="ob-layout"><div className="ob-inputs">
       {(state.storageError || importError) && <p className="ob-message" role="alert">{state.storageError || importError}</p>}
-      <section className="ob-panel"><div className="ob-section-heading"><h2>Zadání</h2><span className="ob-tag">Samostatná kalkulačka</span></div>
+      <section className="ob-panel"><div className="ob-section-heading"><h2>Zadání cesty</h2><span className="ob-tag">Ruční výpočet</span></div>
+        <p className="ob-muted">Například: rozvaděč → kabel A → svar → kabel B → dům. Přidejte všechny úseky a spoje, kterými prochází jeden sledovaný signál.</p>
         <div className="ob-fields"><label>Název výpočtu<input value={scenario.name} maxLength={200} placeholder="Např. Přívod k budově A" onChange={event => setScenario({ ...scenario, name: event.target.value })} /></label>
           <label>Vlnová délka<select aria-label="Vlnová délka" value={scenario.wavelength} onChange={event => setScenario({ ...scenario, wavelength: event.target.value as '1310' | '1550' })}><option value="1310">1310 nm</option><option value="1550">1550 nm</option></select></label></div>
-        <p className="ob-muted">{state.storageError ? 'Automatické ukládání není dostupné.' : 'Zadání se automaticky ukládá pouze v tomto prohlížeči.'} Pro přenos na jiný počítač použijte Stáhnout a Načíst.</p>
+        <p className="ob-muted">{state.storageError ? 'Automatické ukládání není dostupné.' : 'Zadání se automaticky ukládá pouze v tomto prohlížeči.'} Přenos souborem najdete v nabídce Další možnosti. Katalog kabelů ani mapu tím neměníte.</p>
       </section>
       <section className="ob-panel"><div className="ob-section-heading"><h2>1. Kabelové úseky</h2><button disabled={scenario.sections.length >= 100} onClick={() => setScenario({ ...scenario, sections: [...scenario.sections, newSection()] })}><Plus size={16} /> Přidat úsek</button></div>
         <p className="ob-muted">Zadejte skutečnou délku kabelu včetně kabelových rezerv. Výběr z katalogu převezme údaje; katalog tím nezměníte.</p>

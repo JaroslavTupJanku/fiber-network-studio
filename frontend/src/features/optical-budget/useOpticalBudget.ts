@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { listCables } from '../cable-catalog/api'
 import type { CableSpecification } from '../cable-catalog/model'
-import { calculate, newScenario, type Scenario } from './model'
+import { calculate, hasScenarioContent, newScenario, type Scenario } from './model'
 import { parseScenario, storageKey } from './storage'
 
 export function useOpticalBudget() {
@@ -36,8 +36,14 @@ export function useOpticalBudget() {
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [revision])
-  const replace = (next: Scenario) => {
-    if (!window.confirm('Nahradit současný výpočet? Předchozí zadání se přepíše.')) return
+  const replace = (next: Scenario, action: 'new' | 'demo' | 'import') => {
+    const messages = {
+      new: 'Vymazat současné zadání cesty a začít nový výpočet?',
+      demo: 'Nahradit současné zadání cesty ilustračním příkladem?',
+      import: 'Nahradit současné zadání cesty výpočtem ze souboru?',
+    }
+    const message = storageEnabled ? messages[action] : `${messages[action]} Původní uložená data, která se nepodařilo načíst, budou přepsána.`
+    if ((hasScenarioContent(scenario) || !storageEnabled) && !window.confirm(message)) return
     setScenario(next); setStorageEnabled(true)
   }
   const download = () => {

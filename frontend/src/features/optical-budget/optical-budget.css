@@ -4,6 +4,11 @@
 .ob-heading h1 { display: flex; align-items: center; gap: 12px; font-size: 30px; letter-spacing: -.035em; margin: 8px 0; }
 .ob-heading p { color: #6b7e76; font-size: 14px; margin: 0; line-height: 1.6; }
 .ob-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.ob-more { position: relative; }.ob-more > summary { cursor: pointer; padding: 9px 12px; border: 1px solid #cfddd6; border-radius: 6px; background: #fff; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.ob-more > summary:focus-visible { outline: 2px solid #176b62; outline-offset: 2px; }
+.ob-more-panel { position: absolute; right: 0; top: 44px; z-index: 3; width: 290px; max-width: calc(100vw - 28px); padding: 16px; border: 1px solid #cfddd6; border-radius: 8px; background: #fff; box-shadow: 0 8px 24px #17382b18; }
+.ob-more-panel p { font-size: 12px; line-height: 1.6; margin-bottom: 12px; }.ob-more-panel button { width: 100%; margin-top: 8px; }
+@media (max-width: 800px) { .ob-more-panel { position: static; margin-top: 8px; } }
 .optical-budget button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 36px; padding: 8px 12px; border: 1px solid #cfddd6; border-radius: 6px; background: #fff; color: #31564b; font-size: 12px; font-weight: 600; cursor: pointer; }
 .optical-budget button:hover { background: #edf5f0; border-color: #9ab9ac; }.optical-budget button:disabled { opacity: .5; cursor: not-allowed; }
 .ob-layout { display: grid; grid-template-columns: minmax(0, 1fr) 350px; gap: 24px; max-width: 1360px; margin: auto; align-items: start; }
