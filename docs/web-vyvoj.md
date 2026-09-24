@@ -16,6 +16,10 @@
 
 **CRUD** znamená založit, načíst, upravit a smazat záznam. Takto teď frontend přes API spravuje budovy a šachty; katastr je pouze podklad, nikoli zdroj těchto záznamů.
 
+**Task v Codexu** je náš pracovní rozhovor. **Issue na GitHubu** je konkrétně popsaný úkol v projektu; u nás mu odpovídá jedna **větev** kódu. Větev odděluje rozpracovanou změnu od společné větve **dev**.
+
+**Commit** uloží změny do historie větve. **Push** odešle větev na GitHub. **Pull request (PR)** ukáže změny k revizi a navrhne jejich sloučení do dev; **draft PR** je zatím označený jako rozpracovaný. Samotný PR ještě nic neslučuje.
+
 **Gesto** je způsob ovládání myší nebo dotykem. MapLibre zde zajišťuje posun tažením a přiblížení kolečkem; aplikace nastavuje vzhled kurzoru.
 
 **Drag and drop** znamená přetáhnout prvek a pustit ho na cílovém místě. U nás mapa převede místo puštění na souřadnice; objekt se uloží až po potvrzení formuláře.
