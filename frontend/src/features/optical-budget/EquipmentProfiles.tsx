@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Plus, Save, Trash2 } from 'lucide-react'
 import { ponWavelengths, type Technology, type Wavelength } from './model'
 import { emptyCatalog, emptyEndpointSelection, equipmentStorageKey, evaluateEquipment, newProfile, parseEquipmentCatalog, profileErrors, type EquipmentCatalog, type EquipmentKind, type EquipmentProfile, type EndpointSelection } from './equipment'
@@ -18,23 +18,25 @@ export function EquipmentProfiles({ scenario, onChange }: { scenario: Scenario; 
   const [draft, setDraft] = useState<EquipmentProfile | null>(null)
   const [formError, setFormError] = useState('')
   const selection = scenario.equipment ?? emptyEndpointSelection()
-  useEffect(() => {
+  const persist = (next: EquipmentCatalog) => {
     if (!initial.enabled) return
-    try { localStorage.setItem(equipmentStorageKey, JSON.stringify(catalog)); setStorageError('') }
+    try { localStorage.setItem(equipmentStorageKey, JSON.stringify(next)); setStorageError('') }
     catch { setStorageError('Katalog zařízení se nepodařilo uložit v tomto prohlížeči.') }
-  }, [catalog, initial.enabled])
+  }
   const choose = (key: keyof EndpointSelection, value: string) => onChange({ ...scenario, equipment: { ...selection, [key]: value } })
   const save = () => {
     if (!draft || !initial.enabled) return
     const errors = profileErrors(draft)
     if (errors.length) { setFormError(errors.join(' ')); return }
-    setCatalog(previous => ({ ...previous, profiles: previous.profiles.some(p => p.id === draft.id)
-      ? previous.profiles.map(p => p.id === draft.id ? draft : p) : [...previous.profiles, draft] }))
+    const next = { ...catalog, profiles: catalog.profiles.some(p => p.id === draft.id)
+      ? catalog.profiles.map(p => p.id === draft.id ? draft : p) : [...catalog.profiles, draft] }
+    persist(next); setCatalog(next)
     setDraft(null); setFormError('')
   }
   const remove = (id: string) => {
     if (!window.confirm('Opravdu odstranit tento profil z katalogu?')) return
-    setCatalog(previous => ({ ...previous, profiles: previous.profiles.filter(p => p.id !== id) }))
+    const next = { ...catalog, profiles: catalog.profiles.filter(p => p.id !== id) }
+    persist(next); setCatalog(next)
     onChange({ ...scenario, equipment: Object.fromEntries(Object.entries(selection).map(([key, value]) => [key, value === id ? '' : value])) as EndpointSelection })
   }
   const checked = evaluateEquipment(scenario, catalog, selection)
