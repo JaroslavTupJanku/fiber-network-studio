@@ -148,6 +148,25 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
     refreshCursor.current = updateCursor
     updateCursor()
 
+    // Use the same generous hit area for hover, click and drag. The rendered
+    // route line is only 5 px wide, making a precise pixel hit hard to discover.
+    const featureAt = (point: MapMouseEvent['point'], layerId: string, tolerance: number) => {
+      if (!map.getLayer(layerId)) return null
+      const directHit = map.queryRenderedFeatures(point, { layers: [layerId] })[0]
+      if (directHit) return directHit
+      const nearby = map.queryRenderedFeatures([
+        [point.x - tolerance, point.y - tolerance],
+        [point.x + tolerance, point.y + tolerance],
+      ], { layers: [layerId] })
+      if (layerId !== POINT_LAYER_ID) return nearby[0] ?? null
+      return nearby.map(feature => {
+        if (feature.geometry.type !== 'Point') return { feature, distance: Infinity }
+        const [longitude, latitude] = feature.geometry.coordinates
+        const center = map.project([longitude, latitude])
+        return { feature, distance: Math.hypot(center.x - point.x, center.y - point.y) }
+      }).filter(hit => hit.distance <= tolerance).sort((a, b) => a.distance - b.distance)[0]?.feature ?? null
+    }
+
     const clearLoadTimeout = () => {
       if (loadTimeout.current) clearTimeout(loadTimeout.current)
       loadTimeout.current = null
@@ -159,16 +178,14 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
     const handleClick = (event: MapMouseEvent) => {
       if (suppressMapClick) { suppressMapClick = false; return }
       const { placementActive, drawingRoute, onLocationClick, onPointSelect, onRouteSelect } = interactionRef.current
-      const pointId = map.getLayer(POINT_LAYER_ID)
-        ? map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] })[0]?.properties?.id
-        : null
+      const pointId = featureAt(event.point, POINT_LAYER_ID, 16)?.properties?.id
       if (drawingRoute) {
         if (pointId) onPointSelect(String(pointId))
         else onLocationClick({ latitude: event.lngLat.lat, longitude: event.lngLat.lng }, false)
         return
       }
-      if (!placementActive && !pointId && map.getLayer(ROUTE_LAYER_ID)) {
-        const routeId = map.queryRenderedFeatures(event.point, { layers: [ROUTE_LAYER_ID] })[0]?.properties?.id
+      if (!placementActive && !pointId) {
+        const routeId = featureAt(event.point, ROUTE_LAYER_ID, 8)?.properties?.id
         if (routeId) { onRouteSelect(String(routeId)); return }
       }
       const result = resolveMapClick(pointId ? String(pointId) : null, placementActive,
@@ -178,11 +195,10 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
     }
     const handleMouseMove = (event: MapMouseEvent) => {
       const { placementActive, activeTool, drawingRoute } = interactionRef.current
-      const pointId = map.getLayer(POINT_LAYER_ID)
-        ? map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] })[0]?.properties?.id : null
+      const pointId = featureAt(event.point, POINT_LAYER_ID, 16)?.properties?.id
       overPoint = Boolean(pointId)
-      const routeId = !placementActive && !drawingRoute && !overPoint && map.getLayer(ROUTE_LAYER_ID)
-        ? map.queryRenderedFeatures(event.point, { layers: [ROUTE_LAYER_ID] })[0]?.properties?.id : null
+      const routeId = !placementActive && !drawingRoute && !overPoint
+        ? featureAt(event.point, ROUTE_LAYER_ID, 8)?.properties?.id : null
       overRoute = Boolean(routeId)
       const nextPointId = dragging || pointDrag || vertexDrag !== null || !pointId ? null : String(pointId)
       const nextRouteId = dragging || pointDrag || vertexDrag !== null || !routeId ? null : String(routeId)
@@ -265,7 +281,7 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
     const handlePointMouseDown = (event: MapMouseEvent) => {
       if (interactionRef.current.drawingRoute) return
       if (interactionRef.current.placementActive && !interactionRef.current.activeTool) return
-      const feature = map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] })[0]
+      const feature = featureAt(event.point, POINT_LAYER_ID, 16)
       const id = feature?.properties?.id
       const renderedPoint = pointData.current.features.find((item) => item.properties.id === id)
       if (!id || !renderedPoint) return
@@ -363,7 +379,7 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
     })
     map.on('zoomend', () => setZoom(map.getZoom()))
     map.on('click', handleClick)
-    map.on('mousedown', POINT_LAYER_ID, handlePointMouseDown)
+    map.on('mousedown', handlePointMouseDown)
     map.on('mousedown', ROUTE_VERTEX_LAYER_ID, handleVertexMouseDown)
     map.on('mousemove', handleMouseMove)
     canvas.addEventListener('mouseleave', handleMouseLeave)
