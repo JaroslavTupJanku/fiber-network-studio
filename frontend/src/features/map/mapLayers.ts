@@ -159,9 +159,9 @@ export function initializeMapLayers(map: Map) {
     paint: { 'line-color': '#1769b8', 'line-width': 3 },
   }, POINT_LAYER_ID)
   // Map backgrounds are inserted below the parcel layer; keep route geometry above both backgrounds.
+  map.moveLayer(ROUTE_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer(SELECTED_ROUTE_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer(HOVERED_ROUTE_LAYER_ID, POINT_LAYER_ID)
-  map.moveLayer(ROUTE_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer('underground-route-draft-line', POINT_LAYER_ID)
   map.moveLayer(ROUTE_VERTEX_LAYER_ID, POINT_LAYER_ID)
 }

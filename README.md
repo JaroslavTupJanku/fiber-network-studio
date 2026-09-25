@@ -14,7 +14,7 @@ Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z n�
 
 Panel **Nástroje mapy** seskupuje umisťování objektů a nastavení vrstev. Lze ho sbalit; na úzké obrazovce se otevírá sbalený.
 
-Pravý panel **Infrastruktura** lze sbalit do úzké boční lišty a znovu otevřít. Přejetí položky v seznamu zvýrazní příslušný bod nebo trasu na mapě; kliknutí na položku mapu přiblíží. Aktivní kreslení trasy a umisťování bodu označuje jemný barevný okraj mapy, podklad zůstává čitelný.
+Pravý panel **Infrastruktura** lze sbalit do úzké boční lišty a znovu otevřít. Přejetí položky v seznamu nebo objektu přímo v mapě zvýrazní příslušný bod či trasu; kliknutí na položku seznamu mapu přiblíží. Aktivní kreslení trasy a umisťování bodu označuje jemný barevný okraj mapy, podklad zůstává čitelný.
 
 **Podzemní trasa:** nejprve založte alespoň dva body sítě. Koncové objekty vyberte v panelu Infrastruktura nebo kliknutím na mapu; případné lomové body přidejte klikáním do mapy. Lomový bod je jen ohyb čáry, není samostatným objektem sítě. Tlačítko Zpět odebere poslední krok; Esc kreslení zruší. Tlačítkem Dokončit kreslení přejdete do formuláře, zadáte název a teprve Uložit zapíše trasu. Uloženou čáru lze vybrat na mapě, upravit její lomové body tažením, prodloužit či smazat. Zobrazená délka je přibližná délka mapové čáry, nikoliv délka instalovaného kabelu. Posun koncového bodu mění geometrii navázané trasy; bod s navázanou trasou nelze smazat, dokud se trasa neupraví či nesmaže. Trasy ukládá API do `backend/FiberNetworkStudio.Api/App_Data/underground-routes.json`, odděleně od bodů.
 

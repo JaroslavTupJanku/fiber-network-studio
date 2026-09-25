@@ -15,8 +15,10 @@ export function MapWorkspace({ active }: { active: boolean }) {
   const [routeTab, setRouteTab] = useState<'installations' | 'route'>('installations')
   const detailsPanelRef = useRef<HTMLElement>(null)
   const lastRouteId = useRef<string | null>(null)
-  const [hoveredPointId, setHoveredPointId] = useState<string | null>(null)
-  const [hoveredRouteId, setHoveredRouteId] = useState<string | null>(null)
+  const [listHoveredPointId, setListHoveredPointId] = useState<string | null>(null)
+  const [listHoveredRouteId, setListHoveredRouteId] = useState<string | null>(null)
+  const [mapHoveredPointId, setMapHoveredPointId] = useState<string | null>(null)
+  const [mapHoveredRouteId, setMapHoveredRouteId] = useState<string | null>(null)
   const [routeFocusRequest, setRouteFocusRequest] = useState<{ id: string, sequence: number } | null>(null)
   useEffect(() => {
     if (!active) return
@@ -51,8 +53,8 @@ export function MapWorkspace({ active }: { active: boolean }) {
   const endpointPoints = points.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs'))
   const togglePanel = () => {
     setPanelOpen(value => !value)
-    setHoveredPointId(null)
-    setHoveredRouteId(null)
+    setListHoveredPointId(null)
+    setListHoveredRouteId(null)
   }
   const selectRouteTab = (tab: 'installations' | 'route') => {
     setRouteTab(tab)
@@ -81,7 +83,8 @@ export function MapWorkspace({ active }: { active: boolean }) {
           installations={installations.loading || installations.loadFailed ? null : installations.documents}
           installationLoading={installations.loading}
           selectedRouteId={routeDraft?.id ?? null}
-          hoveredRouteId={hoveredRouteId}
+          hoveredRouteId={mapHoveredRouteId ?? listHoveredRouteId}
+          onMapRouteHoverChange={setMapHoveredRouteId}
           routeFocusRequest={routeFocusRequest}
           routeDraft={route.preview}
           drawingRoute={route.drawing}
@@ -92,7 +95,8 @@ export function MapWorkspace({ active }: { active: boolean }) {
           onRouteFinish={route.finish}
           onRouteCancel={route.cancelDrawing}
           selectedPointId={editor?.id ?? null}
-          hoveredPointId={hoveredPointId}
+          hoveredPointId={mapHoveredPointId ?? listHoveredPointId}
+          onMapPointHoverChange={setMapHoveredPointId}
           selectedParcel={selectedParcel}
           preview={preview}
           activeTool={activeTool}
@@ -273,18 +277,18 @@ export function MapWorkspace({ active }: { active: boolean }) {
             <label className="search-field"><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Hledat objekt" aria-label="Hledat objekt" /></label>
             {loading ? <p className="empty-selection">Načítání objektů…</p> : visiblePoints.length === 0 ? <p className="empty-selection">{query ? 'Nic nenalezeno.' : 'Zatím žádné objekty.'}</p> : (
               <ul>{visiblePoints.map((point) => <li key={point.id}><button type="button"
-                onMouseEnter={() => setHoveredPointId(point.id)} onMouseLeave={() => setHoveredPointId(null)}
-                onFocus={() => setHoveredPointId(point.id)} onBlur={() => setHoveredPointId(null)}
-                onClick={() => { setHoveredPointId(null); handlePointSelect(point.id) }}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}</small></span></button></li>)}</ul>
+                onMouseEnter={() => setListHoveredPointId(point.id)} onMouseLeave={() => setListHoveredPointId(null)}
+                onFocus={() => setListHoveredPointId(point.id)} onBlur={() => setListHoveredPointId(null)}
+                onClick={() => { setListHoveredPointId(null); handlePointSelect(point.id) }}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}</small></span></button></li>)}</ul>
             )}
             {route.visibleRoutes.length > 0 && <div className="route-list"><h2>Podzemní trasy</h2><ul>{route.visibleRoutes.map(item => {
               const summary = installationSummary(installationByRoute.get(item.id))
               const status = installations.loading || installations.loadFailed ? 'unknown' : summary.status
               return <li key={item.id}><button type="button"
-                onMouseEnter={() => setHoveredRouteId(item.id)} onMouseLeave={() => setHoveredRouteId(null)}
-                onFocus={() => setHoveredRouteId(item.id)} onBlur={() => setHoveredRouteId(null)}
+                onMouseEnter={() => setListHoveredRouteId(item.id)} onMouseLeave={() => setListHoveredRouteId(null)}
+                onFocus={() => setListHoveredRouteId(item.id)} onBlur={() => setListHoveredRouteId(null)}
                 onClick={() => {
-                  setHoveredRouteId(null)
+                  setListHoveredRouteId(null)
                   selectSavedRoute(item.id)
                   setRouteFocusRequest(current => ({ id: item.id, sequence: (current?.sequence ?? 0) + 1 }))
                 }}><RouteIcon className={`route-list-icon ${status}`} size={17} /><span className="route-list-text"><strong>{item.name}</strong><small>
