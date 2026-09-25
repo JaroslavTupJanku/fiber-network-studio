@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CircleDot, House } from 'lucide-react'
 import { MapToolbox, type BaseMap, type CadastreStatus, type OrthophotoStatus, type PlacementPointer } from './MapToolbox'
 import { GeoJSONSource, LngLatBounds, Map, Marker, NavigationControl, setWorkerUrl, type ErrorEvent, type MapMouseEvent, type MapSourceDataEvent } from 'maplibre-gl'
@@ -52,6 +52,9 @@ type MapCanvasProps = {
 
 type PointDrag = { id: string, kind: NetworkPointKind, startX: number, startY: number, original: Coordinates, location: Coordinates, moved: boolean }
 
+const withPointPosition = (points: NetworkPoint[], id: string, location: Coordinates) => points.map(point =>
+  point.id === id ? { ...point, ...location } : point)
+
 setWorkerUrl(workerUrl)
 
 export function MapCanvas({ points, routes, installations, installationLoading, selectedRouteId, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, routeDraft, drawingRoute, onRouteToolChange,
@@ -64,6 +67,10 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
   const interactionRef = useRef({ placementActive, activeTool, drawingRoute, onLocationClick,
     onPointSelect, onPointMove, onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange })
   const pointData = useRef(pointCollection([], null, null))
+  const displayedPoints = useMemo(() => selectedPointId && preview
+    ? withPointPosition(points, selectedPointId, preview) : points, [points, selectedPointId, preview])
+  const geometryRef = useRef({ displayedPoints, routes, installations, routeDraft })
+  const dragPreviewRef = useRef<{ id: string, location: Coordinates } | null>(null)
   const skipSelectionEase = useRef<string | null>(null)
   const focusedPointId = useRef<string | null>(null)
   const lastRouteFocusSequence = useRef(0)
@@ -92,6 +99,10 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
       onPointSelect, onPointMove, onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange }
   }, [placementActive, activeTool, drawingRoute, onLocationClick, onPointSelect, onPointMove,
     onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange])
+
+  useEffect(() => {
+    geometryRef.current = { displayedPoints, routes, installations, routeDraft }
+  }, [displayedPoints, routes, installations, routeDraft])
 
   useEffect(() => {
     toolDragActive.current = dragPointer !== null
@@ -237,13 +248,14 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
       updateCursor()
     }
     const setPointPosition = (id: string, location: Coordinates) => {
-      pointData.current = {
-        ...pointData.current,
-        features: pointData.current.features.map((feature) => feature.properties.id === id
-          ? { ...feature, geometry: { ...feature.geometry, coordinates: [location.longitude, location.latitude] } }
-          : feature),
-      }
+      dragPreviewRef.current = { id, location }
+      const { displayedPoints, routes, installations, routeDraft } = geometryRef.current
+      const previewPoints = withPointPosition(displayedPoints, id, location)
+      pointData.current = pointCollection(previewPoints, null, null)
       map.getSource<GeoJSONSource>(POINT_SOURCE_ID)?.setData(pointData.current)
+      map.getSource<GeoJSONSource>(ROUTE_SOURCE_ID)?.setData(routeCollection(
+        routes.filter(route => route.id !== routeDraft?.id), previewPoints, installations))
+      map.getSource<GeoJSONSource>(ROUTE_DRAFT_SOURCE_ID)?.setData(routeDraftCollection(routeDraft, previewPoints, null))
     }
     const handlePointMouseMove = (event: MouseEvent) => {
       if (!pointDrag) return
@@ -276,6 +288,7 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
         skipSelectionEase.current = id
         interactionRef.current.onPointMove(id, location)
       } else setPointPosition(id, original)
+      dragPreviewRef.current = null
       updateCursor()
     }
     const handlePointMouseDown = (event: MapMouseEvent) => {
@@ -410,24 +423,30 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
   useEffect(() => {
     const map = mapRef.current
     if (!map || readyMapRef.current !== map) return
-    pointData.current = pointCollection(points, selectedPointId, preview)
+    const renderedPoints = dragPreviewRef.current
+      ? withPointPosition(displayedPoints, dragPreviewRef.current.id, dragPreviewRef.current.location) : displayedPoints
+    pointData.current = pointCollection(renderedPoints, null, null)
     map.getSource<GeoJSONSource>(POINT_SOURCE_ID)?.setData(pointData.current)
-  }, [points, selectedPointId, preview, mapGeneration])
+  }, [displayedPoints, mapGeneration])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || readyMapRef.current !== map) return
+    const renderedPoints = dragPreviewRef.current
+      ? withPointPosition(displayedPoints, dragPreviewRef.current.id, dragPreviewRef.current.location) : displayedPoints
     map.getSource<GeoJSONSource>(ROUTE_SOURCE_ID)?.setData(routeCollection(
-      routes.filter(route => route.id !== routeDraft?.id), points, installations))
-  }, [routes, points, installations, routeDraft?.id, mapGeneration])
+      routes.filter(route => route.id !== routeDraft?.id), renderedPoints, installations))
+  }, [routes, displayedPoints, installations, routeDraft?.id, mapGeneration])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || readyMapRef.current !== map) return
-    map.getSource<GeoJSONSource>(ROUTE_DRAFT_SOURCE_ID)?.setData(routeDraftCollection(routeDraft, points,
+    const renderedPoints = dragPreviewRef.current
+      ? withPointPosition(displayedPoints, dragPreviewRef.current.id, dragPreviewRef.current.location) : displayedPoints
+    map.getSource<GeoJSONSource>(ROUTE_DRAFT_SOURCE_ID)?.setData(routeDraftCollection(routeDraft, renderedPoints,
       drawingRoute ? routeHover : null))
     map.getSource<GeoJSONSource>(ROUTE_VERTEX_SOURCE_ID)?.setData(routeVertexCollection(drawingRoute ? routeDraft : null))
-  }, [routeDraft, points, drawingRoute, routeHover, mapGeneration])
+  }, [routeDraft, displayedPoints, drawingRoute, routeHover, mapGeneration])
 
   useEffect(() => {
     const map = mapRef.current
