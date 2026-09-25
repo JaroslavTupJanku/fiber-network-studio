@@ -19,7 +19,7 @@ public static class RouteInstallationEndpoints
             var route = routes.FirstOrDefault(item => item.Id == routeId);
             if (route is null) return Results.NotFound(new { error = "Trasa neexistuje." });
             if (request.ContinueFromItemId is null && request.CatalogId is null)
-                return Results.BadRequest(new { error = "Vyberte typ z katalogu nebo návazný kus." });
+                return Results.BadRequest(new { error = "Vyberte typ z katalogu nebo navazující prvek." });
             var duct = request.ContinueFromItemId is null
                 ? (await ductStore.ListAsync()).FirstOrDefault(item => item.Id == request.CatalogId) : null;
             var cable = request.ContinueFromItemId is null && duct is null
@@ -30,6 +30,10 @@ public static class RouteInstallationEndpoints
         group.MapPut("/{routeId:guid}/items/{itemId:guid}", async (Guid routeId, Guid itemId,
             RenameInstalledItemRequest request, RouteInstallationStore store) =>
             ToResult(await store.RenameAsync(routeId, itemId, request)));
+
+        group.MapPut("/{routeId:guid}/items/{itemId:guid}/placement", async (Guid routeId, Guid itemId,
+            MoveInstalledItemRequest request, RouteInstallationStore store) =>
+            ToResult(await store.MoveAsync(routeId, itemId, request)));
 
         group.MapDelete("/{routeId:guid}/items/{itemId:guid}", async (Guid routeId, Guid itemId,
             int version, RouteInstallationStore store, UndergroundRouteStore routeStore) =>

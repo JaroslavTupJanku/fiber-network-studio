@@ -7,7 +7,26 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
-import { canPlaceItem, installationContinuations, installationFit } from '../frontend/src/features/map/routeInstallations.ts'
+import { canPlaceItem, hasAvailablePlacement, installationContinuations, installationFit, installationSummary } from '../frontend/src/features/map/routeInstallations.ts'
+
+test('occupied parents stop offering an add-inside action', () => {
+  const microduct = { id: 'microduct', duct: { kind: 'microduct' }, cable: null }
+  const assembly = { id: 'assembly', duct: { kind: 'assembly', slots: [{ kind: 'microduct' }] }, cable: null }
+  const conduit = { id: 'conduit', duct: { kind: 'conduit' }, cable: null }
+  assert.equal(hasAvailablePlacement(microduct, []), true)
+  assert.equal(hasAvailablePlacement(microduct, [{ parentId: 'microduct', cable: {} }]), false)
+  assert.equal(hasAvailablePlacement(assembly, [{ parentId: 'assembly', slotIndex: 0 }]), false)
+  assert.equal(hasAvailablePlacement(conduit, [{ parentId: 'conduit', cable: {} }]), false)
+  assert.equal(hasAvailablePlacement(conduit, [{ parentId: 'conduit', duct: { kind: 'microduct' }, cable: null }]), true)
+})
+
+test('route status follows saved contents instead of treating every route as cabled', () => {
+  assert.deepEqual(installationSummary(), { status: 'empty', ducts: 0, cables: 0, items: 0 })
+  const document = { items: [{ duct: { kind: 'conduit' }, cable: null }] }
+  assert.deepEqual(installationSummary(document), { status: 'ducts', ducts: 1, cables: 0, items: 1 })
+  document.items.push({ duct: null, cable: { name: 'Optický kabel' } })
+  assert.deepEqual(installationSummary(document), { status: 'cables', ducts: 1, cables: 1, items: 2 })
+})
 
 test('installation preview distinguishes occupied positions and unknown dimensions', () => {
   const assembly = { id: 'parent', duct: { kind: 'assembly', slots: [{ kind: 'microduct', innerDiameterMm: null }] }, cable: null }
@@ -41,7 +60,8 @@ test('route installation API stores physical instances, prevents invalid placeme
       if (server && server.exitCode === null) { const exited = once(server, 'exit'); server.kill(); await exited }
     }
     const start = async () => {
-      server = spawn('dotnet', [resolve('backend/FiberNetworkStudio.Api/bin/Debug/net10.0/FiberNetworkStudio.Api.dll')], {
+      server = spawn('dotnet', [process.env.FNS_API_DLL
+        ?? resolve('backend/FiberNetworkStudio.Api/bin/Debug/net10.0/FiberNetworkStudio.Api.dll')], {
         windowsHide: true,
         env: { ...process.env, ASPNETCORE_URLS: url,
           NetworkPoints__Path: join(directory, 'points.json'), UndergroundRoutes__Path: join(directory, 'routes.json'),
@@ -119,11 +139,24 @@ test('route installation API stores physical instances, prevents invalid placeme
       doc = await body(await add(first.id,
         { catalogId: tightConduit.id, parentId: null, slotIndex: null, version: doc.version }))
       const tightRoot = doc.items.at(-1)
+      assert.equal(doc.items.filter(item => item.parentId === null).length, 2)
       doc = await body(await add(first.id,
         { catalogId: microduct.id, parentId: tightRoot.id, slotIndex: null, version: doc.version }))
       assert.equal((await add(first.id,
         { catalogId: microduct.id, parentId: tightRoot.id, slotIndex: null, version: doc.version })).status, 409)
-      assert.equal((await request(`/route-installations/${first.id}/items/${root.id}?version=${doc.version}`, 'DELETE')).status, 409)
+      doc = await body(await add(first.id,
+        { catalogId: microduct.id, parentId: root.id, slotIndex: null, version: doc.version }))
+      const spareInner = doc.items.at(-1)
+      const move = (id, parentId, slotIndex, version) => request(
+        `/route-installations/${first.id}/items/${id}/placement`, 'PUT', { parentId, slotIndex, version })
+      assert.equal((await move(installedCable.id, spareInner.id, null, doc.version - 1)).status, 409)
+      assert.equal((await move(root.id, inner.id, null, doc.version)).status, 409)
+      assert.equal((await move(installedCable.id, root.id, null, doc.version)).status, 409)
+      doc = await body(await move(installedCable.id, spareInner.id, null, doc.version))
+      assert.equal(doc.items.find(item => item.id === installedCable.id).parentId, spareInner.id)
+      assert.equal((await move(inner.id, spareInner.id, null, doc.version)).status, 409)
+      doc = await body(await move(installedCable.id, inner.id, null, doc.version))
+      assert.equal(doc.items.find(item => item.id === installedCable.id).parentId, inner.id)
       assert.equal((await request(`/underground-routes/${first.id}`, 'DELETE')).status, 409)
       assert.equal((await request(`/underground-routes/${first.id}`, 'PUT',
         { ...first, endPointId: c.id })).status, 409)
@@ -170,6 +203,8 @@ test('route installation API stores physical instances, prevents invalid placeme
         { catalogId: conduit.id, parentId: assemblyRoot.id, slotIndex: 0, version: assemblyDoc.version }))
       assert.equal((await add(separate.id,
         { catalogId: conduit.id, parentId: assemblyRoot.id, slotIndex: 0, version: placed.version })).status, 409)
+      const nested = await body(await add(separate.id,
+        { catalogId: microduct.id, parentId: placed.items.at(-1).id, slotIndex: null, version: placed.version }))
 
       await stop()
       await start()
@@ -180,6 +215,12 @@ test('route installation API stores physical instances, prevents invalid placeme
       const renamed = await request(`/route-installations/${first.id}/items/${root.id}`, 'PUT',
         { label: 'CH-01A', version: savedFirst.version })
       assert.equal(renamed.status, 200)
+      assert.equal((await request(`/route-installations/${second.id}/items/${secondRoot.id}?version=${next.version}`,
+        'DELETE')).status, 409)
+      const removedAssembly = await body(await request(
+        `/route-installations/${separate.id}/items/${assemblyRoot.id}?version=${nested.version}`, 'DELETE'))
+      assert.equal(removedAssembly.items.length, 0)
+      assert.equal(removedAssembly.version, nested.version + 1)
     } finally {
       await stop()
       await rm(directory, { recursive: true, force: true })

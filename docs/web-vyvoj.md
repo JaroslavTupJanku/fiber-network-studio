@@ -39,6 +39,8 @@ Po nasazení uživatel otevře jen webovou adresu. Dva vývojové procesy spouš
 
 **Drag and drop** znamená přetáhnout prvek a pustit ho na cílovém místě. U nás mapa převede místo puštění na souřadnice; objekt se uloží až po potvrzení formuláře.
 
+V editoru osazení se přetažením ve stromu mění nadřazený prvek kabelu nebo trubičky. Frontend zvýrazní jen vhodné cíle a po puštění volá API s ID prvku, novým rodičem, případnou pozicí v sestavě a verzí dokumentu. Backend znovu ověří pravidla uložení; tlačítko **Přesunout…** nabídne stejnou operaci bez přetahování. Při odebrání rodiče API atomicky odebere celý jeho podstrom, pokud tím nepřeruší souvislý prvek v jiných úsecích.
+
 **Rozpracovaná poloha** je změna bodu viditelná ve frontendu. Při tažení se překreslí bod v mapové vrstvě GeoJSON, ale backend dostane nové souřadnice až po kliknutí na **Uložit**.
 
 **Podzemní trasa** propojuje dva uložené mapové body a mezi nimi může mít seřazené lomové body. Při kreslení a úpravách vidí uživatel náhled; server dostane změnu až po **Uložit**. Krajní body uchováváme jejich identitou, takže se čára přizpůsobí přesunu budovy či šachty. Přibližná délka vychází z mapové čáry, ne z evidence skutečně uloženého kabelu. Backend kontroluje koncové body a souřadnice a ukládá trasy do samostatného JSON souboru. Jde o další příklad stejného rozdělení na komponentu, stavový hook, model, API a backendové úložiště.
@@ -51,18 +53,20 @@ na výstupu nebo vstupu zařízení. Stejné číslo v dB a dBm proto neznamená
 **GPON** a **XGS-PON** jsou dva způsoby přenosu po pasivní optické síti. Každý má svůj
 směr k zákazníkovi a zpět, odlišné vlnové délky a vhodné typy zařízení. **Profil zařízení**
 je katalogový typ portu, karty, koncového zařízení nebo optického modulu s hodnotami
-z technického listu výrobce, ne jednotlivý namontovaný kus.
+z technického listu výrobce, ne jednotlivý namontovaný prvek.
 
 **Návrhová rezerva** je prostor pro budoucí zhoršení cesty. Kalkulačka ji připočte ke
 ztrátě při kontrole, zda do přijímače dorazí dostatečně silný signál. Příliš silný signál
 kontroluje zvlášť podle nejvyššího výkonu vysílače a hranice přetížení přijímače.
 Výsledek je odhad podle zadaných údajů, nikoli náhrada měření hotové sítě.
 
+**Úsek trasy** je jedna podzemní cesta mezi dvěma síťovými body; lomové body mění jen její tvar. Více chrániček v úseku leží vedle sebe. Osazení zde zatím platí po celé délce úseku.
+
 **Katalogový typ** popisuje výrobek nebo opakovaně použitelné rozložení. **Instalovaný
-kus** je konkrétní chránička či kabel v jednom úseku mapové trasy. Při vložení se pořídí
-kopie katalogových údajů, takže úprava typu nemění již zaznamenaný kus. Kusy tvoří strom
+prvek** je konkrétní chránička či kabel v jednom úseku mapové trasy. Při vložení se pořídí
+kopie katalogových údajů, takže úprava typu nemění již zaznamenaný prvek. Prvky tvoří strom
 (chránička → mikrotrubička → kabel); obsazená pozice se nesmí použít dvakrát. Stejný
-fyzický kus může pokračovat v sousedním úseku, pokud sdílejí koncový síťový bod.
+fyzický prvek může pokračovat v sousedním úseku, pokud sdílejí koncový síťový bod.
 **Mikrotrubička** chrání kabel zvenku. **Tuba kabelu** je naopak součást
 samotného kabelu a obsahuje optická vlákna. Jejich průměry ani barvy se nezaměňují.
 **Předběžná rozměrová kontrola** porovná kabel s vnitřkem trubičky; sama nepotvrzuje,

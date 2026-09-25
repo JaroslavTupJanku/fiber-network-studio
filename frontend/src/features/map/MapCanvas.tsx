@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { CircleDot, House } from 'lucide-react'
 import { MapToolbox, type BaseMap, type CadastreStatus, type OrthophotoStatus, type PlacementPointer } from './MapToolbox'
 import { GeoJSONSource, LngLatBounds, Map, Marker, NavigationControl, setWorkerUrl, type ErrorEvent, type MapMouseEvent, type MapSourceDataEvent } from 'maplibre-gl'
@@ -8,6 +8,7 @@ import { addCadastreLayer, CADASTRE_LAYER_ID, CADASTRE_MIN_ZOOM, CADASTRE_SOURCE
 import { addOrthophotoLayer, ORTHOPHOTO_SOURCE_ID, removeOrthophotoLayer } from './orthophoto'
 import type { Coordinates, NetworkPoint, NetworkPointKind } from './networkPoints'
 import type { Parcel } from './parcels'
+import type { RouteInstallationDocument } from './routeInstallations'
 import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollection, routeVertexCollection,
   POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, HOVERED_POINT_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID,
   ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
@@ -18,8 +19,11 @@ import { routeCoordinates, type RouteDraft, type UndergroundRoute } from './unde
 type MapCanvasProps = {
   points: NetworkPoint[]
   routes: UndergroundRoute[]
+  installations: RouteInstallationDocument[] | null
+  installationLoading: boolean
   selectedRouteId: string | null
   hoveredRouteId: string | null
+  onMapRouteHoverChange: (id: string | null) => void
   routeFocusRequest: { id: string, sequence: number } | null
   routeDraft: RouteDraft | null
   drawingRoute: boolean
@@ -31,6 +35,7 @@ type MapCanvasProps = {
   onRouteCancel: () => void
   selectedPointId: string | null
   hoveredPointId: string | null
+  onMapPointHoverChange: (id: string | null) => void
   selectedParcel: Parcel | null
   preview: (Coordinates & { kind?: NetworkPointKind }) | null
   activeTool: NetworkPointKind | null
@@ -47,18 +52,25 @@ type MapCanvasProps = {
 
 type PointDrag = { id: string, kind: NetworkPointKind, startX: number, startY: number, original: Coordinates, location: Coordinates, moved: boolean }
 
+const withPointPosition = (points: NetworkPoint[], id: string, location: Coordinates) => points.map(point =>
+  point.id === id ? { ...point, ...location } : point)
+
 setWorkerUrl(workerUrl)
 
-export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, routeFocusRequest, routeDraft, drawingRoute, onRouteToolChange,
-  onRouteSelect, onRouteWaypointMove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId,
+export function MapCanvas({ points, routes, installations, installationLoading, selectedRouteId, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, routeDraft, drawingRoute, onRouteToolChange,
+  onRouteSelect, onRouteWaypointMove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId, onMapPointHoverChange,
   selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop,
   onLocationClick, onPointSelect, onPointMove, onDraftMove, onCadastreDisable }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const readyMapRef = useRef<Map | null>(null)
   const interactionRef = useRef({ placementActive, activeTool, drawingRoute, onLocationClick,
-    onPointSelect, onPointMove, onRouteSelect, onRouteWaypointMove })
+    onPointSelect, onPointMove, onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange })
   const pointData = useRef(pointCollection([], null, null))
+  const displayedPoints = useMemo(() => selectedPointId && preview
+    ? withPointPosition(points, selectedPointId, preview) : points, [points, selectedPointId, preview])
+  const geometryRef = useRef({ displayedPoints, routes, installations, routeDraft })
+  const dragPreviewRef = useRef<{ id: string, location: Coordinates } | null>(null)
   const skipSelectionEase = useRef<string | null>(null)
   const focusedPointId = useRef<string | null>(null)
   const lastRouteFocusSequence = useRef(0)
@@ -84,9 +96,13 @@ export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, rou
 
   useEffect(() => {
     interactionRef.current = { placementActive, activeTool, drawingRoute, onLocationClick,
-      onPointSelect, onPointMove, onRouteSelect, onRouteWaypointMove }
+      onPointSelect, onPointMove, onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange }
   }, [placementActive, activeTool, drawingRoute, onLocationClick, onPointSelect, onPointMove,
-    onRouteSelect, onRouteWaypointMove])
+    onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange])
+
+  useEffect(() => {
+    geometryRef.current = { displayedPoints, routes, installations, routeDraft }
+  }, [displayedPoints, routes, installations, routeDraft])
 
   useEffect(() => {
     toolDragActive.current = dragPointer !== null
@@ -115,6 +131,8 @@ export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, rou
     let overRoute = false
     let overRouteVertex = false
     let overParcel = false
+    let mapHoverPointId: string | null = null
+    let mapHoverRouteId: string | null = null
     let dragging = false
     let pointDrag: PointDrag | null = null
     let vertexDrag: number | null = null
@@ -141,6 +159,25 @@ export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, rou
     refreshCursor.current = updateCursor
     updateCursor()
 
+    // Use the same generous hit area for hover, click and drag. The rendered
+    // route line is only 5 px wide, making a precise pixel hit hard to discover.
+    const featureAt = (point: MapMouseEvent['point'], layerId: string, tolerance: number) => {
+      if (!map.getLayer(layerId)) return null
+      const directHit = map.queryRenderedFeatures(point, { layers: [layerId] })[0]
+      if (directHit) return directHit
+      const nearby = map.queryRenderedFeatures([
+        [point.x - tolerance, point.y - tolerance],
+        [point.x + tolerance, point.y + tolerance],
+      ], { layers: [layerId] })
+      if (layerId !== POINT_LAYER_ID) return nearby[0] ?? null
+      return nearby.map(feature => {
+        if (feature.geometry.type !== 'Point') return { feature, distance: Infinity }
+        const [longitude, latitude] = feature.geometry.coordinates
+        const center = map.project([longitude, latitude])
+        return { feature, distance: Math.hypot(center.x - point.x, center.y - point.y) }
+      }).filter(hit => hit.distance <= tolerance).sort((a, b) => a.distance - b.distance)[0]?.feature ?? null
+    }
+
     const clearLoadTimeout = () => {
       if (loadTimeout.current) clearTimeout(loadTimeout.current)
       loadTimeout.current = null
@@ -152,16 +189,14 @@ export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, rou
     const handleClick = (event: MapMouseEvent) => {
       if (suppressMapClick) { suppressMapClick = false; return }
       const { placementActive, drawingRoute, onLocationClick, onPointSelect, onRouteSelect } = interactionRef.current
-      const pointId = map.getLayer(POINT_LAYER_ID)
-        ? map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] })[0]?.properties?.id
-        : null
+      const pointId = featureAt(event.point, POINT_LAYER_ID, 16)?.properties?.id
       if (drawingRoute) {
         if (pointId) onPointSelect(String(pointId))
         else onLocationClick({ latitude: event.lngLat.lat, longitude: event.lngLat.lng }, false)
         return
       }
-      if (!placementActive && !pointId && map.getLayer(ROUTE_LAYER_ID)) {
-        const routeId = map.queryRenderedFeatures(event.point, { layers: [ROUTE_LAYER_ID] })[0]?.properties?.id
+      if (!placementActive && !pointId) {
+        const routeId = featureAt(event.point, ROUTE_LAYER_ID, 8)?.properties?.id
         if (routeId) { onRouteSelect(String(routeId)); return }
       }
       const result = resolveMapClick(pointId ? String(pointId) : null, placementActive,
@@ -171,10 +206,21 @@ export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, rou
     }
     const handleMouseMove = (event: MapMouseEvent) => {
       const { placementActive, activeTool, drawingRoute } = interactionRef.current
-      overPoint = Boolean(map.getLayer(POINT_LAYER_ID))
-        && map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] }).length > 0
-      overRoute = !placementActive && !drawingRoute && !overPoint && Boolean(map.getLayer(ROUTE_LAYER_ID))
-        && map.queryRenderedFeatures(event.point, { layers: [ROUTE_LAYER_ID] }).length > 0
+      const pointId = featureAt(event.point, POINT_LAYER_ID, 16)?.properties?.id
+      overPoint = Boolean(pointId)
+      const routeId = !placementActive && !drawingRoute && !overPoint
+        ? featureAt(event.point, ROUTE_LAYER_ID, 8)?.properties?.id : null
+      overRoute = Boolean(routeId)
+      const nextPointId = dragging || pointDrag || vertexDrag !== null || !pointId ? null : String(pointId)
+      const nextRouteId = dragging || pointDrag || vertexDrag !== null || !routeId ? null : String(routeId)
+      if (nextPointId !== mapHoverPointId) {
+        mapHoverPointId = nextPointId
+        interactionRef.current.onMapPointHoverChange(nextPointId)
+      }
+      if (nextRouteId !== mapHoverRouteId) {
+        mapHoverRouteId = nextRouteId
+        interactionRef.current.onMapRouteHoverChange(nextRouteId)
+      }
       overRouteVertex = drawingRoute && Boolean(map.getLayer(ROUTE_VERTEX_LAYER_ID))
         && map.queryRenderedFeatures(event.point, { layers: [ROUTE_VERTEX_LAYER_ID] }).length > 0
       overParcel = !placementActive && !overPoint && Boolean(map.getLayer(PARCEL_FILL_LAYER_ID))
@@ -189,18 +235,27 @@ export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, rou
       overRoute = false
       overRouteVertex = false
       overParcel = false
+      if (mapHoverPointId !== null) {
+        mapHoverPointId = null
+        interactionRef.current.onMapPointHoverChange(null)
+      }
+      if (mapHoverRouteId !== null) {
+        mapHoverRouteId = null
+        interactionRef.current.onMapRouteHoverChange(null)
+      }
       setRouteHover(null)
       setPlacementPointer(null)
       updateCursor()
     }
     const setPointPosition = (id: string, location: Coordinates) => {
-      pointData.current = {
-        ...pointData.current,
-        features: pointData.current.features.map((feature) => feature.properties.id === id
-          ? { ...feature, geometry: { ...feature.geometry, coordinates: [location.longitude, location.latitude] } }
-          : feature),
-      }
+      dragPreviewRef.current = { id, location }
+      const { displayedPoints, routes, installations, routeDraft } = geometryRef.current
+      const previewPoints = withPointPosition(displayedPoints, id, location)
+      pointData.current = pointCollection(previewPoints, null, null)
       map.getSource<GeoJSONSource>(POINT_SOURCE_ID)?.setData(pointData.current)
+      map.getSource<GeoJSONSource>(ROUTE_SOURCE_ID)?.setData(routeCollection(
+        routes.filter(route => route.id !== routeDraft?.id), previewPoints, installations))
+      map.getSource<GeoJSONSource>(ROUTE_DRAFT_SOURCE_ID)?.setData(routeDraftCollection(routeDraft, previewPoints, null))
     }
     const handlePointMouseMove = (event: MouseEvent) => {
       if (!pointDrag) return
@@ -233,12 +288,13 @@ export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, rou
         skipSelectionEase.current = id
         interactionRef.current.onPointMove(id, location)
       } else setPointPosition(id, original)
+      dragPreviewRef.current = null
       updateCursor()
     }
     const handlePointMouseDown = (event: MapMouseEvent) => {
       if (interactionRef.current.drawingRoute) return
       if (interactionRef.current.placementActive && !interactionRef.current.activeTool) return
-      const feature = map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] })[0]
+      const feature = featureAt(event.point, POINT_LAYER_ID, 16)
       const id = feature?.properties?.id
       const renderedPoint = pointData.current.features.find((item) => item.properties.id === id)
       if (!id || !renderedPoint) return
@@ -336,7 +392,7 @@ export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, rou
     })
     map.on('zoomend', () => setZoom(map.getZoom()))
     map.on('click', handleClick)
-    map.on('mousedown', POINT_LAYER_ID, handlePointMouseDown)
+    map.on('mousedown', handlePointMouseDown)
     map.on('mousedown', ROUTE_VERTEX_LAYER_ID, handleVertexMouseDown)
     map.on('mousemove', handleMouseMove)
     canvas.addEventListener('mouseleave', handleMouseLeave)
@@ -367,24 +423,30 @@ export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, rou
   useEffect(() => {
     const map = mapRef.current
     if (!map || readyMapRef.current !== map) return
-    pointData.current = pointCollection(points, selectedPointId, preview)
+    const renderedPoints = dragPreviewRef.current
+      ? withPointPosition(displayedPoints, dragPreviewRef.current.id, dragPreviewRef.current.location) : displayedPoints
+    pointData.current = pointCollection(renderedPoints, null, null)
     map.getSource<GeoJSONSource>(POINT_SOURCE_ID)?.setData(pointData.current)
-  }, [points, selectedPointId, preview, mapGeneration])
+  }, [displayedPoints, mapGeneration])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || readyMapRef.current !== map) return
+    const renderedPoints = dragPreviewRef.current
+      ? withPointPosition(displayedPoints, dragPreviewRef.current.id, dragPreviewRef.current.location) : displayedPoints
     map.getSource<GeoJSONSource>(ROUTE_SOURCE_ID)?.setData(routeCollection(
-      routes.filter(route => route.id !== routeDraft?.id), points))
-  }, [routes, points, routeDraft?.id, mapGeneration])
+      routes.filter(route => route.id !== routeDraft?.id), renderedPoints, installations))
+  }, [routes, displayedPoints, installations, routeDraft?.id, mapGeneration])
 
   useEffect(() => {
     const map = mapRef.current
     if (!map || readyMapRef.current !== map) return
-    map.getSource<GeoJSONSource>(ROUTE_DRAFT_SOURCE_ID)?.setData(routeDraftCollection(routeDraft, points,
+    const renderedPoints = dragPreviewRef.current
+      ? withPointPosition(displayedPoints, dragPreviewRef.current.id, dragPreviewRef.current.location) : displayedPoints
+    map.getSource<GeoJSONSource>(ROUTE_DRAFT_SOURCE_ID)?.setData(routeDraftCollection(routeDraft, renderedPoints,
       drawingRoute ? routeHover : null))
     map.getSource<GeoJSONSource>(ROUTE_VERTEX_SOURCE_ID)?.setData(routeVertexCollection(drawingRoute ? routeDraft : null))
-  }, [routeDraft, points, drawingRoute, routeHover, mapGeneration])
+  }, [routeDraft, displayedPoints, drawingRoute, routeHover, mapGeneration])
 
   useEffect(() => {
     const map = mapRef.current
@@ -540,6 +602,15 @@ export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, rou
           <button type="button" onClick={onRouteUndo} disabled={!routeDraft?.startPointId}>Zpět</button>
           <button type="button" onClick={onRouteFinish} disabled={!routeDraft?.endPointId}>Dokončit</button>
           <button type="button" onClick={onRouteCancel}>Zrušit · Esc</button>
+        </div>
+      )}
+      {routes.length > 0 && !drawingRoute && !placementActive && (
+        <div className="route-map-legend" aria-label="Barvy podzemních tras">
+          {installations === null ? <span><i className="route-key unknown" /> {installationLoading ? 'Načítání osazení…' : 'Osazení se nenačetlo'}</span> : <>
+            <span><i className="route-key empty" /> Bez osazení</span>
+            <span><i className="route-key ducts" /> Osazeno bez kabelu</span>
+            <span><i className="route-key cables" /> S kabelem</span>
+          </>}
         </div>
       )}
       <MapToolbox

@@ -15,6 +15,15 @@ export type InstalledItem = {
 }
 
 export type RouteInstallationDocument = { routeId: string; version: number; items: InstalledItem[] }
+export type InstallationStatus = 'empty' | 'ducts' | 'cables'
+export type InstallationSummary = { status: InstallationStatus; ducts: number; cables: number; items: number }
+
+export function installationSummary(document?: RouteInstallationDocument): InstallationSummary {
+  const items = document?.items ?? []
+  const cables = items.filter(item => item.cable !== null).length
+  const ducts = items.length - cables
+  return { status: cables ? 'cables' : ducts ? 'ducts' : 'empty', ducts, cables, items: items.length }
+}
 export type InstallationAdd = {
   catalogId: string | null
   parentId: string | null
@@ -23,6 +32,7 @@ export type InstallationAdd = {
   version: number
   continueFromItemId: string | null
 }
+export type InstallationMove = { parentId: string | null; slotIndex: number | null; version: number }
 
 export const emptyInstallation = (routeId: string): RouteInstallationDocument => ({ routeId, version: 0, items: [] })
 
@@ -82,6 +92,15 @@ export function canPlaceItem(parent: InstalledItem | null, items: InstalledItem[
     : candidate.duct?.kind !== 'conduit' && !children.some(item => item.cable !== null)
 }
 
+export function hasAvailablePlacement(item: InstalledItem, items: InstalledItem[]): boolean {
+  if (!item.duct) return false
+  const children = items.filter(child => child.parentId === item.id)
+  if (item.duct.kind === 'assembly') return item.duct.slots.some((_, index) =>
+    !children.some(child => child.slotIndex === index))
+  if (item.duct.kind === 'microduct') return children.length === 0
+  return !children.some(child => child.cable !== null)
+}
+
 async function request<T>(path = '', options?: RequestInit): Promise<T> {
   const response = await fetch(`/api/route-installations${path}`, options)
   if (!response.ok) {
@@ -97,5 +116,7 @@ export const addInstalledItem = (routeId: string, input: InstallationAdd) =>
   request<RouteInstallationDocument>(`/${routeId}/items`, { method: 'POST', ...json(input) })
 export const renameInstalledItem = (routeId: string, id: string, label: string, version: number) =>
   request<RouteInstallationDocument>(`/${routeId}/items/${id}`, { method: 'PUT', ...json({ label, version }) })
+export const moveInstalledItem = (routeId: string, id: string, input: InstallationMove) =>
+  request<RouteInstallationDocument>(`/${routeId}/items/${id}/placement`, { method: 'PUT', ...json(input) })
 export const removeInstalledItem = (routeId: string, id: string, version: number) =>
   request<RouteInstallationDocument>(`/${routeId}/items/${id}?version=${version}`, { method: 'DELETE' })

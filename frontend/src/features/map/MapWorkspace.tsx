@@ -1,17 +1,25 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
+import { installationSummary } from './routeInstallations'
+import { useRouteInstallations } from './useRouteInstallations'
 import { useMapWorkspace } from './useMapWorkspace'
 import type { NetworkPointKind } from './networkPoints'
 import { routeCoordinates, routeLengthMeters } from './undergroundRoutes'
+import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
 
 const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : 'Šachta'
 
 export function MapWorkspace({ active }: { active: boolean }) {
   const [panelOpen, setPanelOpen] = useState(true)
-  const [hoveredPointId, setHoveredPointId] = useState<string | null>(null)
-  const [hoveredRouteId, setHoveredRouteId] = useState<string | null>(null)
+  const [routeTab, setRouteTab] = useState<'installations' | 'route'>('installations')
+  const detailsPanelRef = useRef<HTMLElement>(null)
+  const lastRouteId = useRef<string | null>(null)
+  const [listHoveredPointId, setListHoveredPointId] = useState<string | null>(null)
+  const [listHoveredRouteId, setListHoveredRouteId] = useState<string | null>(null)
+  const [mapHoveredPointId, setMapHoveredPointId] = useState<string | null>(null)
+  const [mapHoveredRouteId, setMapHoveredRouteId] = useState<string | null>(null)
   const [routeFocusRequest, setRouteFocusRequest] = useState<{ id: string, sequence: number } | null>(null)
   useEffect(() => {
     if (!active) return
@@ -28,14 +36,43 @@ export function MapWorkspace({ active }: { active: boolean }) {
     handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   } = useMapWorkspace()
   const routeDraft = route.draft
+  useEffect(() => {
+    const id = routeDraft?.id ?? null
+    if (id && id !== lastRouteId.current) {
+      setRouteTab('installations')
+      detailsPanelRef.current?.scrollTo({ top: 0 })
+    }
+    lastRouteId.current = id
+  }, [routeDraft?.id])
+  const selectedSavedRoute = routeDraft?.id ? route.routes.find(item => item.id === routeDraft.id) : null
+  const activeRouteTab = route.drawing ? 'route' : routeTab
+  const installations = useRouteInstallations(routeDraft?.id ?? null)
+  const installationByRoute = new Map(installations.documents.map(document => [document.routeId, document]))
   const routeLength = routeDraft?.endPointId
     ? routeLengthMeters(routeCoordinates(routeDraft, points)) : null
   const pointName = (id: string | null) => points.find(point => point.id === id)?.name ?? 'Vyberte na mapě'
   const endpointPoints = points.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs'))
   const togglePanel = () => {
     setPanelOpen(value => !value)
-    setHoveredPointId(null)
-    setHoveredRouteId(null)
+    setListHoveredPointId(null)
+    setListHoveredRouteId(null)
+  }
+  const selectRouteTab = (tab: 'installations' | 'route') => {
+    setRouteTab(tab)
+    detailsPanelRef.current?.scrollTo({ top: 0 })
+  }
+  const selectSavedRoute = (id: string) => {
+    selectRouteTab('installations')
+    setPanelOpen(true)
+    handleRouteSelect(id)
+  }
+  const handleRouteTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (route.drawing || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+    event.preventDefault()
+    const next = event.key === 'Home' ? 'installations' : event.key === 'End' ? 'route'
+      : activeRouteTab === 'installations' ? 'route' : 'installations'
+    selectRouteTab(next)
+    document.getElementById(`route-tab-${next}`)?.focus()
   }
 
   return (
@@ -44,19 +81,23 @@ export function MapWorkspace({ active }: { active: boolean }) {
         <MapCanvas
           points={points}
           routes={route.routes}
+          installations={installations.loading || installations.loadFailed ? null : installations.documents}
+          installationLoading={installations.loading}
           selectedRouteId={routeDraft?.id ?? null}
-          hoveredRouteId={hoveredRouteId}
+          hoveredRouteId={mapHoveredRouteId ?? listHoveredRouteId}
+          onMapRouteHoverChange={setMapHoveredRouteId}
           routeFocusRequest={routeFocusRequest}
           routeDraft={route.preview}
           drawingRoute={route.drawing}
-          onRouteToolChange={handleRouteToolChange}
-          onRouteSelect={id => { setPanelOpen(true); handleRouteSelect(id) }}
+          onRouteToolChange={() => { selectRouteTab('route'); handleRouteToolChange() }}
+          onRouteSelect={selectSavedRoute}
           onRouteWaypointMove={route.moveWaypoint}
           onRouteUndo={route.undo}
           onRouteFinish={route.finish}
           onRouteCancel={route.cancelDrawing}
           selectedPointId={editor?.id ?? null}
-          hoveredPointId={hoveredPointId}
+          hoveredPointId={mapHoveredPointId ?? listHoveredPointId}
+          onMapPointHoverChange={setMapHoveredPointId}
           selectedParcel={selectedParcel}
           preview={preview}
           activeTool={activeTool}
@@ -72,15 +113,15 @@ export function MapWorkspace({ active }: { active: boolean }) {
         />
       </section>
 
-      <aside className={`details-panel${panelOpen ? '' : ' collapsed'}`} aria-label="Objekty sítě">
+      <aside className={`details-panel${panelOpen ? '' : ' collapsed'}`} aria-label="Objekty sítě" ref={detailsPanelRef}>
         {!panelOpen && <button className="details-rail-toggle" type="button" onClick={togglePanel}
           aria-label="Rozbalit panel Infrastruktura" title="Rozbalit panel Infrastruktura">
           <PanelRightOpen size={19} aria-hidden="true" /><span>Infrastruktura</span>
         </button>}
         <div className="panel-heading">
           <div>
-            <span className="section-label">{selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
-            <h1>{routeDraft ? routeDraft.id ? 'Podzemní trasa' : 'Nová podzemní trasa' : editor ? editor.id ? kindLabel(editor.kind) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
+            <span className="section-label">{routeDraft?.id ? 'Podzemní trasa' : selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
+            <h1>{routeDraft ? routeDraft.id ? routeDraft.name || 'Podzemní trasa' : 'Nová podzemní trasa' : editor ? editor.id ? kindLabel(editor.kind) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
           </div>
           <div className="panel-heading-actions">
             {(editor || selectedLocation || routeDraft) && (
@@ -98,11 +139,11 @@ export function MapWorkspace({ active }: { active: boolean }) {
           </div>
         </div>
 
-        <div className="point-counts" aria-label="Počet objektů">
+        {!routeDraft && <div className="point-counts" aria-label="Počet objektů">
           <span><House size={15} aria-hidden="true" /> Budovy <strong>{buildings}</strong></span>
           <span><CircleDot size={15} aria-hidden="true" /> Šachty <strong>{chambers}</strong></span>
           <span><RouteIcon size={15} aria-hidden="true" /> Trasy <strong>{route.routes.length}</strong></span>
-        </div>
+        </div>}
 
         {route.loadError && (
           <div className="panel-error" role="alert"><span>Trasy se nenačetly.</span>
@@ -122,11 +163,34 @@ export function MapWorkspace({ active }: { active: boolean }) {
           </div>
         )}
 
+        {selectedSavedRoute && <>
+          <div className="route-tab-context">{pointName(selectedSavedRoute.startPointId)} → {pointName(selectedSavedRoute.endPointId)}</div>
+          <div className="route-detail-tabs" role="tablist" aria-label="Detail podzemní trasy" onKeyDown={handleRouteTabKeyDown}>
+            <button type="button" id="route-tab-installations" role="tab" aria-controls="route-panel-installations"
+              aria-selected={activeRouteTab === 'installations'} tabIndex={activeRouteTab === 'installations' ? 0 : -1}
+              disabled={route.drawing} onClick={() => selectRouteTab('installations')}>Osazení</button>
+            <button type="button" id="route-tab-route" role="tab" aria-controls="route-panel-route"
+              aria-selected={activeRouteTab === 'route'} tabIndex={activeRouteTab === 'route' ? 0 : -1}
+              onClick={() => selectRouteTab('route')}>Trasa</button>
+          </div>
+          <div className="route-tab-panel" id="route-panel-installations" role="tabpanel"
+            aria-labelledby="route-tab-installations" hidden={activeRouteTab !== 'installations'}>
+            <RouteInstallationPanel key={selectedSavedRoute.id} route={selectedSavedRoute}
+              routes={route.routes} editable={!route.drawing && route.preview === null} installations={installations} />
+          </div>
+        </>}
+
         {routeDraft && (
+          <div className="route-tab-panel" id={selectedSavedRoute ? 'route-panel-route' : undefined}
+            role={selectedSavedRoute ? 'tabpanel' : undefined} aria-labelledby={selectedSavedRoute ? 'route-tab-route' : undefined}
+            hidden={!!selectedSavedRoute && activeRouteTab !== 'route'}>
           <form className="point-form route-form" onSubmit={route.save}>
+            {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
               ? 'Začátek a konec vyberte níže nebo kliknutím na objekty v mapě. Tvar trasy upravte klikáním do mapy. Pak stiskněte Dokončit.'
-              : 'Trasa spojuje dva body sítě. Konkrétní chráničky a kabely vložíte níže do jejího úseku.'}</p>
+              : routeDraft.id
+                ? 'Trasa spojuje dva body sítě. Její obsah najdete na záložce Osazení.'
+                : 'Trasa spojuje dva body sítě. Nejdřív ji uložte, potom do ní můžete vložit chráničky a kabely.'}</p>
             {route.drawing ? <div className="route-endpoint-fields">
               <label htmlFor="route-start">Začátek trasy
                 <select id="route-start" value={routeDraft.startPointId ?? ''}
@@ -161,6 +225,8 @@ export function MapWorkspace({ active }: { active: boolean }) {
             <label htmlFor="route-name">Název trasy</label>
             <input id="route-name" maxLength={80} required value={routeDraft.name}
               onChange={event => route.setDraft(current => current ? { ...current, name: event.target.value } : current)}
+              onKeyDown={event => acceptExampleOnArrowRight(event, name => route.setDraft(current => current ? { ...current, name } : current))}
+              title="Šipka doprava převezme šedý příklad"
               placeholder="Např. Šachta S-01 – Dům 12" />
             {!route.drawing && routeDraft.id && <button type="button" className="move-button" onClick={route.startEditing}><RouteIcon size={16} /> Upravit průběh</button>}
             {route.error && <p className="form-error" role="alert">{route.error}</p>}
@@ -169,16 +235,15 @@ export function MapWorkspace({ active }: { active: boolean }) {
               {routeDraft.id && <button className="danger-button" type="button" disabled={route.saving} onClick={route.remove}><Trash2 size={16} /> Smazat</button>}
             </div>
           </form>
+          </div>
         )}
-
-        {routeDraft?.id && route.routes.find(item => item.id === routeDraft.id) &&
-          <RouteInstallationPanel key={routeDraft.id} route={route.routes.find(item => item.id === routeDraft.id)!}
-            routes={route.routes} editable={!route.drawing && route.preview === null} />}
 
         {editor && (
           <form className="point-form" onSubmit={savePoint}>
             <label htmlFor="point-name">Název</label>
-            <input id="point-name" autoFocus required maxLength={80} value={editor.name} onChange={(event) => setEditor({ ...editor, name: event.target.value })} placeholder={editor.kind === 'building' ? 'Např. Dům 12' : 'Např. Šachta S-01'} />
+            <input id="point-name" autoFocus required maxLength={80} value={editor.name} onChange={(event) => setEditor({ ...editor, name: event.target.value })}
+              onKeyDown={event => acceptExampleOnArrowRight(event, name => setEditor(current => current ? { ...current, name } : current))}
+              title="Šipka doprava převezme šedý příklad" placeholder={editor.kind === 'building' ? 'Např. Dům 12' : 'Např. Šachta S-01'} />
             <div className="point-kind"><span className={`kind-dot ${editor.kind}`} />{kindLabel(editor.kind)}</div>
             <div className="coordinates-row">
               <span>{editor.latitude.toFixed(6)}°, {editor.longitude.toFixed(6)}°</span>
@@ -216,20 +281,26 @@ export function MapWorkspace({ active }: { active: boolean }) {
           <div className="point-list">
             <label className="search-field"><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Hledat objekt" aria-label="Hledat objekt" /></label>
             {loading ? <p className="empty-selection">Načítání objektů…</p> : visiblePoints.length === 0 ? <p className="empty-selection">{query ? 'Nic nenalezeno.' : 'Zatím žádné objekty.'}</p> : (
-              <ul>{visiblePoints.map((point) => <li key={point.id}><button type="button"
-                onMouseEnter={() => setHoveredPointId(point.id)} onMouseLeave={() => setHoveredPointId(null)}
-                onFocus={() => setHoveredPointId(point.id)} onBlur={() => setHoveredPointId(null)}
-                onClick={() => { setHoveredPointId(null); handlePointSelect(point.id) }}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}</small></span></button></li>)}</ul>
+              <ul>{visiblePoints.map((point) => <li key={point.id}><button type="button" className={mapHoveredPointId === point.id ? 'map-linked-hover' : undefined}
+                onMouseEnter={() => setListHoveredPointId(point.id)} onMouseLeave={() => setListHoveredPointId(null)}
+                onFocus={() => setListHoveredPointId(point.id)} onBlur={() => setListHoveredPointId(null)}
+                onClick={() => { setListHoveredPointId(null); handlePointSelect(point.id) }}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}</small></span></button></li>)}</ul>
             )}
-            {route.visibleRoutes.length > 0 && <div className="route-list"><h2>Podzemní trasy</h2><ul>{route.visibleRoutes.map(item =>
-              <li key={item.id}><button type="button"
-                onMouseEnter={() => setHoveredRouteId(item.id)} onMouseLeave={() => setHoveredRouteId(null)}
-                onFocus={() => setHoveredRouteId(item.id)} onBlur={() => setHoveredRouteId(null)}
+            {route.visibleRoutes.length > 0 && <div className="route-list"><h2>Podzemní trasy</h2><ul>{route.visibleRoutes.map(item => {
+              const summary = installationSummary(installationByRoute.get(item.id))
+              const status = installations.loading || installations.loadFailed ? 'unknown' : summary.status
+              return <li key={item.id}><button type="button" className={mapHoveredRouteId === item.id ? 'map-linked-hover' : undefined}
+                onMouseEnter={() => setListHoveredRouteId(item.id)} onMouseLeave={() => setListHoveredRouteId(null)}
+                onFocus={() => setListHoveredRouteId(item.id)} onBlur={() => setListHoveredRouteId(null)}
                 onClick={() => {
-                  setHoveredRouteId(null)
-                  handleRouteSelect(item.id)
+                  setListHoveredRouteId(null)
+                  selectSavedRoute(item.id)
                   setRouteFocusRequest(current => ({ id: item.id, sequence: (current?.sequence ?? 0) + 1 }))
-                }}><RouteIcon size={17} /><span>{item.name}</span></button></li>)}</ul></div>}
+                }}><RouteIcon className={`route-list-icon ${status}`} size={17} /><span className="route-list-text"><strong>{item.name}</strong><small>
+                  {installations.loading ? 'Načítání osazení…' : installations.loadFailed ? 'Osazení se nenačetlo'
+                    : summary.items ? `Chráničky, trubičky a sestavy ${summary.ducts} · kabely ${summary.cables}` : 'Bez osazení'}
+                </small></span></button></li>
+            })}</ul></div>}
           </div>
         )}
       </aside>
