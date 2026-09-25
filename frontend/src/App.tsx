@@ -112,7 +112,7 @@ function App() {
     const point = points.find((item) => item.id === id)
     if (!point) return
     clearParcel()
-    setEditor({ ...point, ...location })
+    setEditor((current) => ({ ...(current?.id === id ? current : point), ...location }))
     setSelectedLocation(null)
     setActiveTool(null)
     setMoving(false)

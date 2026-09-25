@@ -10,7 +10,7 @@ Přepínač **Katastr** připojuje online WMS ČÚZK od přiblížení 17. Klikn
 
 Mapu lze táhnout myší a přiblížit kolečkem bez další klávesy. Fungují také šipky, WASD a tlačítka přiblížení. Vybraná parcela je zvýrazněná modře.
 
-Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z nástrojů přímo na místo. Objekt se uloží až po zadání názvu a potvrzení. Základní mapa zůstává zapnutá; přepíná se pouze Katastr.
+Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z nástrojů přímo na místo. Existující bod lze na mapě uchopit a přesunout; nová poloha se uloží až tlačítkem **Uložit**. Základní mapa zůstává zapnutá; přepíná se pouze Katastr.
 
 ## Lokální spuštění
 
@@ -18,7 +18,7 @@ Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z n�
 2. Frontend: `pnpm --dir frontend install` a `pnpm --dir frontend dev`
 3. Otevřít adresu, kterou vypíše Vite (obvykle `http://localhost:5173`).
 
-API odpovídá na `http://localhost:5291/api/health`; objekty přes `/api/network-points` a parcely přes `/api/parcels/at`. Aktuální práce je na větvi `codex/placement-cursor`.
+API odpovídá na `http://localhost:5291/api/health`; objekty přes `/api/network-points` a parcely přes `/api/parcels/at`. Aktuální práce je na větvi `codex/map-point-drag`.
 
 Stručné vysvětlení pojmů je v [poznámkách k webovému vývoji](docs/web-vyvoj.md).
 
