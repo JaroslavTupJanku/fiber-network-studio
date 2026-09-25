@@ -32,6 +32,7 @@ export type InstallationAdd = {
   version: number
   continueFromItemId: string | null
 }
+export type InstallationMove = { parentId: string | null; slotIndex: number | null; version: number }
 
 export const emptyInstallation = (routeId: string): RouteInstallationDocument => ({ routeId, version: 0, items: [] })
 
@@ -115,5 +116,7 @@ export const addInstalledItem = (routeId: string, input: InstallationAdd) =>
   request<RouteInstallationDocument>(`/${routeId}/items`, { method: 'POST', ...json(input) })
 export const renameInstalledItem = (routeId: string, id: string, label: string, version: number) =>
   request<RouteInstallationDocument>(`/${routeId}/items/${id}`, { method: 'PUT', ...json({ label, version }) })
+export const moveInstalledItem = (routeId: string, id: string, input: InstallationMove) =>
+  request<RouteInstallationDocument>(`/${routeId}/items/${id}/placement`, { method: 'PUT', ...json(input) })
 export const removeInstalledItem = (routeId: string, id: string, version: number) =>
   request<RouteInstallationDocument>(`/${routeId}/items/${id}?version=${version}`, { method: 'DELETE' })

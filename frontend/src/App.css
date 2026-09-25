@@ -230,7 +230,43 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-canvas { min-width: 0; padding: 19px; background-image: radial-gradient(#d8e5de 0.65px, transparent 0.65px); background-size: 16px 16px; }
 .installation-canvas-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; color: #527064; font-size: 11px; font-weight: 700; }
 .installation-canvas-heading small { color: #7b9186; font-size: 10px; font-weight: 500; }
-.installation-layout-roots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); align-items: start; gap: 12px; }
+.installation-breadcrumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; margin-bottom: 15px; }
+.installation-breadcrumbs > span { display: inline-flex; align-items: center; gap: 3px; }
+.installation-breadcrumbs button { min-height: 27px; padding: 4px 8px; border: 0; border-radius: 5px; background: transparent; color: #527064; font: inherit; font-size: 11px; cursor: pointer; }
+.installation-breadcrumbs button:hover { background: #e7f2eb; }
+.installation-breadcrumbs button[aria-current=page] { background: #e0f1e8; color: #195d4c; font-weight: 700; }
+.installation-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); align-items: start; gap: 12px; }
+.installation-board-card { min-width: 0; overflow: hidden; border: 1px solid #ccded3; border-radius: 10px; background: #fff; box-shadow: 0 5px 14px rgb(23 65 48 / 7%); }
+.installation-board-card:hover { border-color: #8cbba8; }
+.installation-board-card.drop-active, .installation-board-slot.drop-active { border-color: #d3932c; background: #fff9e9; box-shadow: 0 0 0 3px rgb(221 168 64 / 19%); }
+.installation-board-select { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 99px; padding: 10px; border: 0; border-left: 4px solid var(--install-color); background: transparent; color: #29473c; font: inherit; text-align: left; cursor: grab; }
+.installation-board-select:active { cursor: grabbing; }
+.installation-board-select[aria-pressed=true] { background: #eff8f2; }
+.installation-board-select:focus-visible, .installation-board-open:focus-visible { outline: 2px solid #26766b; outline-offset: -2px; }
+.installation-board-select > svg:last-child { flex: none; color: #a0b3a9; }
+.install-illustration { flex: none; width: 76px; height: 64px; }
+.installation-board-text { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.installation-board-text small { color: #6c8175; font-size: 10px; }
+.installation-board-text strong { overflow-wrap: anywhere; font-size: 12px; line-height: 1.25; }
+.installation-board-text > span { color: #6c8175; font-size: 10px; }
+.installation-board-open { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 31px; padding: 4px 12px; border: 0; border-top: 1px solid #e6eee9; background: #f9fcfa; color: #26766b; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
+.installation-board-open:hover { background: #eaf5ed; }
+.installation-board-slot { display: grid; align-content: center; gap: 4px; min-height: 105px; padding: 15px; border: 1px dashed #c5d9cb; border-radius: 10px; background: #f8fbf8; }
+.installation-board-slot small { color: #6c8175; font-size: 10px; }
+.installation-board-slot strong { color: #7d9688; font-size: 12px; }
+.installation-board-empty { grid-column: 1 / -1; margin: 0; padding: 25px; border: 1px dashed #c9dbce; border-radius: 9px; background: #fff; color: #688274; font-size: 12px; text-align: center; }
+.installation-drop-tray { display: grid; align-content: start; gap: 10px; min-height: 100%; padding: 21px; border-left: 1px solid #d7e4dc; background: #f8fbf8; }
+.installation-drop-tray > strong { color: #28574e; font-size: 14px; }
+.installation-drop-tray p { margin: 0; color: #657d70; font-size: 11px; line-height: 1.4; }
+.installation-drop-tray > div { display: grid; align-content: start; gap: 7px; max-height: 300px; overflow: auto; }
+.installation-drop-target { padding: 11px; border: 1px dashed #a7cabc; border-radius: 7px; background: #fff; color: #28574e; font-size: 11px; font-weight: 650; }
+.installation-drop-target.drop-active { border-color: #d3932c; background: #fff2d8; }
+.installation-move-controls { display: grid; gap: 6px; margin-top: 12px; padding-top: 13px; border-top: 1px solid #e0eae3; }
+.installation-move-controls label { color: #527064; font-size: 11px; font-weight: 700; }
+.installation-move-controls > div { display: flex; gap: 5px; }
+.installation-move-controls select { flex: 1; min-width: 0; min-height: 31px; padding: 4px; border: 1px solid #c9dcd0; border-radius: 5px; background: #fff; color: #29473c; font: inherit; font-size: 11px; }
+.installation-move-controls button { padding: 4px 7px; border: 1px solid #26766b; border-radius: 5px; background: #26766b; color: #fff; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.installation-move-controls button:disabled { opacity: .5; cursor: not-allowed; }
 .installation-editor-dialog .installation-selection { align-content: start; min-height: 100%; padding: 21px; border: 0; border-left: 1px solid #d7e4dc; border-radius: 0; background: #fff; }
 .installation-editor-dialog .installation-selection-empty { background: #fbfdfb; }
 .installation-editor-dialog .installation-selection-heading span { color: #26766b; font-size: 11px; }
@@ -243,7 +279,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-editor-dialog .installation-add { max-width: 620px; margin: 0 auto; background: #fff; }
 @media (max-width: 700px) {
   .installation-editor-dialog .installation-diagram-view { grid-template-columns: 1fr; }
-  .installation-editor-dialog .installation-selection { border-top: 1px solid #d7e4dc; border-left: 0; }
+  .installation-editor-dialog .installation-selection, .installation-drop-tray { border-top: 1px solid #d7e4dc; border-left: 0; }
   .installation-editor-header { padding: 14px; }
   .installation-editor-header .installation-overview { padding: 8px 10px; }
   .installation-editor-scroll { padding: 14px; }
@@ -266,22 +302,6 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-view-switch button { min-height: 30px; border: 0; border-radius: 4px; background: transparent; color: #526a61; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
 .installation-view-switch button[aria-pressed=true] { background: #fff; color: #225f55; box-shadow: 0 1px 3px rgb(30 65 54 / 12%); }
 .installation-view-switch button:focus-visible { outline: 2px solid #26766b; outline-offset: -2px; }
-.install-layout-node { min-width: 0; padding: 7px; border: 1px solid #d4e2d9; border-radius: 8px; background: #fff; box-shadow: 0 3px 10px rgb(35 69 54 / 5%); }
-.install-layout-node.cable { background: #f7fbfe; }
-.install-layout-head { display: flex; align-items: center; gap: 9px; width: 100%; min-width: 0; padding: 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #29473c; font: inherit; text-align: left; cursor: pointer; }
-.install-layout-head:hover { border-color: #a7cbbc; background: #f0f8f3; }
-.install-layout-head[aria-pressed=true] { border-color: #d49b30; background: #fff9ec; }
-.install-layout-head:focus-visible { outline: 2px solid #26766b; outline-offset: 2px; }
-.install-layout-head > svg { flex: none; color: #82988d; }
-.install-layout-mark { flex: none; width: 5px; height: 31px; border-radius: 4px; background: var(--install-color); }
-.install-layout-text { display: grid; flex: 1; min-width: 0; gap: 2px; }
-.install-layout-text small { color: #6a8176; font-size: 10px; }
-.install-layout-text strong { overflow-wrap: anywhere; font-size: 11px; line-height: 1.25; }
-.install-layout-children { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); align-items: start; gap: 8px; margin: 6px 2px 2px 11px; padding: 9px 0 0 10px; border-top: 1px solid #e2ece6; border-left: 2px solid #d6e7dc; }
-.install-layout-slots { grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr)); }
-.install-layout-slot { display: grid; gap: 4px; min-width: 0; padding: 5px; border: 1px dashed #cddbd3; border-radius: 6px; background: #fafcfb; }
-.install-layout-slot > small { color: #6d8278; font-size: 10px; }
-.install-layout-vacant { padding: 9px 5px; color: #81958a; font-size: 10px; }
 .installation-selection { display: grid; gap: 8px; padding: 10px; border: 1px solid #b8d9ca; border-radius: 7px; background: #f3faf6; }
 .installation-selection-empty { align-content: center; min-height: 155px; border-style: dashed; background: #f8fbf9; }
 .installation-selection-empty strong { color: #28574e; font-size: 12px; }

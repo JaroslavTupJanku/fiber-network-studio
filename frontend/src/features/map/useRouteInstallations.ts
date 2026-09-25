@@ -3,8 +3,8 @@ import { listCables } from '../cable-catalog/api'
 import type { CableSpecification } from '../cable-catalog/model'
 import { listDucts } from '../duct-catalog/api'
 import type { DuctType } from '../duct-catalog/model'
-import { addInstalledItem, emptyInstallation, listRouteInstallations, removeInstalledItem,
-  renameInstalledItem, type InstallationAdd, type RouteInstallationDocument } from './routeInstallations'
+import { addInstalledItem, emptyInstallation, listRouteInstallations, moveInstalledItem, removeInstalledItem,
+  renameInstalledItem, type InstallationAdd, type InstallationMove, type RouteInstallationDocument } from './routeInstallations'
 
 export function useRouteInstallations(routeId: string | null) {
   const [documents, setDocuments] = useState<RouteInstallationDocument[]>([])
@@ -55,8 +55,10 @@ export function useRouteInstallations(routeId: string | null) {
     ? mutate(() => addInstalledItem(routeId, { ...input, version: document.version })) : Promise.resolve(false)
   const rename = (id: string, label: string) => routeId
     ? mutate(() => renameInstalledItem(routeId, id, label, document.version)) : Promise.resolve(false)
+  const move = (id: string, input: Omit<InstallationMove, 'version'>) => routeId
+    ? mutate(() => moveInstalledItem(routeId, id, { ...input, version: document.version })) : Promise.resolve(false)
   const remove = (id: string) => routeId
     ? mutate(() => removeInstalledItem(routeId, id, document.version)) : Promise.resolve(false)
 
-  return { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh, add, rename, remove }
+  return { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh, add, rename, move, remove }
 }

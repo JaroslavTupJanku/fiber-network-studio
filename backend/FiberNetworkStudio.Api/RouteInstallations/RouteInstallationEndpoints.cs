@@ -31,6 +31,10 @@ public static class RouteInstallationEndpoints
             RenameInstalledItemRequest request, RouteInstallationStore store) =>
             ToResult(await store.RenameAsync(routeId, itemId, request)));
 
+        group.MapPut("/{routeId:guid}/items/{itemId:guid}/placement", async (Guid routeId, Guid itemId,
+            MoveInstalledItemRequest request, RouteInstallationStore store) =>
+            ToResult(await store.MoveAsync(routeId, itemId, request)));
+
         group.MapDelete("/{routeId:guid}/items/{itemId:guid}", async (Guid routeId, Guid itemId,
             int version, RouteInstallationStore store, UndergroundRouteStore routeStore) =>
             ToResult(await store.RemoveAsync(routeId, itemId, version, await routeStore.ListAsync())));

@@ -39,6 +39,8 @@ Po nasazení uživatel otevře jen webovou adresu. Dva vývojové procesy spouš
 
 **Drag and drop** znamená přetáhnout prvek a pustit ho na cílovém místě. U nás mapa převede místo puštění na souřadnice; objekt se uloží až po potvrzení formuláře.
 
+V editoru osazení se stejným gestem mění nadřazený prvek kabelu nebo trubičky. Frontend nabízí jen vhodné cíle a po puštění volá API s ID prvku, novým rodičem, případnou pozicí v sestavě a verzí dokumentu. Backend znovu ověří pravidla uložení a uloží změnu; nabídka v detailu prvku umožní totéž bez přetahování.
+
 **Rozpracovaná poloha** je změna bodu viditelná ve frontendu. Při tažení se překreslí bod v mapové vrstvě GeoJSON, ale backend dostane nové souřadnice až po kliknutí na **Uložit**.
 
 **Podzemní trasa** propojuje dva uložené mapové body a mezi nimi může mít seřazené lomové body. Při kreslení a úpravách vidí uživatel náhled; server dostane změnu až po **Uložit**. Krajní body uchováváme jejich identitou, takže se čára přizpůsobí přesunu budovy či šachty. Přibližná délka vychází z mapové čáry, ne z evidence skutečně uloženého kabelu. Backend kontroluje koncové body a souřadnice a ukládá trasy do samostatného JSON souboru. Jde o další příklad stejného rozdělení na komponentu, stavový hook, model, API a backendové úložiště.

@@ -14,6 +14,7 @@ public sealed record AddInstalledItemRequest(Guid? CatalogId, Guid? ParentId, in
     string? Label, int Version, Guid? ContinueFromItemId);
 
 public sealed record RenameInstalledItemRequest(string? Label, int Version);
+public sealed record MoveInstalledItemRequest(Guid? ParentId, int? SlotIndex, int Version);
 
 public sealed record InstallationResult(int Status, RouteInstallationDocument? Document, string? Error)
 {
@@ -103,6 +104,42 @@ public sealed class RouteInstallationStore(string path)
             if (current.Items.All(item => item.Id != itemId)) return InstallationResult.Fail(404, "Instalovaný prvek neexistuje.");
             var updated = current with { Version = current.Version + 1,
                 Items = current.Items.Select(item => item.Id == itemId ? item with { Label = request.Label.Trim() } : item).ToList() };
+            documents[documents.IndexOf(current)] = updated;
+            await WriteAsync(documents);
+            return InstallationResult.Ok(updated);
+        }
+        finally { gate.Release(); }
+    }
+
+    public async Task<InstallationResult> MoveAsync(Guid routeId, Guid itemId, MoveInstalledItemRequest request)
+    {
+        await gate.WaitAsync();
+        try
+        {
+            var documents = await ReadAsync();
+            var current = documents.Find(document => document.RouteId == routeId);
+            if (current is null) return InstallationResult.Fail(404, "Osazení trasy neexistuje.");
+            if (current.Version != request.Version) return InstallationResult.Fail(409, "Osazení mezitím změnil jiný uživatel. Načtěte trasu znovu.");
+            var moved = current.Items.Find(item => item.Id == itemId);
+            if (moved is null) return InstallationResult.Fail(404, "Instalovaný prvek neexistuje.");
+            if (moved.ParentId == request.ParentId && moved.SlotIndex == request.SlotIndex)
+                return InstallationResult.Ok(current);
+
+            var ancestorId = request.ParentId;
+            var visited = new HashSet<Guid>();
+            while (ancestorId is Guid id)
+            {
+                if (id == moved.Id || !visited.Add(id))
+                    return InstallationResult.Fail(409, "Prvek nelze vložit do sebe ani do svého obsahu.");
+                ancestorId = current.Items.Find(item => item.Id == id)?.ParentId;
+            }
+            var remaining = current.Items.Where(item => item.Id != itemId).ToList();
+            var placementError = ValidatePlacement(remaining, request.ParentId, request.SlotIndex,
+                moved.Duct, moved.Cable);
+            if (placementError is not null) return InstallationResult.Fail(409, placementError);
+
+            var updated = current with { Version = current.Version + 1,
+                Items = [.. remaining, moved with { ParentId = request.ParentId, SlotIndex = request.SlotIndex }] };
             documents[documents.IndexOf(current)] = updated;
             await WriteAsync(documents);
             return InstallationResult.Ok(updated);

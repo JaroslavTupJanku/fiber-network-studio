@@ -60,7 +60,8 @@ test('route installation API stores physical instances, prevents invalid placeme
       if (server && server.exitCode === null) { const exited = once(server, 'exit'); server.kill(); await exited }
     }
     const start = async () => {
-      server = spawn('dotnet', [resolve('backend/FiberNetworkStudio.Api/bin/Debug/net10.0/FiberNetworkStudio.Api.dll')], {
+      server = spawn('dotnet', [process.env.FNS_API_DLL
+        ?? resolve('backend/FiberNetworkStudio.Api/bin/Debug/net10.0/FiberNetworkStudio.Api.dll')], {
         windowsHide: true,
         env: { ...process.env, ASPNETCORE_URLS: url,
           NetworkPoints__Path: join(directory, 'points.json'), UndergroundRoutes__Path: join(directory, 'routes.json'),
@@ -142,6 +143,19 @@ test('route installation API stores physical instances, prevents invalid placeme
         { catalogId: microduct.id, parentId: tightRoot.id, slotIndex: null, version: doc.version }))
       assert.equal((await add(first.id,
         { catalogId: microduct.id, parentId: tightRoot.id, slotIndex: null, version: doc.version })).status, 409)
+      doc = await body(await add(first.id,
+        { catalogId: microduct.id, parentId: root.id, slotIndex: null, version: doc.version }))
+      const spareInner = doc.items.at(-1)
+      const move = (id, parentId, slotIndex, version) => request(
+        `/route-installations/${first.id}/items/${id}/placement`, 'PUT', { parentId, slotIndex, version })
+      assert.equal((await move(installedCable.id, spareInner.id, null, doc.version - 1)).status, 409)
+      assert.equal((await move(root.id, inner.id, null, doc.version)).status, 409)
+      assert.equal((await move(installedCable.id, root.id, null, doc.version)).status, 409)
+      doc = await body(await move(installedCable.id, spareInner.id, null, doc.version))
+      assert.equal(doc.items.find(item => item.id === installedCable.id).parentId, spareInner.id)
+      assert.equal((await move(inner.id, spareInner.id, null, doc.version)).status, 409)
+      doc = await body(await move(installedCable.id, inner.id, null, doc.version))
+      assert.equal(doc.items.find(item => item.id === installedCable.id).parentId, inner.id)
       assert.equal((await request(`/route-installations/${first.id}/items/${root.id}?version=${doc.version}`, 'DELETE')).status, 409)
       assert.equal((await request(`/underground-routes/${first.id}`, 'DELETE')).status, 409)
       assert.equal((await request(`/underground-routes/${first.id}`, 'PUT',
