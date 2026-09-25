@@ -139,6 +139,7 @@ test('route installation API stores physical instances, prevents invalid placeme
       doc = await body(await add(first.id,
         { catalogId: tightConduit.id, parentId: null, slotIndex: null, version: doc.version }))
       const tightRoot = doc.items.at(-1)
+      assert.equal(doc.items.filter(item => item.parentId === null).length, 2)
       doc = await body(await add(first.id,
         { catalogId: microduct.id, parentId: tightRoot.id, slotIndex: null, version: doc.version }))
       assert.equal((await add(first.id,

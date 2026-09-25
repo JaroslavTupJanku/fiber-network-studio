@@ -29,7 +29,8 @@ function nestedItemCount(root: InstalledItem, items: InstalledItem[]): number {
 
 function InstallationOverview({ summary }: { summary: InstallationSummary }) {
   return <div className={`installation-overview ${summary.status}`} aria-live="polite">
-    <strong>{summary.status === 'empty' ? 'Zatím bez osazení' : summary.status === 'cables' ? 'V úseku je optický kabel' : 'Osazeno bez kabelu'}</strong>
+    <strong>{summary.status === 'empty' ? 'Zatím bez osazení' : summary.status === 'cables'
+      ? summary.cables === 1 ? 'V úseku je optický kabel' : 'V úseku jsou optické kabely' : 'Osazeno bez kabelu'}</strong>
     <span>Chráničky, mikrotrubičky, sestavy <b>{summary.ducts}</b></span>
     <span>Optické kabely <b>{summary.cables}</b></span>
   </div>
@@ -58,7 +59,7 @@ function placementFor(item: InstalledItem, parent: InstalledItem | null, items: 
   const distinguishingNumber = duplicates.length > 1 ? ` #${duplicates.findIndex(other => other.id === parent?.id) + 1}` : ''
   return { parentId: targetId, slotIndex,
     key: `${parent?.id ?? 'route'}:${slotIndex ?? 'free'}`,
-    label: parent ? `Do: ${parent.label}${distinguishingNumber}${slotIndex === null ? '' : ` · pozice ${slotIndex + 1}`}` : 'Volně do úseku' }
+    label: parent ? `Do: ${parent.label}${distinguishingNumber}${slotIndex === null ? '' : ` · pozice ${slotIndex + 1}`}` : 'Samostatně v úseku' }
 }
 
 function availablePlacements(item: InstalledItem, items: InstalledItem[]): Placement[] {
@@ -378,8 +379,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       </div></div>
     {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
     <p className="route-help">{view === 'diagram'
-      ? 'Vyberte prvek a otevřete jeho obsah. Pro přesouvání mezi úrovněmi přejděte na Seznam prvků.'
-      : 'Prvek uchopte za tečky a přetáhněte přímo na cílovou chráničku, mikrotrubičku nebo volnou pozici. Tlačítko Přesunout… najdete v detailu na kartě Schéma.'}</p>
+      ? 'Úsek je vybraná podzemní trasa mezi dvěma body sítě. Její osazení platí pro celou délku; více samostatných chrániček může ležet vedle sebe.'
+      : 'Prvek uchopte za tečky a pusťte ho na cílový prvek, volnou pozici sestavy nebo vedle ostatních do úseku. Tlačítko Přesunout… je také v detailu na kartě Schéma.'}</p>
     {loading ? <p className="installation-muted">Načítání osazení…</p> : <>
       {error && <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>}
       {loadFailed ? null : roots.length === 0 ? <p className="installation-empty">Trasa je zatím prázdná. Tlačítkem Přidat prvek vložte první chráničku, mikrotrubičku nebo sestavu.</p>
@@ -390,7 +391,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
           <div className="installation-canvas">
             <nav className="installation-breadcrumbs" aria-label="Cesta osazením">
               <button type="button" onClick={() => openContents(null)}
-                aria-current={focusedParent === null ? 'page' : undefined}>Úsek</button>
+                aria-current={focusedParent === null ? 'page' : undefined}>Úsek trasy</button>
               {breadcrumb.map(item => <span key={item.id}><ChevronRight size={13} aria-hidden="true" />
                 <button type="button" onClick={() => openContents(item)}
                   aria-current={focusedParent?.id === item.id ? 'page' : undefined}>{item.label}</button></span>)}
@@ -475,7 +476,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
           <div className={`installation-route-target ${dropTargetKey === draggedPlacements.find(place => place.parentId === null)?.key ? 'drop-active' : ''}`}
             onDragOver={event => allowDrop(event, draggedPlacements.find(place => place.parentId === null))}
             onDrop={event => drop(event, draggedPlacements.find(place => place.parentId === null))}>
-            <Layers3 size={16} /> Úsek · pustit sem jako samostatný prvek
+            <Layers3 size={16} /> Úsek trasy · pustit vedle ostatních prvků
           </div>
           <ul className="installation-tree">{roots.map(root => <InstallationTreeItem key={root.id} item={root}
           items={document.items} documents={documents} routes={routes} busy={busy || !editable}
@@ -488,7 +489,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
         <h3><Layers3 size={16} /> Vložit prvek do trasy</h3>
         <label htmlFor="installation-parent">Kam vložit</label>
         <select id="installation-parent" value={parent?.id ?? ''} onChange={event => chooseParent(event.target.value)} disabled={!editable || busy}>
-          <option value="">Volně do úseku</option>
+          <option value="">Samostatně v úseku</option>
           {document.items.filter(item => hasAvailablePlacement(item, document.items)).map(item => <option key={item.id} value={item.id}>
             Do: {item.label} ({itemKind(item)})</option>)}
         </select>
@@ -559,7 +560,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
               : null)
             setQuickCatalogKey(''); setQuickError('')
           }}>
-          <option value="">Volně do úseku</option>
+          <option value="">Samostatně v úseku</option>
           {document.items.filter(item => hasAvailablePlacement(item, document.items)).map(item => <option key={item.id} value={item.id}>
             Do: {item.label} ({itemKind(item)})</option>)}
         </select>

@@ -60,6 +60,8 @@ ztrátě při kontrole, zda do přijímače dorazí dostatečně silný signál.
 kontroluje zvlášť podle nejvyššího výkonu vysílače a hranice přetížení přijímače.
 Výsledek je odhad podle zadaných údajů, nikoli náhrada měření hotové sítě.
 
+**Úsek trasy** je jedna podzemní cesta mezi dvěma síťovými body; lomové body mění jen její tvar. Více chrániček v úseku leží vedle sebe. Osazení zde zatím platí po celé délce úseku.
+
 **Katalogový typ** popisuje výrobek nebo opakovaně použitelné rozložení. **Instalovaný
 prvek** je konkrétní chránička či kabel v jednom úseku mapové trasy. Při vložení se pořídí
 kopie katalogových údajů, takže úprava typu nemění již zaznamenaný prvek. Prvky tvoří strom
