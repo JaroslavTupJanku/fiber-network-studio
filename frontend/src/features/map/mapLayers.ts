@@ -74,7 +74,7 @@ export function pointCollection(points: NetworkPoint[], selectedPointId: string 
 export function initializeMapLayers(map: Map) {
   map.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: SELECTED_ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
-    filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#ffffff',
+    filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#183c35',
       'line-width': ['interpolate', ['linear'], ['zoom'], 9, 4, 12, 6, 15, 9, 18, 10], 'line-opacity': 0.95 } })
   map.addLayer({ id: HOVERED_ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
     filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#f0b344',
@@ -163,8 +163,8 @@ export function initializeMapLayers(map: Map) {
     paint: { 'line-color': '#1769b8', 'line-width': 3 },
   }, POINT_LAYER_ID)
   // Map backgrounds are inserted below the parcel layer; keep route geometry above both backgrounds.
-  map.moveLayer(ROUTE_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer(SELECTED_ROUTE_LAYER_ID, POINT_LAYER_ID)
+  map.moveLayer(ROUTE_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer(HOVERED_ROUTE_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer('underground-route-draft-line', POINT_LAYER_ID)
   map.moveLayer(ROUTE_VERTEX_LAYER_ID, POINT_LAYER_ID)

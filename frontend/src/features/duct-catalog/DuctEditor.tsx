@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 import { Save, X } from 'lucide-react'
 import { changeKind, kindLabel, resizeAssembly, type DuctDraft, type DuctKind, type DuctSlot } from './model'
 import { DuctDiagram } from './DuctDiagram'
+import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
 
 type Props = { draft: DuctDraft; busy: boolean; dirty: boolean; onChange: (draft: DuctDraft) => void; onSave: () => void; onCancel: () => void }
 const numberValue = (raw: string) => raw === '' ? null : Number(raw)
@@ -25,7 +26,9 @@ export function DuctEditor({ draft, busy, dirty, onChange, onSave, onCancel }: P
       if (dirty && !window.confirm('Změna druhu nahradí rozložení pozic. Pokračovat?')) return
       onChange(changeKind(draft, event.target.value as DuctKind))
     }}><option value="conduit">Chránička</option><option value="microduct">Mikrotrubička</option><option value="assembly">Sestava pozic</option></select></label>
-      <label>Název<input autoFocus required maxLength={100} value={draft.name} placeholder="Např. Mikrotrubička pro přípojky" onChange={event => onChange({ ...draft, name: event.target.value })} /></label></div>
+      <label>Název<input autoFocus required maxLength={100} value={draft.name} placeholder="Např. Mikrotrubička pro přípojky" onChange={event => onChange({ ...draft, name: event.target.value })}
+        onKeyDown={event => acceptExampleOnArrowRight(event, name => onChange({ ...draft, name }))}
+        title="Šipka doprava převezme šedý příklad" /></label></div>
     <div className="dc-fields"><label>Výrobce <span>nepovinné</span><input maxLength={100} value={draft.manufacturer} onChange={event => onChange({ ...draft, manufacturer: event.target.value })} /></label>
       <label>Model / produktové číslo <span>nepovinné</span><input maxLength={100} value={draft.model} onChange={event => onChange({ ...draft, model: event.target.value })} /></label></div>
     <div className="dc-fields"><label>Barva pláště<input type="color" value={draft.color} onChange={event => onChange({ ...draft, color: event.target.value })} /></label>

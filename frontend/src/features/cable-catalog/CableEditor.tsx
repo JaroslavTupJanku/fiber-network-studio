@@ -5,6 +5,7 @@ import { countFibers, sequence, markSignature, type CableDraft, type ColorCodeDa
 import { appendTube, removeFiber, removeTube, resizeFibers, resizeStructure } from './structure'
 import { ColorCodeInfo } from './ColorCodeInfo'
 import { CableAttenuation } from './CableAttenuation'
+import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
 
 type Props = { draft: CableDraft; data: ColorCodeData; busy: boolean; dirty: boolean; onChange: (draft: CableDraft) => void; onSave: () => void; onCancel: () => void }
 
@@ -66,7 +67,9 @@ export function CableEditor({ draft, data, busy, dirty, onChange, onSave, onCanc
       </div>
       <div className="cc-fields">
         <label>Název kabelu<input autoFocus required maxLength={100} value={draft.name} placeholder="Např. Přívodní kabel 48 vláken"
-          onChange={event => onChange({ ...draft, name: event.target.value })} /></label>
+          onChange={event => onChange({ ...draft, name: event.target.value })}
+          onKeyDown={event => acceptExampleOnArrowRight(event, name => onChange({ ...draft, name }))}
+          title="Šipka doprava převezme šedý příklad" /></label>
         <label>Výrobce <span className="cc-optional">nepovinné</span><input maxLength={100} value={draft.manufacturer} placeholder="Název výrobce"
           onChange={event => onChange({ ...draft, manufacturer: event.target.value })} /></label>
       </div>

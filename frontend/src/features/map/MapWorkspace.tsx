@@ -7,6 +7,7 @@ import { useRouteInstallations } from './useRouteInstallations'
 import { useMapWorkspace } from './useMapWorkspace'
 import type { NetworkPointKind } from './networkPoints'
 import { routeCoordinates, routeLengthMeters } from './undergroundRoutes'
+import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
 
 const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : 'Šachta'
 
@@ -224,6 +225,8 @@ export function MapWorkspace({ active }: { active: boolean }) {
             <label htmlFor="route-name">Název trasy</label>
             <input id="route-name" maxLength={80} required value={routeDraft.name}
               onChange={event => route.setDraft(current => current ? { ...current, name: event.target.value } : current)}
+              onKeyDown={event => acceptExampleOnArrowRight(event, name => route.setDraft(current => current ? { ...current, name } : current))}
+              title="Šipka doprava převezme šedý příklad"
               placeholder="Např. Šachta S-01 – Dům 12" />
             {!route.drawing && routeDraft.id && <button type="button" className="move-button" onClick={route.startEditing}><RouteIcon size={16} /> Upravit průběh</button>}
             {route.error && <p className="form-error" role="alert">{route.error}</p>}
@@ -238,7 +241,9 @@ export function MapWorkspace({ active }: { active: boolean }) {
         {editor && (
           <form className="point-form" onSubmit={savePoint}>
             <label htmlFor="point-name">Název</label>
-            <input id="point-name" autoFocus required maxLength={80} value={editor.name} onChange={(event) => setEditor({ ...editor, name: event.target.value })} placeholder={editor.kind === 'building' ? 'Např. Dům 12' : 'Např. Šachta S-01'} />
+            <input id="point-name" autoFocus required maxLength={80} value={editor.name} onChange={(event) => setEditor({ ...editor, name: event.target.value })}
+              onKeyDown={event => acceptExampleOnArrowRight(event, name => setEditor(current => current ? { ...current, name } : current))}
+              title="Šipka doprava převezme šedý příklad" placeholder={editor.kind === 'building' ? 'Např. Dům 12' : 'Např. Šachta S-01'} />
             <div className="point-kind"><span className={`kind-dot ${editor.kind}`} />{kindLabel(editor.kind)}</div>
             <div className="coordinates-row">
               <span>{editor.latitude.toFixed(6)}°, {editor.longitude.toFixed(6)}°</span>

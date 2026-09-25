@@ -7,6 +7,7 @@ import { EquipmentProfiles } from './EquipmentProfiles'
 import { parseScenario } from './storage'
 import { useOpticalBudget } from './useOpticalBudget'
 import './optical-budget.css'
+import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
 
 function NumberField({ label, value, onChange, unit }: { label: string; value: string; onChange: (value: string) => void; unit: string }) {
   return <label>{label}<span className="ob-input-unit"><input inputMode="decimal" value={value} placeholder="Neuvedeno"
@@ -45,7 +46,9 @@ export function OpticalBudgetPage() {
       <section className="ob-panel"><div className="ob-section-heading"><h2>Zadání cesty</h2><span className="ob-tag">Ruční výpočet</span></div>
         <div className="ob-mode" aria-label="Úroveň nastavení"><button aria-pressed={!advanced} onClick={() => setAdvanced(false)}>Základní</button><button aria-pressed={advanced} onClick={() => setAdvanced(true)}>Pokročilé</button></div>
         <p className="ob-muted">Například: rozvaděč → kabel A → svar → kabel B → dům. Přidejte všechny úseky a spoje, kterými prochází jeden sledovaný signál.</p>
-        <div className="ob-fields"><label>Název výpočtu<input value={scenario.name} maxLength={200} placeholder="Např. Přívod k budově A" onChange={event => setScenario({ ...scenario, name: event.target.value })} /></label>
+        <div className="ob-fields"><label>Název výpočtu<input value={scenario.name} maxLength={200} placeholder="Např. Přívod k budově A" onChange={event => setScenario({ ...scenario, name: event.target.value })}
+          onKeyDown={event => acceptExampleOnArrowRight(event, name => setScenario({ ...scenario, name }))}
+          title="Šipka doprava převezme šedý příklad" /></label>
           </div>
         <TechnologySettings scenario={scenario} onChange={setScenario} />
         {!advanced && <p className="ob-muted">Základní zobrazení počítá ztráty. Limity a rezervu upravíte v Pokročilém nastavení; již zadané se uplatňují v obou zobrazeních.</p>}

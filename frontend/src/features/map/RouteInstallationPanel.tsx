@@ -6,6 +6,7 @@ import { canPlaceItem, installationContinuations, installationFit, installationS
   type InstalledItem, type RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
 import { useRouteInstallations } from './useRouteInstallations'
+import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
 
 type Candidate = { key: string; label: string; duct: DuctType | null; cable: CableSpecification | null }
 const itemKind = (item: InstalledItem) => item.duct ? kindLabel(item.duct.kind) : 'Optický kabel'
@@ -227,6 +228,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
             : 'Rozměry chybí nebo nelze ověřit společné uložení. Kompatibilita zůstává neurčená.'}</p>}
         <label htmlFor="installation-label">Označení kusu <span>(volitelné)</span></label>
         <input id="installation-label" maxLength={80} value={label} onChange={event => setLabel(event.target.value)}
+          onKeyDown={event => acceptExampleOnArrowRight(event, setLabel, selectedCandidate?.label)}
+          title="Šipka doprava převezme šedé označení"
           placeholder={selectedCandidate?.label ?? 'Např. Chránička CH-01'} disabled={!editable || busy} />
         {formError && <p className="form-error" role="alert">{formError}</p>}
         <button type="submit" className="primary-button" disabled={!editable || busy || !selectedCandidate || fit === 'too-small'}>
