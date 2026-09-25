@@ -85,6 +85,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
 }) {
   const { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh, add, rename, remove } = installations
   const [savedMessage, setSavedMessage] = useState('')
+  const [view, setView] = useState<'diagram' | 'list'>('diagram')
+  const [addOpen, setAddOpen] = useState(false)
   const [parentId, setParentId] = useState('')
   const [slotIndex, setSlotIndex] = useState<number | null>(null)
   const [sourceMode, setSourceMode] = useState<'catalog' | 'continuation'>('catalog')
@@ -92,6 +94,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const [continuationId, setContinuationId] = useState('')
   const [label, setLabel] = useState('')
   const [formError, setFormError] = useState('')
+  const sectionRef = useRef<HTMLElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const parent = document.items.find(item => item.id === parentId) ?? null
   const slots = parent?.duct?.kind === 'assembly' ? parent.duct.slots : []
@@ -121,7 +124,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   }
   const addInside = (id: string) => {
     chooseParent(id)
-    formRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
+    setAddOpen(true)
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -135,6 +139,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     if (success) {
       setSavedMessage(`Uloženo do trasy: ${label.trim() || selectedCandidate.label}.`)
       setLabel(''); setCatalogKey(''); setContinuationId(''); setFormError('')
+      setAddOpen(false)
+      requestAnimationFrame(() => sectionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
       if (slots.length > 0) setSlotIndex(slots.findIndex((_, index) => index !== selectedSlot
         && !document.items.some(item => item.parentId === parent?.id && item.slotIndex === index)))
     }
@@ -151,11 +157,14 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     if (success) setSavedMessage('Kus byl z úseku odebrán.')
     return success
   }
-  return <section className="installation-panel" aria-label="Osazení trasy">
+  return <section className="installation-panel" aria-label="Osazení trasy" ref={sectionRef}>
     <div className="installation-heading"><div><span className="section-label">Fyzická infrastruktura</span>
       <h2>Osazení úseku</h2></div><div className="installation-heading-actions">
-        <button type="button" className="move-button" onClick={() => formRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })}
-          disabled={!editable || loading || loadFailed}><Plus size={15} /> Přidat</button>
+        <button type="button" className="move-button" aria-expanded={addOpen} aria-controls="installation-add-form"
+          onClick={() => {
+            setAddOpen(current => !current)
+            if (!addOpen) requestAnimationFrame(() => formRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+          }} disabled={!editable || loading || loadFailed}><Plus size={15} /> {addOpen ? 'Zavřít' : 'Přidat kus'}</button>
         <button type="button" className="icon-button" title="Načíst osazení znovu"
           aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button>
       </div></div>
@@ -164,20 +173,24 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       <span>Potrubí a trubičky <b>{summary.ducts}</b></span><span>Optické kabely <b>{summary.cables}</b></span>
     </div>}
     {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
-    <p className="route-help">Níže je schematický průřez a seznam uložených kusů. Každý má vlastní identitu a kopii údajů z katalogu.</p>
+    <p className="route-help">Schéma ukazuje uspořádání v úseku. V seznamu lze kusy přejmenovat, odebrat nebo vložit další dovnitř.</p>
     {loading ? <p className="installation-muted">Načítání osazení…</p> : <>
       {error && <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>}
-      {loadFailed ? null : roots.length === 0 ? <p className="installation-empty">Trasa je zatím prázdná. Přidejte chráničku, mikrotrubičku nebo sestavu.</p>
-        : <><div className="installation-cross-sections" aria-label="Schematické průřezy instalace">
+      {loadFailed ? null : roots.length === 0 ? <p className="installation-empty">Trasa je zatím prázdná. Tlačítkem Přidat kus vložte první chráničku, mikrotrubičku nebo sestavu.</p>
+        : <><div className="installation-view-switch" role="group" aria-label="Zobrazení osazení">
+          <button type="button" aria-pressed={view === 'diagram'} onClick={() => setView('diagram')}>Schéma</button>
+          <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>Seznam kusů</button>
+        </div><div className="installation-view" hidden={view !== 'diagram'}><div className="installation-cross-sections" aria-label="Schematické průřezy instalace">
           {roots.map(root => <div className="installation-cross-section" key={root.id}>
             <div className="installation-visual"><SectionDiagram item={root} items={document.items} /></div>
             <strong>{root.label}</strong>
           </div>)}
           <small>Schéma uspořádání, nikoli měřítko nebo schválení instalace.</small>
-        </div><ul className="installation-tree">{roots.map(root => <InstallationTreeItem key={root.id} item={root}
+        </div></div><ul className="installation-tree installation-view" hidden={view !== 'list'}>{roots.map(root => <InstallationTreeItem key={root.id} item={root}
           items={document.items} documents={documents} routes={routes} busy={busy || !editable}
           onRename={renameItem} onRemove={removeItem} onAddInside={addInside} />)}</ul></>}
-      {!loadFailed && <form className="installation-add" onSubmit={submit} ref={formRef}>
+      {!loadFailed && <div id="installation-add-form" className="installation-add-container" hidden={!addOpen}>
+      <form className="installation-add" onSubmit={submit} ref={formRef}>
         <h3><Layers3 size={16} /> Vložit kus do trasy</h3>
         <label htmlFor="installation-parent">Kam vložit</label>
         <select id="installation-parent" value={parentId} onChange={event => chooseParent(event.target.value)} disabled={!editable || busy}>
@@ -219,7 +232,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
         <button type="submit" className="primary-button" disabled={!editable || busy || !selectedCandidate || fit === 'too-small'}>
           <Plus size={16} /> {busy ? 'Ukládání…' : 'Vložit kus'}</button>
         {!editable && <p className="installation-muted">Nejdřív dokončete a uložte úpravu průběhu trasy.</p>}
-      </form>}
+      </form></div>}
     </>}
   </section>
 }

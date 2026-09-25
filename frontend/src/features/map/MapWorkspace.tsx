@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
@@ -12,6 +12,9 @@ const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : '
 
 export function MapWorkspace({ active }: { active: boolean }) {
   const [panelOpen, setPanelOpen] = useState(true)
+  const [routeTab, setRouteTab] = useState<'installations' | 'route'>('installations')
+  const detailsPanelRef = useRef<HTMLElement>(null)
+  const lastRouteId = useRef<string | null>(null)
   const [hoveredPointId, setHoveredPointId] = useState<string | null>(null)
   const [hoveredRouteId, setHoveredRouteId] = useState<string | null>(null)
   const [routeFocusRequest, setRouteFocusRequest] = useState<{ id: string, sequence: number } | null>(null)
@@ -30,6 +33,16 @@ export function MapWorkspace({ active }: { active: boolean }) {
     handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   } = useMapWorkspace()
   const routeDraft = route.draft
+  useEffect(() => {
+    const id = routeDraft?.id ?? null
+    if (id && id !== lastRouteId.current) {
+      setRouteTab('installations')
+      detailsPanelRef.current?.scrollTo({ top: 0 })
+    }
+    lastRouteId.current = id
+  }, [routeDraft?.id])
+  const selectedSavedRoute = routeDraft?.id ? route.routes.find(item => item.id === routeDraft.id) : null
+  const activeRouteTab = route.drawing ? 'route' : routeTab
   const installations = useRouteInstallations(routeDraft?.id ?? null)
   const installationByRoute = new Map(installations.documents.map(document => [document.routeId, document]))
   const routeLength = routeDraft?.endPointId
@@ -40,6 +53,23 @@ export function MapWorkspace({ active }: { active: boolean }) {
     setPanelOpen(value => !value)
     setHoveredPointId(null)
     setHoveredRouteId(null)
+  }
+  const selectRouteTab = (tab: 'installations' | 'route') => {
+    setRouteTab(tab)
+    detailsPanelRef.current?.scrollTo({ top: 0 })
+  }
+  const selectSavedRoute = (id: string) => {
+    selectRouteTab('installations')
+    setPanelOpen(true)
+    handleRouteSelect(id)
+  }
+  const handleRouteTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (route.drawing || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+    event.preventDefault()
+    const next = event.key === 'Home' ? 'installations' : event.key === 'End' ? 'route'
+      : activeRouteTab === 'installations' ? 'route' : 'installations'
+    selectRouteTab(next)
+    document.getElementById(`route-tab-${next}`)?.focus()
   }
 
   return (
@@ -55,8 +85,8 @@ export function MapWorkspace({ active }: { active: boolean }) {
           routeFocusRequest={routeFocusRequest}
           routeDraft={route.preview}
           drawingRoute={route.drawing}
-          onRouteToolChange={handleRouteToolChange}
-          onRouteSelect={id => { setPanelOpen(true); handleRouteSelect(id) }}
+          onRouteToolChange={() => { selectRouteTab('route'); handleRouteToolChange() }}
+          onRouteSelect={selectSavedRoute}
           onRouteWaypointMove={route.moveWaypoint}
           onRouteUndo={route.undo}
           onRouteFinish={route.finish}
@@ -78,15 +108,15 @@ export function MapWorkspace({ active }: { active: boolean }) {
         />
       </section>
 
-      <aside className={`details-panel${panelOpen ? '' : ' collapsed'}`} aria-label="Objekty sítě">
+      <aside className={`details-panel${panelOpen ? '' : ' collapsed'}`} aria-label="Objekty sítě" ref={detailsPanelRef}>
         {!panelOpen && <button className="details-rail-toggle" type="button" onClick={togglePanel}
           aria-label="Rozbalit panel Infrastruktura" title="Rozbalit panel Infrastruktura">
           <PanelRightOpen size={19} aria-hidden="true" /><span>Infrastruktura</span>
         </button>}
         <div className="panel-heading">
           <div>
-            <span className="section-label">{selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
-            <h1>{routeDraft ? routeDraft.id ? 'Podzemní trasa' : 'Nová podzemní trasa' : editor ? editor.id ? kindLabel(editor.kind) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
+            <span className="section-label">{routeDraft?.id ? 'Podzemní trasa' : selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
+            <h1>{routeDraft ? routeDraft.id ? routeDraft.name || 'Podzemní trasa' : 'Nová podzemní trasa' : editor ? editor.id ? kindLabel(editor.kind) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
           </div>
           <div className="panel-heading-actions">
             {(editor || selectedLocation || routeDraft) && (
@@ -104,11 +134,11 @@ export function MapWorkspace({ active }: { active: boolean }) {
           </div>
         </div>
 
-        <div className="point-counts" aria-label="Počet objektů">
+        {!routeDraft && <div className="point-counts" aria-label="Počet objektů">
           <span><House size={15} aria-hidden="true" /> Budovy <strong>{buildings}</strong></span>
           <span><CircleDot size={15} aria-hidden="true" /> Šachty <strong>{chambers}</strong></span>
           <span><RouteIcon size={15} aria-hidden="true" /> Trasy <strong>{route.routes.length}</strong></span>
-        </div>
+        </div>}
 
         {route.loadError && (
           <div className="panel-error" role="alert"><span>Trasy se nenačetly.</span>
@@ -128,17 +158,33 @@ export function MapWorkspace({ active }: { active: boolean }) {
           </div>
         )}
 
-        {routeDraft?.id && route.routes.find(item => item.id === routeDraft.id) &&
-          <RouteInstallationPanel key={routeDraft.id} route={route.routes.find(item => item.id === routeDraft.id)!}
-            routes={route.routes} editable={!route.drawing && route.preview === null} installations={installations} />}
+        {selectedSavedRoute && <>
+          <div className="route-tab-context">{pointName(selectedSavedRoute.startPointId)} → {pointName(selectedSavedRoute.endPointId)}</div>
+          <div className="route-detail-tabs" role="tablist" aria-label="Detail podzemní trasy" onKeyDown={handleRouteTabKeyDown}>
+            <button type="button" id="route-tab-installations" role="tab" aria-controls="route-panel-installations"
+              aria-selected={activeRouteTab === 'installations'} tabIndex={activeRouteTab === 'installations' ? 0 : -1}
+              disabled={route.drawing} onClick={() => selectRouteTab('installations')}>Osazení</button>
+            <button type="button" id="route-tab-route" role="tab" aria-controls="route-panel-route"
+              aria-selected={activeRouteTab === 'route'} tabIndex={activeRouteTab === 'route' ? 0 : -1}
+              onClick={() => selectRouteTab('route')}>Trasa</button>
+          </div>
+          <div className="route-tab-panel" id="route-panel-installations" role="tabpanel"
+            aria-labelledby="route-tab-installations" hidden={activeRouteTab !== 'installations'}>
+            <RouteInstallationPanel key={selectedSavedRoute.id} route={selectedSavedRoute}
+              routes={route.routes} editable={!route.drawing && route.preview === null} installations={installations} />
+          </div>
+        </>}
 
         {routeDraft && (
+          <div className="route-tab-panel" id={selectedSavedRoute ? 'route-panel-route' : undefined}
+            role={selectedSavedRoute ? 'tabpanel' : undefined} aria-labelledby={selectedSavedRoute ? 'route-tab-route' : undefined}
+            hidden={!!selectedSavedRoute && activeRouteTab !== 'route'}>
           <form className="point-form route-form" onSubmit={route.save}>
             {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
               ? 'Začátek a konec vyberte níže nebo kliknutím na objekty v mapě. Tvar trasy upravte klikáním do mapy. Pak stiskněte Dokončit.'
               : routeDraft.id
-                ? 'Trasa spojuje dva body sítě. Konkrétní chráničky a kabely spravujete v části Osazení úseku výše.'
+                ? 'Trasa spojuje dva body sítě. Její obsah najdete na záložce Osazení.'
                 : 'Trasa spojuje dva body sítě. Nejdřív ji uložte, potom do ní můžete vložit chráničky a kabely.'}</p>
             {route.drawing ? <div className="route-endpoint-fields">
               <label htmlFor="route-start">Začátek trasy
@@ -182,6 +228,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
               {routeDraft.id && <button className="danger-button" type="button" disabled={route.saving} onClick={route.remove}><Trash2 size={16} /> Smazat</button>}
             </div>
           </form>
+          </div>
         )}
 
         {editor && (
@@ -238,7 +285,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
                 onFocus={() => setHoveredRouteId(item.id)} onBlur={() => setHoveredRouteId(null)}
                 onClick={() => {
                   setHoveredRouteId(null)
-                  handleRouteSelect(item.id)
+                  selectSavedRoute(item.id)
                   setRouteFocusRequest(current => ({ id: item.id, sequence: (current?.sequence ?? 0) + 1 }))
                 }}><RouteIcon className={`route-list-icon ${status}`} size={17} /><span className="route-list-text"><strong>{item.name}</strong><small>
                   {installations.loading ? 'Načítání osazení…' : installations.loadFailed ? 'Osazení se nenačetlo'

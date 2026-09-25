@@ -162,8 +162,16 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .route-list-text { display: grid; min-width: 0; gap: 3px; }
 .route-list-text strong { overflow: hidden; color: #29473c; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .route-list-text small { color: #6c8175; font-size: 11px; }
-.route-detail-title { margin: 18px 0 0; padding-top: 15px; border-top: 1px solid #d8e2df; color: #23483e; font-size: 15px; }
-.installation-panel { display: grid; gap: 13px; margin-top: 19px; padding-top: 17px; border-top: 1px solid #d8e2df; }
+.route-tab-context { margin: 19px 0 11px; overflow-wrap: anywhere; color: #526a61; font-size: 12px; line-height: 1.4; }
+.route-detail-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border: 1px solid #d8e2df; border-radius: 7px; background: #f5f8f6; }
+.route-detail-tabs button { min-height: 36px; border: 0; border-radius: 4px; background: transparent; color: #526a61; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+.route-detail-tabs button[aria-selected=true] { background: #fff; color: #225f55; box-shadow: 0 1px 4px rgb(30 65 54 / 13%); }
+.route-detail-tabs button:focus-visible { outline: 2px solid #26766b; outline-offset: -2px; }
+.route-detail-tabs button:disabled { opacity: .45; cursor: not-allowed; }
+.route-tab-panel { padding-top: 15px; }
+.route-tab-panel[hidden] { display: none; }
+.route-detail-title { margin: 0; color: #23483e; font-size: 15px; }
+.installation-panel { display: grid; gap: 13px; }
 .installation-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .installation-heading h2 { margin: 3px 0 0; color: #23483e; font-size: 16px; }
 .installation-heading-actions { display: flex; gap: 5px; }
@@ -177,10 +185,15 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-saved { display: flex; align-items: center; gap: 6px; margin: 0; padding: 8px 10px; border: 1px solid #badbd1; border-radius: 6px; background: #f2faf6; color: #22584d; font-size: 11px; }
 .installation-muted, .installation-empty { margin: 0; color: #647a70; font-size: 12px; line-height: 1.45; }
 .installation-empty { padding: 13px; border: 1px dashed #bfcfca; border-radius: 7px; background: #f7faf8; }
-.installation-cross-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.installation-cross-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
 .installation-cross-sections > small { grid-column: 1 / -1; color: #73847e; font-size: 10px; }
 .installation-cross-section { display: grid; justify-items: center; gap: 5px; min-width: 0; padding: 9px 5px; border: 1px solid #d9e6df; border-radius: 7px; background: #f8fbf9; }
-.installation-cross-section strong { overflow: hidden; max-width: 100%; color: #35554a; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.installation-cross-section strong { max-width: 100%; overflow-wrap: anywhere; color: #35554a; font-size: 11px; line-height: 1.25; text-align: center; }
+.installation-view[hidden], .installation-add-container[hidden] { display: none; }
+.installation-view-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; border: 1px solid #d8e2df; border-radius: 6px; background: #f5f8f6; }
+.installation-view-switch button { min-height: 30px; border: 0; border-radius: 4px; background: transparent; color: #526a61; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+.installation-view-switch button[aria-pressed=true] { background: #fff; color: #225f55; box-shadow: 0 1px 3px rgb(30 65 54 / 12%); }
+.installation-view-switch button:focus-visible { outline: 2px solid #26766b; outline-offset: -2px; }
 .installation-visual { display: grid; place-items: center; min-height: 78px; width: 100%; }
 .install-diagram-ring { display: inline-flex; align-items: center; justify-content: center; gap: 2px; flex-wrap: wrap; width: 34px; height: 34px; padding: 3px; border: 5px solid var(--install-color); border-radius: 50%; background: #fff; }
 .install-diagram-ring.root { width: 69px; height: 69px; border-width: 9px; }
