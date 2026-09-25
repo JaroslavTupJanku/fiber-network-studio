@@ -159,15 +159,27 @@ public sealed class RouteInstallationStore(string path)
             if (current.Version != version) return InstallationResult.Fail(409, "Osazení mezitím změnil jiný uživatel. Načtěte trasu znovu.");
             var removed = current.Items.Find(item => item.Id == itemId);
             if (removed is null) return InstallationResult.Fail(404, "Instalovaný prvek neexistuje.");
-            if (current.Items.Any(item => item.ParentId == itemId))
-                return InstallationResult.Fail(409, "Nejdřív odeberte prvky uložené uvnitř.");
-            var remainingRunRoutes = documents.SelectMany(document => document.Items)
-                .Where(item => item.RunId == removed.RunId && item.Id != itemId)
-                .Select(item => item.RouteId).ToHashSet();
-            if (!FormsSinglePath(remainingRunRoutes, routes))
-                return InstallationResult.Fail(409, "Nejdřív odeberte navazující krajní úseky; souvislý prvek nelze rozdělit uprostřed.");
+            var removedIds = new HashSet<Guid> { itemId };
+            while (true)
+            {
+                var children = current.Items.Where(item => item.ParentId is Guid parentId && removedIds.Contains(parentId))
+                    .Select(item => item.Id).ToArray();
+                var found = false;
+                foreach (var childId in children) found |= removedIds.Add(childId);
+                if (!found) break;
+            }
+            var affectedRuns = current.Items.Where(item => removedIds.Contains(item.Id))
+                .Select(item => item.RunId).Distinct();
+            foreach (var runId in affectedRuns)
+            {
+                var remainingRunRoutes = documents.SelectMany(document => document.Items)
+                    .Where(item => item.RunId == runId && !removedIds.Contains(item.Id))
+                    .Select(item => item.RouteId).ToHashSet();
+                if (!FormsSinglePath(remainingRunRoutes, routes))
+                    return InstallationResult.Fail(409, "Nejdřív odeberte navazující krajní úseky; souvislý prvek nelze rozdělit uprostřed.");
+            }
             var updated = current with { Version = current.Version + 1,
-                Items = current.Items.Where(item => item.Id != itemId).ToList() };
+                Items = current.Items.Where(item => !removedIds.Contains(item.Id)).ToList() };
             documents[documents.IndexOf(current)] = updated;
             await WriteAsync(documents);
             return InstallationResult.Ok(updated);

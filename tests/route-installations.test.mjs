@@ -156,7 +156,6 @@ test('route installation API stores physical instances, prevents invalid placeme
       assert.equal((await move(inner.id, spareInner.id, null, doc.version)).status, 409)
       doc = await body(await move(installedCable.id, inner.id, null, doc.version))
       assert.equal(doc.items.find(item => item.id === installedCable.id).parentId, inner.id)
-      assert.equal((await request(`/route-installations/${first.id}/items/${root.id}?version=${doc.version}`, 'DELETE')).status, 409)
       assert.equal((await request(`/underground-routes/${first.id}`, 'DELETE')).status, 409)
       assert.equal((await request(`/underground-routes/${first.id}`, 'PUT',
         { ...first, endPointId: c.id })).status, 409)
@@ -203,6 +202,8 @@ test('route installation API stores physical instances, prevents invalid placeme
         { catalogId: conduit.id, parentId: assemblyRoot.id, slotIndex: 0, version: assemblyDoc.version }))
       assert.equal((await add(separate.id,
         { catalogId: conduit.id, parentId: assemblyRoot.id, slotIndex: 0, version: placed.version })).status, 409)
+      const nested = await body(await add(separate.id,
+        { catalogId: microduct.id, parentId: placed.items.at(-1).id, slotIndex: null, version: placed.version }))
 
       await stop()
       await start()
@@ -213,6 +214,12 @@ test('route installation API stores physical instances, prevents invalid placeme
       const renamed = await request(`/route-installations/${first.id}/items/${root.id}`, 'PUT',
         { label: 'CH-01A', version: savedFirst.version })
       assert.equal(renamed.status, 200)
+      assert.equal((await request(`/route-installations/${second.id}/items/${secondRoot.id}?version=${next.version}`,
+        'DELETE')).status, 409)
+      const removedAssembly = await body(await request(
+        `/route-installations/${separate.id}/items/${assemblyRoot.id}?version=${nested.version}`, 'DELETE'))
+      assert.equal(removedAssembly.items.length, 0)
+      assert.equal(removedAssembly.version, nested.version + 1)
     } finally {
       await stop()
       await rm(directory, { recursive: true, force: true })
