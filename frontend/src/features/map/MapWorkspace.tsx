@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
-import { CircleDot, Copy, Crosshair, House, MapPin, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { useMapWorkspace } from './useMapWorkspace'
@@ -9,9 +9,15 @@ import { routeCoordinates, routeLengthMeters } from './undergroundRoutes'
 const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : 'Šachta'
 
 export function MapWorkspace({ active }: { active: boolean }) {
+  const [panelOpen, setPanelOpen] = useState(true)
+  const [hoveredPointId, setHoveredPointId] = useState<string | null>(null)
+  const [hoveredRouteId, setHoveredRouteId] = useState<string | null>(null)
+  const [routeFocusRequest, setRouteFocusRequest] = useState<{ id: string, sequence: number } | null>(null)
   useEffect(() => {
-    if (active) window.dispatchEvent(new Event('resize'))
-  }, [active])
+    if (!active) return
+    const frame = requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
+    return () => cancelAnimationFrame(frame)
+  }, [active, panelOpen])
   const {
     points, loading, loadError, actionError, saving, activeTool, moving, editor, route,
     selectedLocation, selectedParcel, parcelStatus, query, visiblePoints,
@@ -26,54 +32,70 @@ export function MapWorkspace({ active }: { active: boolean }) {
     ? routeLengthMeters(routeCoordinates(routeDraft, points)) : null
   const pointName = (id: string | null) => points.find(point => point.id === id)?.name ?? 'Vyberte na mapě'
   const endpointPoints = points.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs'))
+  const togglePanel = () => {
+    setPanelOpen(value => !value)
+    setHoveredPointId(null)
+    setHoveredRouteId(null)
+  }
 
   return (
-    <main className="workspace" hidden={!active}>
-      <section className="map-region" aria-label="Mapa sítě">
+    <main className={`workspace${panelOpen ? '' : ' panel-collapsed'}`} hidden={!active}>
+      <section className={`map-region${route.drawing ? ' route-drawing-mode' : activeTool || moving ? ' point-placement-mode' : ''}`} aria-label="Mapa sítě">
         <MapCanvas
           points={points}
           routes={route.routes}
           selectedRouteId={routeDraft?.id ?? null}
+          hoveredRouteId={hoveredRouteId}
+          routeFocusRequest={routeFocusRequest}
           routeDraft={route.preview}
           drawingRoute={route.drawing}
           onRouteToolChange={handleRouteToolChange}
-          onRouteSelect={handleRouteSelect}
+          onRouteSelect={id => { setPanelOpen(true); handleRouteSelect(id) }}
           onRouteWaypointMove={route.moveWaypoint}
           onRouteUndo={route.undo}
           onRouteFinish={route.finish}
           onRouteCancel={route.cancelDrawing}
           selectedPointId={editor?.id ?? null}
+          hoveredPointId={hoveredPointId}
           selectedParcel={selectedParcel}
           preview={preview}
           activeTool={activeTool}
           placementActive={activeTool !== null || moving}
           toolsDisabled={loading || loadError}
           onToolChange={handleToolChange}
-          onToolDrop={handleToolDrop}
-          onLocationClick={handleLocationClick}
-          onPointSelect={handlePointSelect}
-          onPointMove={relocatePoint}
+          onToolDrop={(kind, location) => { setPanelOpen(true); handleToolDrop(kind, location) }}
+          onLocationClick={(location, lookupParcel) => { setPanelOpen(true); handleLocationClick(location, lookupParcel) }}
+          onPointSelect={id => { setPanelOpen(true); handlePointSelect(id) }}
+          onPointMove={(id, location) => { setPanelOpen(true); void relocatePoint(id, location) }}
           onDraftMove={moveDraft}
           onCadastreDisable={clearParcel}
         />
       </section>
 
-      <aside className="details-panel" aria-label="Objekty sítě">
+      <aside className={`details-panel${panelOpen ? '' : ' collapsed'}`} aria-label="Objekty sítě">
+        {!panelOpen && <button className="details-rail-toggle" type="button" onClick={togglePanel}
+          aria-label="Rozbalit panel Infrastruktura" title="Rozbalit panel Infrastruktura">
+          <PanelRightOpen size={19} aria-hidden="true" /><span>Infrastruktura</span>
+        </button>}
         <div className="panel-heading">
           <div>
             <span className="section-label">{selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
             <h1>{routeDraft ? routeDraft.id ? 'Podzemní trasa' : 'Nová podzemní trasa' : editor ? editor.id ? kindLabel(editor.kind) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
           </div>
-          {(editor || selectedLocation || routeDraft) && (
-            <button className="icon-button" type="button" onClick={() => {
-              route.cancel()
-              setEditor(null)
-              setSelectedLocation(null)
-              clearParcel()
-              setMoving(false)
-              setActionError('')
-            }} title="Zavřít detail" aria-label="Zavřít detail"><X size={18} /></button>
-          )}
+          <div className="panel-heading-actions">
+            {(editor || selectedLocation || routeDraft) && (
+              <button className="icon-button" type="button" onClick={() => {
+                route.cancel()
+                setEditor(null)
+                setSelectedLocation(null)
+                clearParcel()
+                setMoving(false)
+                setActionError('')
+              }} title="Zavřít detail" aria-label="Zavřít detail"><X size={18} /></button>
+            )}
+            <button className="icon-button" type="button" onClick={togglePanel}
+              title="Sbalit panel Infrastruktura" aria-label="Sbalit panel Infrastruktura"><PanelRightClose size={18} /></button>
+          </div>
         </div>
 
         <div className="point-counts" aria-label="Počet objektů">
@@ -194,10 +216,20 @@ export function MapWorkspace({ active }: { active: boolean }) {
           <div className="point-list">
             <label className="search-field"><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Hledat objekt" aria-label="Hledat objekt" /></label>
             {loading ? <p className="empty-selection">Načítání objektů…</p> : visiblePoints.length === 0 ? <p className="empty-selection">{query ? 'Nic nenalezeno.' : 'Zatím žádné objekty.'}</p> : (
-              <ul>{visiblePoints.map((point) => <li key={point.id}><button type="button" onClick={() => handlePointSelect(point.id)}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}</small></span></button></li>)}</ul>
+              <ul>{visiblePoints.map((point) => <li key={point.id}><button type="button"
+                onMouseEnter={() => setHoveredPointId(point.id)} onMouseLeave={() => setHoveredPointId(null)}
+                onFocus={() => setHoveredPointId(point.id)} onBlur={() => setHoveredPointId(null)}
+                onClick={() => { setHoveredPointId(null); handlePointSelect(point.id) }}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}</small></span></button></li>)}</ul>
             )}
             {route.visibleRoutes.length > 0 && <div className="route-list"><h2>Podzemní trasy</h2><ul>{route.visibleRoutes.map(item =>
-              <li key={item.id}><button type="button" onClick={() => handleRouteSelect(item.id)}><RouteIcon size={17} /><span>{item.name}</span></button></li>)}</ul></div>}
+              <li key={item.id}><button type="button"
+                onMouseEnter={() => setHoveredRouteId(item.id)} onMouseLeave={() => setHoveredRouteId(null)}
+                onFocus={() => setHoveredRouteId(item.id)} onBlur={() => setHoveredRouteId(null)}
+                onClick={() => {
+                  setHoveredRouteId(null)
+                  handleRouteSelect(item.id)
+                  setRouteFocusRequest(current => ({ id: item.id, sequence: (current?.sequence ?? 0) + 1 }))
+                }}><RouteIcon size={17} /><span>{item.name}</span></button></li>)}</ul></div>}
           </div>
         )}
       </aside>

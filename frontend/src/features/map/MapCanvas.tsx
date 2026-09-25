@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { CircleDot, House } from 'lucide-react'
 import { MapToolbox, type BaseMap, type CadastreStatus, type OrthophotoStatus, type PlacementPointer } from './MapToolbox'
-import { GeoJSONSource, Map, Marker, NavigationControl, setWorkerUrl, type ErrorEvent, type MapMouseEvent, type MapSourceDataEvent } from 'maplibre-gl'
+import { GeoJSONSource, LngLatBounds, Map, Marker, NavigationControl, setWorkerUrl, type ErrorEvent, type MapMouseEvent, type MapSourceDataEvent } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { addCadastreLayer, CADASTRE_LAYER_ID, CADASTRE_MIN_ZOOM, CADASTRE_SOURCE_ID, removeCadastreLayer } from './cadastre'
@@ -9,16 +9,18 @@ import { addOrthophotoLayer, ORTHOPHOTO_SOURCE_ID, removeOrthophotoLayer } from 
 import type { Coordinates, NetworkPoint, NetworkPointKind } from './networkPoints'
 import type { Parcel } from './parcels'
 import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollection, routeVertexCollection,
-  POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID,
-  ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
+  POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, HOVERED_POINT_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID,
+  ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
   ROUTE_VERTEX_SOURCE_ID, ROUTE_VERTEX_LAYER_ID } from './mapLayers'
 import { crossedDragThreshold, mapCursor, resolveMapClick } from './interactions'
-import type { RouteDraft, UndergroundRoute } from './undergroundRoutes'
+import { routeCoordinates, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
 
 type MapCanvasProps = {
   points: NetworkPoint[]
   routes: UndergroundRoute[]
   selectedRouteId: string | null
+  hoveredRouteId: string | null
+  routeFocusRequest: { id: string, sequence: number } | null
   routeDraft: RouteDraft | null
   drawingRoute: boolean
   onRouteToolChange: () => void
@@ -28,6 +30,7 @@ type MapCanvasProps = {
   onRouteFinish: () => void
   onRouteCancel: () => void
   selectedPointId: string | null
+  hoveredPointId: string | null
   selectedParcel: Parcel | null
   preview: (Coordinates & { kind?: NetworkPointKind }) | null
   activeTool: NetworkPointKind | null
@@ -46,8 +49,8 @@ type PointDrag = { id: string, kind: NetworkPointKind, startX: number, startY: n
 
 setWorkerUrl(workerUrl)
 
-export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawingRoute, onRouteToolChange,
-  onRouteSelect, onRouteWaypointMove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId,
+export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, routeFocusRequest, routeDraft, drawingRoute, onRouteToolChange,
+  onRouteSelect, onRouteWaypointMove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId,
   selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop,
   onLocationClick, onPointSelect, onPointMove, onDraftMove, onCadastreDisable }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null)
@@ -58,6 +61,7 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
   const pointData = useRef(pointCollection([], null, null))
   const skipSelectionEase = useRef<string | null>(null)
   const focusedPointId = useRef<string | null>(null)
+  const lastRouteFocusSequence = useRef(0)
   const cadastreActive = useRef(false)
   const cadastreFailed = useRef(false)
   const orthophotoActive = useRef(false)
@@ -391,6 +395,13 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
 
   useEffect(() => {
     const map = mapRef.current
+    if (map?.getLayer(HOVERED_ROUTE_LAYER_ID)) {
+      map.setFilter(HOVERED_ROUTE_LAYER_ID, ['==', ['get', 'id'], hoveredRouteId ?? ''])
+    }
+  }, [hoveredRouteId, mapGeneration])
+
+  useEffect(() => {
+    const map = mapRef.current
     if (!map || readyMapRef.current !== map) return
     map.getSource<GeoJSONSource>(PARCEL_SOURCE_ID)?.setData({
       type: 'FeatureCollection',
@@ -408,6 +419,26 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
       map.setFilter(SELECTED_LAYER_ID, ['==', ['get', 'id'], selectedPointId ?? ''])
     }
   }, [selectedPointId, mapGeneration])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (map?.getLayer(HOVERED_POINT_LAYER_ID)) {
+      map.setFilter(HOVERED_POINT_LAYER_ID, ['==', ['get', 'id'], hoveredPointId ?? ''])
+    }
+  }, [hoveredPointId, mapGeneration])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!routeFocusRequest || !map || readyMapRef.current !== map
+      || lastRouteFocusSequence.current === routeFocusRequest.sequence) return
+    const route = routes.find(item => item.id === routeFocusRequest.id)
+    const coordinates = route ? routeCoordinates(route, points) : []
+    if (coordinates.length < 2) return
+    const bounds = new LngLatBounds()
+    coordinates.forEach(point => bounds.extend([point.longitude, point.latitude]))
+    lastRouteFocusSequence.current = routeFocusRequest.sequence
+    map.fitBounds(bounds, { padding: 72, maxZoom: 15, duration: 350 })
+  }, [routeFocusRequest, routes, points, mapGeneration])
 
   useEffect(() => {
     if (!selectedPointId) { focusedPointId.current = null; return }
