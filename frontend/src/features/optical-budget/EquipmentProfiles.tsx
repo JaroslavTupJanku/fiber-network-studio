@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { Download, Plus, Save, Trash2, Upload } from 'lucide-react'
-import { ponWavelengths, type Technology, type Wavelength } from './model'
-import { emptyCatalog, emptyEndpointSelection, equipmentStorageKey, evaluateEquipment, mergeEquipmentCatalog, newProfile, parseEquipmentCatalog, profileErrors, type EquipmentCatalog, type EquipmentKind, type EquipmentProfile, type EndpointSelection } from './equipment'
+import { type Technology, type Wavelength } from './model'
+import { emptyCatalog, emptyEndpointSelection, equipmentStorageKey, evaluateEquipment, mergeEquipmentCatalog, newProfile, parseEquipmentCatalog, profileErrors, profileWavelengths, type EquipmentCatalog, type EquipmentKind, type EquipmentProfile, type EndpointSelection } from './equipment'
 import type { Scenario } from './model'
 
 const kindLabels: Record<EquipmentKind, string> = { olt: 'Port/karta OLT', onu: 'ONT/ONU', module: 'Optický modul' }
@@ -79,8 +79,8 @@ export function EquipmentProfiles({ scenario, onChange }: { scenario: Scenario; 
     </div>
     {draft && <div className="ob-row"><div className="ob-row-heading"><strong>{catalog.profiles.some(p => p.id === draft.id) ? 'Upravit profil' : 'Nový profil'}</strong><button className="ob-remove" aria-label="Zrušit úpravu" onClick={() => setDraft(null)}><Trash2 size={16} /></button></div>
       <div className="ob-fields ob-three">
-        <label>Typ<select value={draft.kind} onChange={e => setDraft({ ...draft, kind: e.target.value as EquipmentKind })}>{Object.entries(kindLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
-        <label>Technologie<select value={draft.technology} onChange={e => { const technology = e.target.value as Exclude<Technology, 'manual'>; setDraft({ ...draft, technology, txWavelength: ponWavelengths[technology].downstream, rxWavelength: ponWavelengths[technology].upstream }) }}><option value="gpon">GPON</option><option value="xgspon">XGS-PON</option></select></label>
+        <label>Typ<select value={draft.kind} onChange={e => { const kind = e.target.value as EquipmentKind; setDraft({ ...draft, kind, ...profileWavelengths(kind, draft.technology) }) }}>{Object.entries(kindLabels).map(([id, label]) => <option key={id} value={id}>{label}</option>)}</select></label>
+        <label>Technologie<select value={draft.technology} onChange={e => { const technology = e.target.value as Exclude<Technology, 'manual'>; setDraft({ ...draft, technology, ...profileWavelengths(draft.kind, technology) }) }}><option value="gpon">GPON</option><option value="xgspon">XGS-PON</option></select></label>
         <label>Výrobce<input maxLength={200} value={draft.manufacturer} onChange={e => setDraft({ ...draft, manufacturer: e.target.value })} /></label>
         <label>Model / karta / typ modulu<input maxLength={200} value={draft.model} onChange={e => setDraft({ ...draft, model: e.target.value })} /></label>
         <label>Vlnová délka Tx<select value={draft.txWavelength} onChange={e => setDraft({ ...draft, txWavelength: e.target.value as Wavelength })}>{waves.map(w => <option key={w} value={w}>{w} nm</option>)}</select></label>

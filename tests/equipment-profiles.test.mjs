@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { demoScenario } from '../frontend/src/features/optical-budget/model.ts'
-import { emptyCatalog, emptyEndpointSelection, mergeEquipmentCatalog, parseEquipmentCatalog, profileErrors, evaluateEquipment } from '../frontend/src/features/optical-budget/equipment.ts'
+import { emptyCatalog, emptyEndpointSelection, mergeEquipmentCatalog, parseEquipmentCatalog, profileErrors, profileWavelengths, evaluateEquipment } from '../frontend/src/features/optical-budget/equipment.ts'
+
+test('OLT and ONT defaults follow opposite PON directions when technology changes', () => {
+  assert.deepEqual(profileWavelengths('olt', 'gpon'), { txWavelength: '1490', rxWavelength: '1310' })
+  assert.deepEqual(profileWavelengths('onu', 'gpon'), { txWavelength: '1310', rxWavelength: '1490' })
+  assert.deepEqual(profileWavelengths('olt', 'xgspon'), { txWavelength: '1577', rxWavelength: '1270' })
+  assert.deepEqual(profileWavelengths('onu', 'xgspon'), { txWavelength: '1270', rxWavelength: '1577' })
+})
 
 function pair() {
   const profile = (id, kind, txWavelength, rxWavelength, txMin = '-18', txMax = '-15') => ({
