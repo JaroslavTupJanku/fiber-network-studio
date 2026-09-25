@@ -1,5 +1,5 @@
 import { useRef, useState, type Dispatch, type PointerEvent, type SetStateAction } from 'react'
-import { AlertCircle, CheckCircle2, ChevronDown, CircleDot, HousePlus, Layers3, LoaderCircle, MousePointer2, RefreshCw, X, ZoomIn, type LucideIcon } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ChevronDown, CircleDot, HousePlus, Layers3, LoaderCircle, MousePointer2, Route, RefreshCw, X, ZoomIn, type LucideIcon } from 'lucide-react'
 import type { NetworkPointKind } from './networkPoints'
 import { crossedDragThreshold } from './interactions'
 
@@ -19,6 +19,9 @@ type MapToolboxProps = {
   placementActive: boolean
   toolsDisabled: boolean
   onToolChange: (kind: NetworkPointKind | null) => void
+  routeDrawing: boolean
+  canDrawRoute: boolean
+  onRouteToolChange: () => void
   onToolDropAt: (kind: NetworkPointKind, clientX: number, clientY: number) => void
   onDragPointerChange: Dispatch<SetStateAction<PlacementPointer | null>>
   mapBounds: () => DOMRect | undefined
@@ -34,7 +37,7 @@ type MapToolboxProps = {
   onZoomToCadastre: () => void
 }
 
-export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolChange, onToolDropAt,
+export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolChange, routeDrawing, canDrawRoute, onRouteToolChange, onToolDropAt,
   onDragPointerChange: setDragPointer, mapBounds,
   baseMap, onBaseMapChange, orthophotoStatus, onOrthophotoRetry, cadastreEnabled, cadastreStatus,
   needsZoom, onCadastreChange, onCadastreRetry, onZoomToCadastre }: MapToolboxProps) {
@@ -101,6 +104,17 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
               <button type="button" className="layer-action" onClick={() => onToolChange(null)} title="Zrušit umístění" aria-label="Zrušit umístění"><X size={15} /></button>
             </div>
           )}
+        </section>
+        <section className="map-toolbox-section" aria-label="Trasy">
+          <h2>Trasy</h2>
+          <button type="button" className={`map-tool route-tool${routeDrawing ? ' active' : ''}`}
+            aria-pressed={routeDrawing} disabled={toolsDisabled || !canDrawRoute}
+            onClick={onRouteToolChange} title="Nakreslit podzemní trasu mezi dvěma body sítě">
+            <Route size={18} aria-hidden="true" /> Podzemní trasa
+          </button>
+          <p className="map-toolbox-hint">{canDrawRoute
+            ? 'Vyberte první bod, případné lomové body a koncový bod.'
+            : 'Pro trasu nejdřív přidejte dva body sítě.'}</p>
         </section>
         <section className="map-toolbox-section" aria-label="Podklady a vrstvy">
           <h2>Podklady a vrstvy</h2>

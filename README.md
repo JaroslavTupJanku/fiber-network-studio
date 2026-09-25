@@ -1,6 +1,6 @@
 # Fiber Network Studio
 
-Webová pracovní plocha pro provozovatele infrastruktury. Na mapě lze založit budovu nebo šachtu, pojmenovat ji, přesunout a smazat. Katastrální podklad umožňuje vybrat a zvýraznit parcelu; další síťové prvky doplníme později.
+Webová pracovní plocha pro provozovatele infrastruktury. Na mapě lze založit budovu nebo šachtu, pojmenovat ji, přesunout a smazat. Dva body lze propojit podzemní trasou. Katastrální podklad umožňuje vybrat a zvýraznit parcelu.
 
 ## Jak to funguje
 
@@ -10,9 +10,11 @@ Přepínač **Katastr** připojuje online WMS ČÚZK od přiblížení 17. Klikn
 
 Mapu lze táhnout myší a přiblížit kolečkem bez další klávesy. Fungují také šipky, WASD a tlačítka přiblížení. Vybraná parcela je zvýrazněná modře.
 
-Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z nástrojů přímo na místo. Existující bod lze na mapě uchopit a přesunout; nová poloha se uloží až tlačítkem **Uložit**.
+Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z nástrojů přímo na místo. Novou značku lze ještě před uložením uchopit a přesunout. Stejně lze přesunout existující bod; nová poloha se uloží až tlačítkem **Uložit**.
 
 Panel **Nástroje mapy** seskupuje umisťování objektů a nastavení vrstev. Lze ho sbalit; na úzké obrazovce se otevírá sbalený.
+
+**Podzemní trasa:** nejprve založte alespoň dva body sítě. V panelu zvolte Podzemní trasa, klikněte na výchozí budovu nebo šachtu, případné lomové body a druhý koncový objekt. Tlačítko Zpět odebere poslední krok; Esc kreslení zruší. Tlačítkem Dokončit kreslení přejdete do formuláře, zadáte název a teprve Uložit zapíše trasu. Uloženou čáru lze vybrat na mapě, upravit její lomové body tažením, prodloužit či smazat. Zobrazená délka je přibližná délka mapové čáry, nikoliv délka instalovaného kabelu. Posun koncového bodu mění geometrii navázané trasy; bod s navázanou trasou nelze smazat, dokud se trasa neupraví či nesmaže. Trasy ukládá API do `backend/FiberNetworkStudio.Api/App_Data/underground-routes.json`, odděleně od bodů. Vložení chrániček a kabelů do trasy je další úkol.
 
 V panelu mapy lze přepnout podklad mezi běžnou mapou a **Ortofotem ČR** od ČÚZK. **Katastr** je samostatná vrstva, kterou lze zapnout nad kterýmkoli podkladem. Přepnutí podkladu nemění uložené ani rozpracované objekty. Ortofoto je online služba pro území ČR; při jejím výpadku lze přepnout zpět na mapu. [Zdroj a podmínky služby ČÚZK](https://geoportal.cuzk.gov.cz/Default.aspx?metadataID=CZ-CUZK-WMTS-ORTOFOTO_900913&metadataXSL=metadata.sluzba&mode=TextMeta&side=wmts.uvod).
 

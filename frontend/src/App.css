@@ -23,6 +23,8 @@
 .placement-guide { position: absolute; z-index: 2; right: 16px; bottom: 16px; display: flex; align-items: center; gap: 12px; max-width: calc(100% - 32px); padding: 8px 10px; border: 1px solid #a5c9bc; border-radius: 7px; background: #fff; color: #28574e; box-shadow: 0 3px 12px rgb(20 45 38 / 18%); font-size: 12px; font-weight: 650; }
 .placement-guide button { flex: none; padding: 5px 8px; border: 1px solid #bfcfca; border-radius: 4px; background: #f7faf8; color: #28574e; font: inherit; cursor: pointer; }
 .placement-guide button:hover { background: #e6f2ee; }
+.placement-guide button:disabled { opacity: .5; cursor: not-allowed; }
+.route-guide { left: 16px; right: auto; flex-wrap: wrap; }
 .maplibregl-control-container { font-family: inherit; }
 .map-toolbar { position: absolute; top: 12px; left: 12px; z-index: 1; width: 236px; max-height: calc(100% - 24px); overflow-y: auto; border: 1px solid #bfcfca; border-radius: 8px; background: #fff; box-shadow: 0 3px 12px rgb(20 45 38 / 15%); }
 .map-toolbar.collapsed { width: 183px; }
@@ -44,6 +46,7 @@
 .map-tool.active { border-color: #26766b; background: #e6f2ee; }
 .map-tool:disabled { opacity: .5; cursor: not-allowed; }
 .map-tool.dragging { cursor: copy; }
+.map-tool.route-tool { width: 100%; justify-content: flex-start; padding: 7px 9px; }
 .placement-state, .layer-toggle, .layer-status { display: flex; align-items: center; gap: 7px; }
 .placement-state { justify-content: space-between; padding: 3px 5px; color: #28574e; font-size: 11px; font-weight: 600; }
 .base-map-options { display: grid; gap: 6px; min-width: 0; }
@@ -92,6 +95,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .point-form label { color: #526a61; font-size: 12px; font-weight: 600; }
 .point-form input { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid #bfcfca; border-radius: 4px; font: inherit; font-size: 13px; }
 .point-form input:focus, .search-field:focus-within { border-color: #26766b; outline: 2px solid #d7eee5; }
+.point-placement-hint { margin: 0; color: #526a61; font-size: 12px; }
 .point-kind { display: flex; align-items: center; gap: 7px; margin: 2px 0; color: #526a61; font-size: 12px; }
 .coordinates-row { display: flex; align-items: center; justify-content: space-between; gap: 5px; min-height: 37px; padding: 4px 0; border-top: 1px solid #e5ece9; border-bottom: 1px solid #e5ece9; color: #425b52; font-size: 12px; font-variant-numeric: tabular-nums; }
 .move-button, .primary-button, .danger-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 35px; padding: 7px 10px; border: 1px solid #bfcfca; border-radius: 4px; background: #fff; color: #28574e; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
@@ -112,6 +116,24 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .parcel-facts dt { color: #6d7f79; }
 .parcel-facts dd { margin: 0; color: #294a41; font-weight: 600; text-align: right; }
 .quick-add { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.route-help { margin: 0; color: #526a61; font-size: 12px; line-height: 1.5; }
+.route-endpoints { display: grid; gap: 6px; padding: 9px; border: 1px solid #d6e4de; border-radius: 5px; background: #f7faf8; font-size: 12px; }
+.route-endpoints span { display: flex; justify-content: space-between; gap: 8px; }
+.route-endpoints strong { color: #60736c; }
+.route-length { display: grid; gap: 3px; margin: 0; color: #36524b; font-size: 12px; }
+.route-length strong { color: #a4532d; font-size: 16px; }
+.route-length small { color: #73847e; font-size: 11px; }
+.route-drawing-actions { display: flex; gap: 7px; }
+.route-drawing-actions button { flex: 1; }
+.route-waypoints { display: grid; gap: 5px; padding: 8px; border: 1px solid #e5ece9; border-radius: 5px; font-size: 11px; }
+.route-waypoints > div { display: flex; align-items: center; justify-content: space-between; gap: 5px; }
+.route-waypoints .icon-button { width: 23px; height: 23px; }
+.route-list { margin-top: 20px; border-top: 1px solid #e5ece9; padding-top: 12px; }
+.route-list h2 { margin: 0 0 5px; color: #526a61; font-size: 12px; }
+.route-list ul { margin: 0; padding: 0; list-style: none; }
+.route-list li button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 10px 5px; border: 0; background: #fff; color: #36524b; font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.route-list li button:hover { background: #f4f8f6; }
+.route-list svg { color: #b8613e; }
 @media (max-width: 720px) {
   .app-header { padding: 0 16px; }
   .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(280px, 1fr) auto; height: calc(100dvh - 58px); }
