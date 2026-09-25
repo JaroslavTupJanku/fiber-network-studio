@@ -14,7 +14,7 @@ export type MapCursorState = {
 export function mapCursor(state: MapCursorState): 'copy' | 'grab' | 'grabbing' | 'crosshair' | 'pointer' {
   if (state.draggingTool) return 'copy'
   if (state.draggingMap || state.draggingPoint) return 'grabbing'
-  if (state.overPoint) return 'grab'
+  if (state.overPoint) return 'pointer'
   if (state.placing) return 'crosshair'
   if (state.overParcel) return 'pointer'
   return 'grab'

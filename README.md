@@ -10,7 +10,7 @@ Přepínač **Katastr** připojuje online WMS ČÚZK od přiblížení 17. Klikn
 
 Mapu lze táhnout myší a přiblížit kolečkem bez další klávesy. Fungují také šipky, WASD a tlačítka přiblížení. Vybraná parcela je zvýrazněná modře.
 
-Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z nástrojů přímo na místo. Novou značku lze ještě před uložením uchopit a přesunout. Stejně lze přesunout existující bod; nová poloha se uloží až tlačítkem **Uložit**.
+Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z nástrojů přímo na místo. Novou značku lze ještě před uložením uchopit a přesunout. Přetažením existujícího bodu nebo volbou **Změnit polohu kliknutím** se nová poloha uloží hned; tlačítko **Uložit** pak slouží ke změně názvu.
 
 Panel **Nástroje mapy** seskupuje umisťování objektů a nastavení vrstev. Lze ho sbalit; na úzké obrazovce se otevírá sbalený.
 

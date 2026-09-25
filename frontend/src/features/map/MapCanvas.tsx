@@ -57,6 +57,7 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
     onPointSelect, onPointMove, onRouteSelect, onRouteWaypointMove })
   const pointData = useRef(pointCollection([], null, null))
   const skipSelectionEase = useRef<string | null>(null)
+  const focusedPointId = useRef<string | null>(null)
   const cadastreActive = useRef(false)
   const cadastreFailed = useRef(false)
   const orthophotoActive = useRef(false)
@@ -113,6 +114,8 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
     let dragging = false
     let pointDrag: PointDrag | null = null
     let vertexDrag: number | null = null
+    let pointDragPanEnabled = false
+    let vertexDragPanEnabled = false
     let suppressMapClick = false
     const updateCursor = () => {
       if (interactionRef.current.drawingRoute) {
@@ -211,12 +214,17 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
       if (!pointDrag) return
       const { id, original, location, moved } = pointDrag
       pointDrag = null
+      if (pointDragPanEnabled) map.dragPan.enable()
+      pointDragPanEnabled = false
       setGrabbedPointPointer(null)
       window.removeEventListener('mousemove', handlePointMouseMove)
       window.removeEventListener('mouseup', handlePointMouseUp)
       suppressMapClick = true
       window.setTimeout(() => { suppressMapClick = false }, 0)
-      if (!moved) interactionRef.current.onPointSelect(id)
+      if (!moved) {
+        skipSelectionEase.current = id
+        interactionRef.current.onPointSelect(id)
+      }
       else if (map.getCanvasContainer().contains(document.elementFromPoint(event.clientX, event.clientY))) {
         skipSelectionEase.current = id
         interactionRef.current.onPointMove(id, location)
@@ -231,6 +239,9 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
       const renderedPoint = pointData.current.features.find((item) => item.properties.id === id)
       if (!id || !renderedPoint) return
       event.preventDefault()
+      map.stop()
+      pointDragPanEnabled = map.dragPan.isEnabled()
+      if (pointDragPanEnabled) map.dragPan.disable()
       const [longitude, latitude] = renderedPoint.geometry.coordinates
       const original = { latitude, longitude }
       pointDrag = { id: String(id), kind: renderedPoint.properties.kind, startX: event.originalEvent.clientX, startY: event.originalEvent.clientY, original, location: original, moved: false }
@@ -246,6 +257,8 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
     }
     const handleVertexMouseUp = () => {
       vertexDrag = null
+      if (vertexDragPanEnabled) map.dragPan.enable()
+      vertexDragPanEnabled = false
       window.removeEventListener('mousemove', handleVertexMouseMove)
       window.removeEventListener('mouseup', handleVertexMouseUp)
       suppressMapClick = true
@@ -258,6 +271,9 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
       const index = feature?.properties?.index
       if (typeof index !== 'number') return
       event.preventDefault()
+      map.stop()
+      vertexDragPanEnabled = map.dragPan.isEnabled()
+      if (vertexDragPanEnabled) map.dragPan.disable()
       vertexDrag = index
       window.addEventListener('mousemove', handleVertexMouseMove)
       window.addEventListener('mouseup', handleVertexMouseUp)
@@ -334,6 +350,7 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
       window.removeEventListener('mouseup', handlePointMouseUp)
       window.removeEventListener('mousemove', handleVertexMouseMove)
       window.removeEventListener('mouseup', handleVertexMouseUp)
+      if (pointDragPanEnabled || vertexDragPanEnabled) map.dragPan.enable()
       canvas.removeEventListener('keydown', handleKeyDown)
       canvas.removeEventListener('mouseleave', handleMouseLeave)
       refreshCursor.current = null
@@ -393,9 +410,12 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
   }, [selectedPointId, mapGeneration])
 
   useEffect(() => {
+    if (!selectedPointId) { focusedPointId.current = null; return }
+    if (focusedPointId.current === selectedPointId) return
     const point = points.find((item) => item.id === selectedPointId)
     const map = mapRef.current
     if (point && map && readyMapRef.current === map) {
+      focusedPointId.current = selectedPointId
       if (skipSelectionEase.current === selectedPointId) { skipSelectionEase.current = null; return }
       map.easeTo({ center: [point.longitude, point.latitude], zoom: Math.max(map.getZoom(), 15), duration: 350 })
     }

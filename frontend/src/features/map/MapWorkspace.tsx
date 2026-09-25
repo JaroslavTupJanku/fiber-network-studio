@@ -18,7 +18,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
     buildings, chambers, preview, setQuery, setEditor, setSelectedLocation,
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,
     clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect,
-    handleLocationClick, handlePointSelect,
+    handleLocationClick, handlePointSelect, relocatePoint,
     handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   } = useMapWorkspace()
   const routeDraft = route.draft
@@ -52,7 +52,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
           onToolDrop={handleToolDrop}
           onLocationClick={handleLocationClick}
           onPointSelect={handlePointSelect}
-          onPointMove={handlePointSelect}
+          onPointMove={relocatePoint}
           onDraftMove={moveDraft}
           onCadastreDisable={clearParcel}
         />
@@ -162,7 +162,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
               <span>{editor.latitude.toFixed(6)}°, {editor.longitude.toFixed(6)}°</span>
               <button type="button" className="icon-button" onClick={() => copyCoordinates(editor)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button>
             </div>
-            <p className="point-placement-hint">{editor.id ? 'Objekt můžete uchopit a přetáhnout přímo v mapě. Novou polohu pak uložte.' : 'Polohu doladíte přetažením značky na mapě.'}</p>
+            <p className="point-placement-hint">{editor.id ? 'Přetažením nebo kliknutím na nové místo se poloha uloží hned. Tlačítko Uložit slouží ke změně názvu.' : 'Polohu doladíte přetažením značky na mapě.'}</p>
             <button type="button" className={moving ? 'move-button active' : 'move-button'} onClick={() => {
               setMoving((value) => !value)
               setActiveTool(null)

@@ -57,6 +57,30 @@ export function useMapWorkspace() {
     setParcelStatus('idle')
   }, [])
 
+  const relocatePoint = useCallback(async (id: string, location: Coordinates) => {
+    const point = points.find(item => item.id === id)
+    if (!point) return
+    route.cancel()
+    clearParcel()
+    setEditor(current => current?.id === id ? { ...current, ...location } : { ...point, ...location })
+    setSelectedLocation(null)
+    setActiveTool(null)
+    setMoving(false)
+    setActionError('')
+    setSaving(true)
+    try {
+      const saved = await updateNetworkPoint({ ...point, ...location })
+      setPoints(current => current.map(item => item.id === id ? saved : item))
+    } catch {
+      setEditor(current => current?.id === id
+        ? { ...current, latitude: point.latitude, longitude: point.longitude } : current)
+      setPoints(current => current.slice())
+      setActionError('Přesun se nepodařilo uložit. Zkuste to znovu.')
+    } finally {
+      setSaving(false)
+    }
+  }, [points, route, clearParcel])
+
   const handleToolChange = useCallback((kind: NetworkPointKind | null) => {
     setActiveTool(kind)
     setMoving(false)
@@ -78,8 +102,8 @@ export function useMapWorkspace() {
       setEditor({ kind: activeTool, name: '', ...location })
       setActiveTool(null)
     } else if (moving && editor) {
-      setEditor({ ...editor, ...location })
-      setMoving(false)
+      if (editor.id) void relocatePoint(editor.id, location)
+      else { setEditor({ ...editor, ...location }); setMoving(false) }
     } else {
       route.cancel()
       setEditor(null)
@@ -99,7 +123,7 @@ export function useMapWorkspace() {
           })
       }
     }
-  }, [activeTool, moving, editor, clearParcel, route])
+  }, [activeTool, moving, editor, clearParcel, route, relocatePoint])
 
   const handlePointSelect = useCallback((id: string, location?: Coordinates) => {
     if (route.drawing) { route.addPoint(id); return }
@@ -223,7 +247,7 @@ export function useMapWorkspace() {
     buildings, chambers, preview, setQuery, setEditor, setSelectedLocation,
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,
     clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect,
-    handleLocationClick, handlePointSelect,
+    handleLocationClick, handlePointSelect, relocatePoint,
     handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   }
 }
