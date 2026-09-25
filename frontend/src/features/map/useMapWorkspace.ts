@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { findParcelAt, type Parcel } from './parcels'
+import { useUndergroundRoutes } from './useUndergroundRoutes'
 import {
   createNetworkPoint,
   deleteNetworkPoint,
@@ -29,6 +30,7 @@ export function useMapWorkspace() {
   const [parcelStatus, setParcelStatus] = useState<ParcelStatus>('idle')
   const parcelRequest = useRef<AbortController | null>(null)
   const [query, setQuery] = useState('')
+  const route = useUndergroundRoutes(points)
 
   useEffect(() => () => parcelRequest.current?.abort(), [])
 
@@ -60,22 +62,26 @@ export function useMapWorkspace() {
     setMoving(false)
     setActionError('')
     if (kind) {
+      route.cancel()
       clearParcel()
       setEditor(null)
       setSelectedLocation(null)
     }
-  }, [clearParcel])
+  }, [clearParcel, route])
 
   const handleLocationClick = useCallback((location: Coordinates, lookupParcel: boolean) => {
+    if (route.drawing) { route.addWaypoint(location); return }
     clearParcel()
     setActionError('')
     if (activeTool) {
+      route.cancel()
       setEditor({ kind: activeTool, name: '', ...location })
       setActiveTool(null)
     } else if (moving && editor) {
       setEditor({ ...editor, ...location })
       setMoving(false)
     } else {
+      route.cancel()
       setEditor(null)
       setSelectedLocation(location)
       if (lookupParcel) {
@@ -93,18 +99,41 @@ export function useMapWorkspace() {
           })
       }
     }
-  }, [activeTool, moving, editor, clearParcel])
+  }, [activeTool, moving, editor, clearParcel, route])
 
   const handlePointSelect = useCallback((id: string, location?: Coordinates) => {
+    if (route.drawing) { route.addPoint(id); return }
     const point = points.find((item) => item.id === id)
     if (!point) return
+    route.cancel()
     clearParcel()
     setEditor((current) => ({ ...(current?.id === id ? current : point), ...location }))
     setSelectedLocation(null)
     setActiveTool(null)
     setMoving(false)
     setActionError('')
-  }, [points, clearParcel])
+  }, [points, clearParcel, route])
+
+  const handleRouteToolChange = () => {
+    if (route.drawing) { route.cancelDrawing(); return }
+    setActiveTool(null)
+    setMoving(false)
+    setEditor(null)
+    setSelectedLocation(null)
+    clearParcel()
+    setActionError('')
+    route.startDrawing()
+  }
+
+  const handleRouteSelect = (id: string) => {
+    route.selectRoute(id)
+    setActiveTool(null)
+    setMoving(false)
+    setEditor(null)
+    setSelectedLocation(null)
+    clearParcel()
+    setActionError('')
+  }
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -115,12 +144,14 @@ export function useMapWorkspace() {
   }, [activeTool, moving, handleToolChange])
 
   const startDraft = (kind: NetworkPointKind, location: Coordinates) => {
+    route.cancel()
     setEditor({ kind, name: '', ...location })
     setSelectedLocation(null)
     setActionError('')
   }
 
   const handleToolDrop = (kind: NetworkPointKind, location: Coordinates) => {
+    route.cancel()
     clearParcel()
     setEditor({ kind, name: '', ...location })
     setSelectedLocation(null)
@@ -183,11 +214,12 @@ export function useMapWorkspace() {
     ? editor : selectedLocation
 
   return {
-    points, loading, loadError, actionError, saving, activeTool, moving, editor,
+    points, loading, loadError, actionError, saving, activeTool, moving, editor, route,
     selectedLocation, selectedParcel, parcelStatus, query, visiblePoints,
     buildings, chambers, preview, setQuery, setEditor, setSelectedLocation,
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,
-    clearParcel, handleToolChange, handleLocationClick, handlePointSelect,
+    clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect,
+    handleLocationClick, handlePointSelect,
     handleToolDrop, savePoint, removePoint, copyCoordinates, startDraft,
   }
 }

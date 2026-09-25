@@ -41,6 +41,8 @@ Po nasazení uživatel otevře jen webovou adresu. Dva vývojové procesy spouš
 
 **Rozpracovaná poloha** je změna bodu viditelná ve frontendu. Při tažení se překreslí bod v mapové vrstvě GeoJSON, ale backend dostane nové souřadnice až po kliknutí na **Uložit**.
 
+**Podzemní trasa** propojuje dva uložené mapové body a mezi nimi může mít seřazené lomové body. Při kreslení a úpravách vidí uživatel náhled; server dostane změnu až po **Uložit**. Krajní body uchováváme jejich identitou, takže se čára přizpůsobí přesunu budovy či šachty. Přibližná délka vychází z mapové čáry, ne z evidence skutečně uloženého kabelu. Backend kontroluje koncové body a souřadnice a ukládá trasy do samostatného JSON souboru. Jde o další příklad stejného rozdělení na komponentu, stavový hook, model, API a backendové úložiště.
+
 **Optické ztráty** jsou úbytek signálu na kabelu, spojích a rozbočovačích. V aplikaci se
 počítají pro jednu zadanou cestu. **dB** je jednotka ztráty; **dBm** vyjadřuje výkon signálu
 na výstupu nebo vstupu zařízení. Stejné číslo v dB a dBm proto neznamená totéž.

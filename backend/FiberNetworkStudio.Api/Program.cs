@@ -1,6 +1,7 @@
 using FiberNetworkStudio.Api;
 using FiberNetworkStudio.Api.CableCatalog;
 using FiberNetworkStudio.Api.DuctCatalog;
+using FiberNetworkStudio.Api.UndergroundRoutes;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -9,10 +10,14 @@ builder.Services.AddDuctCatalog(builder.Configuration, builder.Environment.Conte
 var dataPath = builder.Configuration["NetworkPoints:Path"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "network-points.json");
 builder.Services.AddSingleton(new NetworkPointStore(dataPath));
+var routeDataPath = builder.Configuration["UndergroundRoutes:Path"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "underground-routes.json");
+builder.Services.AddSingleton(new UndergroundRouteStore(routeDataPath));
 builder.Services.AddHttpClient<ParcelLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
 var app = builder.Build();
 app.MapCableCatalog();
 app.MapDuctCatalog();
+app.MapUndergroundRoutes();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/parcels/at", async (double latitude, double longitude, ParcelLookup lookup,
@@ -60,8 +65,11 @@ app.MapPut("/api/network-points/{id:guid}", async (Guid id, UpdateNetworkPointRe
     return point is null ? Results.NotFound() : Results.Ok(point);
 });
 
-app.MapDelete("/api/network-points/{id:guid}", async (Guid id, NetworkPointStore store) =>
-    await store.DeleteAsync(id) ? Results.NoContent() : Results.NotFound());
+app.MapDelete("/api/network-points/{id:guid}", async (Guid id, NetworkPointStore store,
+    UndergroundRouteStore routes) =>
+    await routes.ContainsPointAsync(id)
+        ? Results.Conflict(new { error = "Bod je koncem podzemní trasy. Nejprve upravte nebo smažte trasu." })
+        : await store.DeleteAsync(id) ? Results.NoContent() : Results.NotFound());
 
 app.Run();
 

@@ -1,0 +1,93 @@
+import assert from 'node:assert/strict'
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { createServer } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
+import { test } from 'node:test'
+import { routeCoordinates, routeLengthMeters, undoRouteStep } from '../frontend/src/features/map/undergroundRoutes.ts'
+
+test('route geometry follows its endpoint objects and measures only map geometry', () => {
+  const points = [
+    { id: 'a', kind: 'building', name: 'A', latitude: 50, longitude: 14 },
+    { id: 'b', kind: 'chamber', name: 'B', latitude: 50, longitude: 14.001 },
+  ]
+  const route = { name: 'Test', startPointId: 'a', endPointId: 'b', waypoints: [] }
+  assert.equal(Math.round(routeLengthMeters(routeCoordinates(route, points))), 71)
+  assert.equal(Math.round(routeLengthMeters(routeCoordinates(route, [{ ...points[0], longitude: 14.0005 }, points[1]]))), 36)
+  assert.deepEqual(undoRouteStep({ ...route, waypoints: [{ latitude: 50, longitude: 14.0005 }] }).endPointId, null)
+  assert.deepEqual(routeCoordinates({ ...route, endPointId: 'missing' }, points), [])
+})
+
+test('route API validates endpoints and vertices, persists edits, and protects connected points', { timeout: 40000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'fiber-routes-test-'))
+  const socket = createServer()
+  socket.listen(0, '127.0.0.1')
+  await once(socket, 'listening')
+  const port = socket.address().port
+  await new Promise(done => socket.close(done))
+  const url = `http://127.0.0.1:${port}`
+  let server
+  let logs = ''
+  const stop = async () => {
+    if (server && server.exitCode === null) { const exited = once(server, 'exit'); server.kill(); await exited }
+  }
+  const start = async () => {
+    server = spawn('dotnet', [resolve('backend/FiberNetworkStudio.Api/bin/Debug/net10.0/FiberNetworkStudio.Api.dll')], {
+      windowsHide: true,
+      env: { ...process.env, ASPNETCORE_URLS: url,
+        NetworkPoints__Path: join(directory, 'points.json'), UndergroundRoutes__Path: join(directory, 'routes.json') },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    server.stdout.on('data', chunk => { logs += chunk })
+    server.stderr.on('data', chunk => { logs += chunk })
+    for (let i = 0; i < 100; i++) {
+      try { if ((await fetch(`${url}/api/health`)).ok) return } catch { /* starting */ }
+      if (server.exitCode !== null) throw new Error(logs)
+      await delay(100)
+    }
+    throw new Error(`API did not start: ${logs}`)
+  }
+  const request = (path, method = 'GET', body) => fetch(`${url}/api${path}`, {
+    method, ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+  })
+  try {
+    await start()
+    const point = async (name, longitude) => {
+      const response = await request('/network-points', 'POST', { kind: 'chamber', name, latitude: 50, longitude })
+      assert.equal(response.status, 201)
+      return response.json()
+    }
+    const a = await point('A', 14)
+    const b = await point('B', 14.001)
+    const draft = { name: '  Podzemní cesta  ', startPointId: a.id, endPointId: b.id,
+      waypoints: [{ latitude: 50.0002, longitude: 14.0005 }] }
+    for (const invalid of [
+      { ...draft, name: ' ' }, { ...draft, endPointId: a.id },
+      { ...draft, endPointId: '00000000-0000-0000-0000-000000000001' },
+      { ...draft, waypoints: [{ latitude: 99, longitude: 14 }] },
+      { ...draft, waypoints: [null] }, { ...draft, waypoints: Array(201).fill(draft.waypoints[0]) },
+    ]) assert.equal((await request('/underground-routes', 'POST', invalid)).status, 400)
+    const createdResponse = await request('/underground-routes', 'POST', draft)
+    assert.equal(createdResponse.status, 201)
+    const route = await createdResponse.json()
+    assert.equal(route.name, 'Podzemní cesta')
+    assert.equal(route.waypoints.length, 1)
+    assert.equal((await request(`/network-points/${a.id}`, 'DELETE')).status, 409)
+    const edited = await request(`/underground-routes/${route.id}`, 'PUT', { ...draft, name: 'Upravená cesta', waypoints: [] })
+    assert.equal(edited.status, 200)
+    await stop()
+    await start()
+    const routes = await (await request('/underground-routes')).json()
+    assert.equal(routes.length, 1)
+    assert.equal(routes[0].name, 'Upravená cesta')
+    assert.deepEqual(routes[0].waypoints, [])
+    assert.equal((await request(`/underground-routes/${route.id}`, 'DELETE')).status, 204)
+    assert.equal((await request(`/network-points/${a.id}`, 'DELETE')).status, 204)
+  } finally {
+    await stop()
+    await rm(directory, { recursive: true, force: true })
+  }
+})
