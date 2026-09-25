@@ -25,6 +25,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
   const routeLength = routeDraft?.endPointId
     ? routeLengthMeters(routeCoordinates(routeDraft, points)) : null
   const pointName = (id: string | null) => points.find(point => point.id === id)?.name ?? 'Vyberte na mapě'
+  const endpointPoints = points.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs'))
 
   return (
     <main className="workspace" hidden={!active}>
@@ -102,18 +103,34 @@ export function MapWorkspace({ active }: { active: boolean }) {
         {routeDraft && (
           <form className="point-form route-form" onSubmit={route.save}>
             <p className="route-help">{route.drawing
-              ? 'Klikněte na počáteční bod sítě, případné lomové body a koncový bod. Pak stiskněte Dokončit.'
+              ? 'Začátek a konec vyberte níže nebo kliknutím na objekty v mapě. Tvar trasy upravte klikáním do mapy. Pak stiskněte Dokončit.'
               : 'Trasa spojuje dva body sítě. Konkrétní chráničky a kabely vložíte níže do jejího úseku.'}</p>
-            <div className="route-endpoints">
+            {route.drawing ? <div className="route-endpoint-fields">
+              <label htmlFor="route-start">Začátek trasy
+                <select id="route-start" value={routeDraft.startPointId ?? ''}
+                  onChange={event => route.setEndpoint('startPointId', event.target.value || null)}>
+                  <option value="">Vyberte objekt</option>
+                  {endpointPoints.map(point => <option key={point.id} value={point.id} disabled={point.id === routeDraft.endPointId}>{point.name} · {kindLabel(point.kind)}</option>)}
+                </select>
+              </label>
+              <label htmlFor="route-end">Konec trasy
+                <select id="route-end" value={routeDraft.endPointId ?? ''}
+                  onChange={event => route.setEndpoint('endPointId', event.target.value || null)}>
+                  <option value="">Vyberte objekt</option>
+                  {endpointPoints.map(point => <option key={point.id} value={point.id} disabled={point.id === routeDraft.startPointId}>{point.name} · {kindLabel(point.kind)}</option>)}
+                </select>
+              </label>
+            </div> : <div className="route-endpoints">
               <span><strong>Od</strong>{pointName(routeDraft.startPointId)}</span>
               <span><strong>Do</strong>{pointName(routeDraft.endPointId)}</span>
-            </div>
+            </div>}
             {routeLength !== null && <p className="route-length">Přibližná délka z mapy: <strong>{Math.round(routeLength).toLocaleString('cs-CZ')} m</strong><small>Není to délka instalovaného kabelu.</small></p>}
             {route.drawing && <>
               <div className="route-drawing-actions">
                 <button type="button" className="move-button" onClick={route.undo} disabled={!routeDraft.startPointId}><Undo2 size={16} /> Zpět</button>
                 <button type="button" className="move-button" onClick={route.resetGeometry}>Začít znovu</button>
               </div>
+              <p className="route-help">Lomový bod je ohyb čáry, nikoli samostatný objekt sítě. Přetáhněte jej v mapě, pokud chcete změnit průběh trasy.</p>
               {routeDraft.waypoints.length > 0 && <div className="route-waypoints"><strong>Lomové body</strong>{routeDraft.waypoints.map((point, index) =>
                 <div key={index}><span>{index + 1}. {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}</span>
                   <button type="button" className="icon-button" onClick={() => route.removeWaypoint(index)} aria-label={`Odebrat lomový bod ${index + 1}`}><X size={14} /></button></div>)}</div>}
@@ -145,11 +162,11 @@ export function MapWorkspace({ active }: { active: boolean }) {
               <span>{editor.latitude.toFixed(6)}°, {editor.longitude.toFixed(6)}°</span>
               <button type="button" className="icon-button" onClick={() => copyCoordinates(editor)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button>
             </div>
-            {!editor.id && <p className="point-placement-hint">Polohu doladíte přetažením značky na mapě.</p>}
+            <p className="point-placement-hint">{editor.id ? 'Objekt můžete uchopit a přetáhnout přímo v mapě. Novou polohu pak uložte.' : 'Polohu doladíte přetažením značky na mapě.'}</p>
             <button type="button" className={moving ? 'move-button active' : 'move-button'} onClick={() => {
               setMoving((value) => !value)
               setActiveTool(null)
-            }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Přesouvání' : 'Přesunout na mapě'}</button>
+            }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Klikněte na nové místo' : 'Změnit polohu kliknutím'}</button>
             {actionError && <p className="form-error" role="alert">{actionError}</p>}
             <div className="form-actions">
               <button className="primary-button" type="submit" disabled={saving || !editor.name.trim()}><Save size={16} aria-hidden="true" /> {saving ? 'Ukládání…' : 'Uložit'}</button>

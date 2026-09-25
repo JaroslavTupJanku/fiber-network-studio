@@ -42,7 +42,7 @@ type MapCanvasProps = {
   onCadastreDisable: () => void
 }
 
-type PointDrag = { id: string, startX: number, startY: number, original: Coordinates, location: Coordinates, moved: boolean }
+type PointDrag = { id: string, kind: NetworkPointKind, startX: number, startY: number, original: Coordinates, location: Coordinates, moved: boolean }
 
 setWorkerUrl(workerUrl)
 
@@ -73,6 +73,7 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
   const [orthophotoStatus, setOrthophotoStatus] = useState<OrthophotoStatus>('loading')
   const [orthophotoRetryVersion, setOrthophotoRetryVersion] = useState(0)
   const [dragPointer, setDragPointer] = useState<PlacementPointer | null>(null)
+  const [grabbedPointPointer, setGrabbedPointPointer] = useState<PlacementPointer | null>(null)
   const [placementPointer, setPlacementPointer] = useState<PlacementPointer | null>(null)
   const [routeHover, setRouteHover] = useState<Coordinates | null>(null)
 
@@ -115,15 +116,16 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
     let suppressMapClick = false
     const updateCursor = () => {
       if (interactionRef.current.drawingRoute) {
-        canvas.style.cursor = vertexDrag !== null ? 'grabbing' : overPoint ? 'pointer' : 'crosshair'
+        canvas.style.cursor = vertexDrag !== null || dragging ? 'grabbing' : overRouteVertex ? 'grab' : overPoint ? 'pointer' : 'crosshair'
         return
       }
+      if (pointDrag || dragging) { canvas.style.cursor = 'grabbing'; return }
       if (overRouteVertex) { canvas.style.cursor = 'move'; return }
       if (overRoute) { canvas.style.cursor = 'pointer'; return }
       canvas.style.cursor = mapCursor({
         draggingTool: toolDragActive.current,
         draggingMap: dragging,
-        draggingPoint: pointDrag?.moved ?? false,
+        draggingPoint: pointDrag !== null,
         placing: interactionRef.current.placementActive,
         overPoint,
         overParcel,
@@ -201,12 +203,15 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
       pointDrag.moved = true
       pointDrag.location = { latitude: location.lat, longitude: location.lng }
       setPointPosition(pointDrag.id, pointDrag.location)
+      const pointer = map.project([location.lng, location.lat])
+      setGrabbedPointPointer({ kind: pointDrag.kind, x: pointer.x, y: pointer.y })
       updateCursor()
     }
     const handlePointMouseUp = (event: MouseEvent) => {
       if (!pointDrag) return
       const { id, original, location, moved } = pointDrag
       pointDrag = null
+      setGrabbedPointPointer(null)
       window.removeEventListener('mousemove', handlePointMouseMove)
       window.removeEventListener('mouseup', handlePointMouseUp)
       suppressMapClick = true
@@ -228,9 +233,10 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
       event.preventDefault()
       const [longitude, latitude] = renderedPoint.geometry.coordinates
       const original = { latitude, longitude }
-      pointDrag = { id: String(id), startX: event.originalEvent.clientX, startY: event.originalEvent.clientY, original, location: original, moved: false }
+      pointDrag = { id: String(id), kind: renderedPoint.properties.kind, startX: event.originalEvent.clientX, startY: event.originalEvent.clientY, original, location: original, moved: false }
       window.addEventListener('mousemove', handlePointMouseMove)
       window.addEventListener('mouseup', handlePointMouseUp)
+      updateCursor()
     }
     const handleVertexMouseMove = (event: MouseEvent) => {
       if (vertexDrag === null) return
@@ -347,8 +353,9 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
   useEffect(() => {
     const map = mapRef.current
     if (!map || readyMapRef.current !== map) return
-    map.getSource<GeoJSONSource>(ROUTE_SOURCE_ID)?.setData(routeCollection(routes, points))
-  }, [routes, points, mapGeneration])
+    map.getSource<GeoJSONSource>(ROUTE_SOURCE_ID)?.setData(routeCollection(
+      routes.filter(route => route.id !== routeDraft?.id), points))
+  }, [routes, points, routeDraft?.id, mapGeneration])
 
   useEffect(() => {
     const map = mapRef.current
@@ -406,7 +413,17 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
       .addTo(mapRef.current)
     if (draggable) {
       marker.getElement().style.cursor = 'grab'
+      const showDragPointer = () => {
+        if (!preview.kind || !mapRef.current) return
+        const location = marker.getLngLat()
+        const pointer = mapRef.current.project(location)
+        setGrabbedPointPointer({ kind: preview.kind, x: pointer.x, y: pointer.y })
+      }
+      marker.on('dragstart', () => { marker.getElement().style.cursor = 'grabbing'; showDragPointer() })
+      marker.on('drag', showDragPointer)
       marker.on('dragend', () => {
+        marker.getElement().style.cursor = 'grab'
+        setGrabbedPointPointer(null)
         const location = marker.getLngLat()
         onDraftMove({ latitude: location.lat, longitude: location.lng })
       })
@@ -447,7 +464,7 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
   }, [mapGeneration, baseMap, orthophotoRetryVersion])
 
   const needsZoom = cadastreEnabled && !canShowCadastre
-  const cursorPreview = dragPointer ?? (activeTool === placementPointer?.kind ? placementPointer : null)
+  const cursorPreview = dragPointer ?? grabbedPointPointer ?? (activeTool === placementPointer?.kind ? placementPointer : null)
 
   return (
     <>

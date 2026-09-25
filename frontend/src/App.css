@@ -117,6 +117,10 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .parcel-facts dd { margin: 0; color: #294a41; font-weight: 600; text-align: right; }
 .quick-add { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
 .route-help { margin: 0; color: #526a61; font-size: 12px; line-height: 1.5; }
+.route-endpoint-fields { display: grid; gap: 9px; padding: 11px; border: 1px solid #d6e4de; border-radius: 5px; background: #f7faf8; }
+.route-endpoint-fields label { display: grid; gap: 5px; }
+.route-endpoint-fields select { width: 100%; min-height: 36px; padding: 6px 8px; border: 1px solid #bfcfca; border-radius: 4px; background: #fff; color: #29473c; font: inherit; font-size: 12px; }
+.route-endpoint-fields select:focus { border-color: #26766b; outline: 2px solid #d7eee5; }
 .route-endpoints { display: grid; gap: 6px; padding: 9px; border: 1px solid #d6e4de; border-radius: 5px; background: #f7faf8; font-size: 12px; }
 .route-endpoints span { display: flex; justify-content: space-between; gap: 8px; }
 .route-endpoints strong { color: #60736c; }

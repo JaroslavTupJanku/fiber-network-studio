@@ -73,6 +73,18 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
     setError('')
   }
 
+  const setEndpoint = (endpoint: 'startPointId' | 'endPointId', id: string | null) => {
+    if (!drawing) return
+    if (id && !points.some(point => point.id === id)) return
+    const other = endpoint === 'startPointId' ? 'endPointId' : 'startPointId'
+    if (id && draft?.[other] === id) {
+      setError('Začátek a konec musí být různé objekty.')
+      return
+    }
+    setDraft(current => current ? { ...current, [endpoint]: id } : current)
+    setError('')
+  }
+
   const addWaypoint = (location: Coordinates) => {
     if (!drawing) return
     if (!draft?.startPointId) { setError('Nejdřív klikněte na výchozí budovu nebo šachtu.'); return }
@@ -168,5 +180,5 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
 
   return { routes, visibleRoutes, draft, drawing, loading, loadError, error, saving, preview,
     setDraft, setLoading, setReloadVersion, cancel, cancelDrawing, startDrawing, selectRoute, startEditing,
-    addPoint, addWaypoint, moveWaypoint, removeWaypoint, undo, resetGeometry, finish, save, remove }
+    addPoint, setEndpoint, addWaypoint, moveWaypoint, removeWaypoint, undo, resetGeometry, finish, save, remove }
 }

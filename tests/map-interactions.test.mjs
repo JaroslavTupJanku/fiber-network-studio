@@ -5,9 +5,9 @@ import { crossedDragThreshold, mapCursor, resolveMapClick } from '../frontend/sr
 test('map cursor follows the action under the pointer', () => {
   const idle = { draggingTool: false, draggingMap: false, draggingPoint: false, placing: false, overPoint: false, overParcel: false }
   assert.equal(mapCursor(idle), 'grab')
-  assert.equal(mapCursor({ ...idle, overPoint: true }), 'move')
+  assert.equal(mapCursor({ ...idle, overPoint: true }), 'grab')
   assert.equal(mapCursor({ ...idle, overParcel: true }), 'pointer')
-  assert.equal(mapCursor({ ...idle, placing: true, overPoint: true }), 'move')
+  assert.equal(mapCursor({ ...idle, placing: true, overPoint: true }), 'grab')
   assert.equal(mapCursor({ ...idle, placing: true, draggingMap: true }), 'grabbing')
   assert.equal(mapCursor({ ...idle, draggingPoint: true }), 'grabbing')
   assert.equal(mapCursor({ ...idle, draggingTool: true, placing: true }), 'copy')
