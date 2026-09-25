@@ -2,7 +2,7 @@ import { useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { Check, Layers3, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import type { CableSpecification } from '../cable-catalog/model'
 import { kindLabel, type DuctType } from '../duct-catalog/model'
-import { canPlaceItem, installationContinuations, installationFit,
+import { canPlaceItem, installationContinuations, installationFit, installationSummary,
   type InstalledItem, type RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
 import { useRouteInstallations } from './useRouteInstallations'
@@ -79,10 +79,12 @@ function InstallationTreeItem({ item, items, documents, routes, busy, onRename, 
   </li>
 }
 
-export function RouteInstallationPanel({ route, routes, editable }: {
-  route: UndergroundRoute; routes: UndergroundRoute[]; editable: boolean
+export function RouteInstallationPanel({ route, routes, editable, installations }: {
+  route: UndergroundRoute; routes: UndergroundRoute[]; editable: boolean;
+  installations: ReturnType<typeof useRouteInstallations>
 }) {
-  const { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh, add, rename, remove } = useRouteInstallations(route.id)
+  const { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh, add, rename, remove } = installations
+  const [savedMessage, setSavedMessage] = useState('')
   const [parentId, setParentId] = useState('')
   const [slotIndex, setSlotIndex] = useState<number | null>(null)
   const [sourceMode, setSourceMode] = useState<'catalog' | 'continuation'>('catalog')
@@ -107,6 +109,7 @@ export function RouteInstallationPanel({ route, routes, editable }: {
   const fit = selectedCandidate ? installationFit(selectedCandidate, parent, selectedSlot,
     document.items.filter(item => item.parentId === parent?.id)) : null
   const roots = document.items.filter(item => item.parentId === null)
+  const summary = installationSummary(document)
   const chooseParent = (id: string) => {
     setParentId(id)
     const next = document.items.find(item => item.id === id)
@@ -122,6 +125,7 @@ export function RouteInstallationPanel({ route, routes, editable }: {
   }
   const submit = async (event: FormEvent) => {
     event.preventDefault()
+    setSavedMessage('')
     if (!editable || !selectedCandidate) { setFormError('Vyberte typ nebo návazný kus.'); return }
     if (fit === 'too-small') { setFormError('Zvolený kus je pro toto místo příliš velký.'); return }
     const success = await add({ catalogId: sourceMode === 'catalog'
@@ -129,16 +133,38 @@ export function RouteInstallationPanel({ route, routes, editable }: {
     parentId: parent?.id ?? null, slotIndex: selectedSlot, label,
     continueFromItemId: sourceMode === 'continuation' ? continuationId : null })
     if (success) {
+      setSavedMessage(`Uloženo do trasy: ${label.trim() || selectedCandidate.label}.`)
       setLabel(''); setCatalogKey(''); setContinuationId(''); setFormError('')
       if (slots.length > 0) setSlotIndex(slots.findIndex((_, index) => index !== selectedSlot
         && !document.items.some(item => item.parentId === parent?.id && item.slotIndex === index)))
     }
   }
+  const renameItem = async (id: string, nextLabel: string) => {
+    setSavedMessage('')
+    const success = await rename(id, nextLabel)
+    if (success) setSavedMessage(`Označení změněno na ${nextLabel.trim()}.`)
+    return success
+  }
+  const removeItem = async (id: string) => {
+    setSavedMessage('')
+    const success = await remove(id)
+    if (success) setSavedMessage('Kus byl z úseku odebrán.')
+    return success
+  }
   return <section className="installation-panel" aria-label="Osazení trasy">
     <div className="installation-heading"><div><span className="section-label">Fyzická infrastruktura</span>
-      <h2>Osazení úseku</h2></div><button type="button" className="icon-button" title="Načíst osazení znovu"
-      aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button></div>
-    <p className="route-help">Tento úsek vede mezi koncovými body trasy. Každý vložený kus má vlastní identitu a kopii údajů z katalogu.</p>
+      <h2>Osazení úseku</h2></div><div className="installation-heading-actions">
+        <button type="button" className="move-button" onClick={() => formRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' })}
+          disabled={!editable || loading || loadFailed}><Plus size={15} /> Přidat</button>
+        <button type="button" className="icon-button" title="Načíst osazení znovu"
+          aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button>
+      </div></div>
+    {!loading && !loadFailed && <div className={`installation-overview ${summary.status}`} aria-live="polite">
+      <strong>{summary.status === 'empty' ? 'Zatím bez osazení' : summary.status === 'cables' ? 'V úseku je optický kabel' : 'V úseku je potrubí'}</strong>
+      <span>Potrubí a trubičky <b>{summary.ducts}</b></span><span>Optické kabely <b>{summary.cables}</b></span>
+    </div>}
+    {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
+    <p className="route-help">Níže je schematický průřez a seznam uložených kusů. Každý má vlastní identitu a kopii údajů z katalogu.</p>
     {loading ? <p className="installation-muted">Načítání osazení…</p> : <>
       {error && <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>}
       {loadFailed ? null : roots.length === 0 ? <p className="installation-empty">Trasa je zatím prázdná. Přidejte chráničku, mikrotrubičku nebo sestavu.</p>
@@ -150,7 +176,7 @@ export function RouteInstallationPanel({ route, routes, editable }: {
           <small>Schéma uspořádání, nikoli měřítko nebo schválení instalace.</small>
         </div><ul className="installation-tree">{roots.map(root => <InstallationTreeItem key={root.id} item={root}
           items={document.items} documents={documents} routes={routes} busy={busy || !editable}
-          onRename={rename} onRemove={remove} onAddInside={addInside} />)}</ul></>}
+          onRename={renameItem} onRemove={removeItem} onAddInside={addInside} />)}</ul></>}
       {!loadFailed && <form className="installation-add" onSubmit={submit} ref={formRef}>
         <h3><Layers3 size={16} /> Vložit kus do trasy</h3>
         <label htmlFor="installation-parent">Kam vložit</label>

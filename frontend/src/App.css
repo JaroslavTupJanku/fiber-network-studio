@@ -29,6 +29,13 @@
 .placement-guide button:hover { background: #e6f2ee; }
 .placement-guide button:disabled { opacity: .5; cursor: not-allowed; }
 .route-guide { left: 16px; right: auto; flex-wrap: wrap; }
+.route-map-legend { position: absolute; z-index: 1; bottom: 40px; left: 16px; display: flex; flex-wrap: wrap; gap: 7px 12px; max-width: calc(100% - 32px); padding: 8px 10px; border: 1px solid #d8e2df; border-radius: 7px; background: rgb(255 255 255 / 94%); color: #35554a; box-shadow: 0 2px 9px rgb(20 45 38 / 12%); font-size: 11px; }
+.route-map-legend span { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.route-key { display: inline-block; width: 19px; height: 0; border-top: 4px solid; border-radius: 4px; }
+.route-key.empty { border-color: #b8613e; }
+.route-key.ducts { border-color: #26766b; }
+.route-key.cables { border-color: #2d6f9f; }
+.route-key.unknown { border-color: #74817d; }
 .maplibregl-control-container { font-family: inherit; }
 .map-toolbar { position: absolute; top: 12px; left: 12px; z-index: 1; width: 236px; max-height: calc(100% - 24px); overflow-y: auto; border: 1px solid #bfcfca; border-radius: 8px; background: #fff; box-shadow: 0 3px 12px rgb(20 45 38 / 15%); }
 .map-toolbar.collapsed { width: 183px; }
@@ -149,9 +156,25 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .route-list li button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 10px 5px; border: 0; background: #fff; color: #36524b; font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
 .route-list li button:hover, .route-list li button:focus-visible { background: #f4f8f6; outline: 2px solid #bfded1; outline-offset: -2px; }
 .route-list svg { color: #b8613e; }
+.route-list .route-list-icon.ducts { color: #26766b; }
+.route-list .route-list-icon.cables { color: #2d6f9f; }
+.route-list .route-list-icon.unknown { color: #74817d; }
+.route-list-text { display: grid; min-width: 0; gap: 3px; }
+.route-list-text strong { overflow: hidden; color: #29473c; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.route-list-text small { color: #6c8175; font-size: 11px; }
+.route-detail-title { margin: 18px 0 0; padding-top: 15px; border-top: 1px solid #d8e2df; color: #23483e; font-size: 15px; }
 .installation-panel { display: grid; gap: 13px; margin-top: 19px; padding-top: 17px; border-top: 1px solid #d8e2df; }
 .installation-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .installation-heading h2 { margin: 3px 0 0; color: #23483e; font-size: 16px; }
+.installation-heading-actions { display: flex; gap: 5px; }
+.installation-heading-actions .move-button { min-height: 30px; padding: 4px 7px; }
+.installation-heading-actions .move-button:disabled { opacity: .5; cursor: not-allowed; }
+.installation-overview { display: grid; grid-template-columns: 1fr auto; gap: 6px 9px; padding: 11px 12px; border: 1px solid #e3cbb9; border-radius: 7px; background: #fff8f2; color: #684a36; font-size: 11px; }
+.installation-overview.ducts { border-color: #badbd1; background: #f2faf6; color: #22584d; }
+.installation-overview.cables { border-color: #bfd6e9; background: #f2f8fc; color: #275674; }
+.installation-overview strong { grid-column: 1 / -1; font-size: 13px; }
+.installation-overview b { margin-left: 5px; font-variant-numeric: tabular-nums; }
+.installation-saved { display: flex; align-items: center; gap: 6px; margin: 0; padding: 8px 10px; border: 1px solid #badbd1; border-radius: 6px; background: #f2faf6; color: #22584d; font-size: 11px; }
 .installation-muted, .installation-empty { margin: 0; color: #647a70; font-size: 12px; line-height: 1.45; }
 .installation-empty { padding: 13px; border: 1px dashed #bfcfca; border-radius: 7px; background: #f7faf8; }
 .installation-cross-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }

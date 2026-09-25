@@ -6,7 +6,7 @@ import type { DuctType } from '../duct-catalog/model'
 import { addInstalledItem, emptyInstallation, listRouteInstallations, removeInstalledItem,
   renameInstalledItem, type InstallationAdd, type RouteInstallationDocument } from './routeInstallations'
 
-export function useRouteInstallations(routeId: string) {
+export function useRouteInstallations(routeId: string | null) {
   const [documents, setDocuments] = useState<RouteInstallationDocument[]>([])
   const [ducts, setDucts] = useState<DuctType[]>([])
   const [cables, setCables] = useState<CableSpecification[]>([])
@@ -35,7 +35,7 @@ export function useRouteInstallations(routeId: string) {
     return () => controller.abort()
   }, [reloadVersion])
 
-  const document = useMemo(() => documents.find(item => item.routeId === routeId) ?? emptyInstallation(routeId),
+  const document = useMemo(() => documents.find(item => item.routeId === routeId) ?? emptyInstallation(routeId ?? ''),
     [documents, routeId])
   const refresh = useCallback(() => { setLoading(true); setReloadVersion(value => value + 1) }, [])
   const mutate = async (operation: () => Promise<RouteInstallationDocument>) => {
@@ -51,12 +51,12 @@ export function useRouteInstallations(routeId: string) {
       return false
     } finally { setBusy(false) }
   }
-  const add = (input: Omit<InstallationAdd, 'version'>) =>
-    mutate(() => addInstalledItem(routeId, { ...input, version: document.version }))
-  const rename = (id: string, label: string) =>
-    mutate(() => renameInstalledItem(routeId, id, label, document.version))
-  const remove = (id: string) =>
-    mutate(() => removeInstalledItem(routeId, id, document.version))
+  const add = (input: Omit<InstallationAdd, 'version'>) => routeId
+    ? mutate(() => addInstalledItem(routeId, { ...input, version: document.version })) : Promise.resolve(false)
+  const rename = (id: string, label: string) => routeId
+    ? mutate(() => renameInstalledItem(routeId, id, label, document.version)) : Promise.resolve(false)
+  const remove = (id: string) => routeId
+    ? mutate(() => removeInstalledItem(routeId, id, document.version)) : Promise.resolve(false)
 
   return { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh, add, rename, remove }
 }

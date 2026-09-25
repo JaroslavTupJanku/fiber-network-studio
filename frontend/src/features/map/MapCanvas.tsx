@@ -8,6 +8,7 @@ import { addCadastreLayer, CADASTRE_LAYER_ID, CADASTRE_MIN_ZOOM, CADASTRE_SOURCE
 import { addOrthophotoLayer, ORTHOPHOTO_SOURCE_ID, removeOrthophotoLayer } from './orthophoto'
 import type { Coordinates, NetworkPoint, NetworkPointKind } from './networkPoints'
 import type { Parcel } from './parcels'
+import type { RouteInstallationDocument } from './routeInstallations'
 import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollection, routeVertexCollection,
   POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, HOVERED_POINT_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID,
   ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
@@ -18,6 +19,8 @@ import { routeCoordinates, type RouteDraft, type UndergroundRoute } from './unde
 type MapCanvasProps = {
   points: NetworkPoint[]
   routes: UndergroundRoute[]
+  installations: RouteInstallationDocument[] | null
+  installationLoading: boolean
   selectedRouteId: string | null
   hoveredRouteId: string | null
   routeFocusRequest: { id: string, sequence: number } | null
@@ -49,7 +52,7 @@ type PointDrag = { id: string, kind: NetworkPointKind, startX: number, startY: n
 
 setWorkerUrl(workerUrl)
 
-export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, routeFocusRequest, routeDraft, drawingRoute, onRouteToolChange,
+export function MapCanvas({ points, routes, installations, installationLoading, selectedRouteId, hoveredRouteId, routeFocusRequest, routeDraft, drawingRoute, onRouteToolChange,
   onRouteSelect, onRouteWaypointMove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId,
   selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop,
   onLocationClick, onPointSelect, onPointMove, onDraftMove, onCadastreDisable }: MapCanvasProps) {
@@ -375,8 +378,8 @@ export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, rou
     const map = mapRef.current
     if (!map || readyMapRef.current !== map) return
     map.getSource<GeoJSONSource>(ROUTE_SOURCE_ID)?.setData(routeCollection(
-      routes.filter(route => route.id !== routeDraft?.id), points))
-  }, [routes, points, routeDraft?.id, mapGeneration])
+      routes.filter(route => route.id !== routeDraft?.id), points, installations))
+  }, [routes, points, installations, routeDraft?.id, mapGeneration])
 
   useEffect(() => {
     const map = mapRef.current
@@ -540,6 +543,15 @@ export function MapCanvas({ points, routes, selectedRouteId, hoveredRouteId, rou
           <button type="button" onClick={onRouteUndo} disabled={!routeDraft?.startPointId}>Zpět</button>
           <button type="button" onClick={onRouteFinish} disabled={!routeDraft?.endPointId}>Dokončit</button>
           <button type="button" onClick={onRouteCancel}>Zrušit · Esc</button>
+        </div>
+      )}
+      {routes.length > 0 && !drawingRoute && !placementActive && (
+        <div className="route-map-legend" aria-label="Barvy podzemních tras">
+          {installations === null ? <span><i className="route-key unknown" /> {installationLoading ? 'Načítání osazení…' : 'Osazení se nenačetlo'}</span> : <>
+            <span><i className="route-key empty" /> Bez osazení</span>
+            <span><i className="route-key ducts" /> Potrubí a trubičky</span>
+            <span><i className="route-key cables" /> S kabelem</span>
+          </>}
         </div>
       )}
       <MapToolbox

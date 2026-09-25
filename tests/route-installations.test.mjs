@@ -7,7 +7,15 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
-import { canPlaceItem, installationContinuations, installationFit } from '../frontend/src/features/map/routeInstallations.ts'
+import { canPlaceItem, installationContinuations, installationFit, installationSummary } from '../frontend/src/features/map/routeInstallations.ts'
+
+test('route status follows saved contents instead of treating every route as cabled', () => {
+  assert.deepEqual(installationSummary(), { status: 'empty', ducts: 0, cables: 0, items: 0 })
+  const document = { items: [{ duct: { kind: 'conduit' }, cable: null }] }
+  assert.deepEqual(installationSummary(document), { status: 'ducts', ducts: 1, cables: 0, items: 1 })
+  document.items.push({ duct: null, cable: { name: 'Optický kabel' } })
+  assert.deepEqual(installationSummary(document), { status: 'cables', ducts: 1, cables: 1, items: 2 })
+})
 
 test('installation preview distinguishes occupied positions and unknown dimensions', () => {
   const assembly = { id: 'parent', duct: { kind: 'assembly', slots: [{ kind: 'microduct', innerDiameterMm: null }] }, cable: null }

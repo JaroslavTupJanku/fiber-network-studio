@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
+import { installationSummary } from './routeInstallations'
+import { useRouteInstallations } from './useRouteInstallations'
 import { useMapWorkspace } from './useMapWorkspace'
 import type { NetworkPointKind } from './networkPoints'
 import { routeCoordinates, routeLengthMeters } from './undergroundRoutes'
@@ -28,6 +30,8 @@ export function MapWorkspace({ active }: { active: boolean }) {
     handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   } = useMapWorkspace()
   const routeDraft = route.draft
+  const installations = useRouteInstallations(routeDraft?.id ?? null)
+  const installationByRoute = new Map(installations.documents.map(document => [document.routeId, document]))
   const routeLength = routeDraft?.endPointId
     ? routeLengthMeters(routeCoordinates(routeDraft, points)) : null
   const pointName = (id: string | null) => points.find(point => point.id === id)?.name ?? 'Vyberte na mapě'
@@ -44,6 +48,8 @@ export function MapWorkspace({ active }: { active: boolean }) {
         <MapCanvas
           points={points}
           routes={route.routes}
+          installations={installations.loading || installations.loadFailed ? null : installations.documents}
+          installationLoading={installations.loading}
           selectedRouteId={routeDraft?.id ?? null}
           hoveredRouteId={hoveredRouteId}
           routeFocusRequest={routeFocusRequest}
@@ -122,11 +128,18 @@ export function MapWorkspace({ active }: { active: boolean }) {
           </div>
         )}
 
+        {routeDraft?.id && route.routes.find(item => item.id === routeDraft.id) &&
+          <RouteInstallationPanel key={routeDraft.id} route={route.routes.find(item => item.id === routeDraft.id)!}
+            routes={route.routes} editable={!route.drawing && route.preview === null} installations={installations} />}
+
         {routeDraft && (
           <form className="point-form route-form" onSubmit={route.save}>
+            {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
               ? 'Začátek a konec vyberte níže nebo kliknutím na objekty v mapě. Tvar trasy upravte klikáním do mapy. Pak stiskněte Dokončit.'
-              : 'Trasa spojuje dva body sítě. Konkrétní chráničky a kabely vložíte níže do jejího úseku.'}</p>
+              : routeDraft.id
+                ? 'Trasa spojuje dva body sítě. Konkrétní chráničky a kabely spravujete v části Osazení úseku výše.'
+                : 'Trasa spojuje dva body sítě. Nejdřív ji uložte, potom do ní můžete vložit chráničky a kabely.'}</p>
             {route.drawing ? <div className="route-endpoint-fields">
               <label htmlFor="route-start">Začátek trasy
                 <select id="route-start" value={routeDraft.startPointId ?? ''}
@@ -170,10 +183,6 @@ export function MapWorkspace({ active }: { active: boolean }) {
             </div>
           </form>
         )}
-
-        {routeDraft?.id && route.routes.find(item => item.id === routeDraft.id) &&
-          <RouteInstallationPanel key={routeDraft.id} route={route.routes.find(item => item.id === routeDraft.id)!}
-            routes={route.routes} editable={!route.drawing && route.preview === null} />}
 
         {editor && (
           <form className="point-form" onSubmit={savePoint}>
@@ -221,15 +230,21 @@ export function MapWorkspace({ active }: { active: boolean }) {
                 onFocus={() => setHoveredPointId(point.id)} onBlur={() => setHoveredPointId(null)}
                 onClick={() => { setHoveredPointId(null); handlePointSelect(point.id) }}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}</small></span></button></li>)}</ul>
             )}
-            {route.visibleRoutes.length > 0 && <div className="route-list"><h2>Podzemní trasy</h2><ul>{route.visibleRoutes.map(item =>
-              <li key={item.id}><button type="button"
+            {route.visibleRoutes.length > 0 && <div className="route-list"><h2>Podzemní trasy</h2><ul>{route.visibleRoutes.map(item => {
+              const summary = installationSummary(installationByRoute.get(item.id))
+              const status = installations.loading || installations.loadFailed ? 'unknown' : summary.status
+              return <li key={item.id}><button type="button"
                 onMouseEnter={() => setHoveredRouteId(item.id)} onMouseLeave={() => setHoveredRouteId(null)}
                 onFocus={() => setHoveredRouteId(item.id)} onBlur={() => setHoveredRouteId(null)}
                 onClick={() => {
                   setHoveredRouteId(null)
                   handleRouteSelect(item.id)
                   setRouteFocusRequest(current => ({ id: item.id, sequence: (current?.sequence ?? 0) + 1 }))
-                }}><RouteIcon size={17} /><span>{item.name}</span></button></li>)}</ul></div>}
+                }}><RouteIcon className={`route-list-icon ${status}`} size={17} /><span className="route-list-text"><strong>{item.name}</strong><small>
+                  {installations.loading ? 'Načítání osazení…' : installations.loadFailed ? 'Osazení se nenačetlo'
+                    : summary.items ? `Potrubí a trubičky ${summary.ducts} · kabely ${summary.cables}` : 'Bez osazení'}
+                </small></span></button></li>
+            })}</ul></div>}
           </div>
         )}
       </aside>

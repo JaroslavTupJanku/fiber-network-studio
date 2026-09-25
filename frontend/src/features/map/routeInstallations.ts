@@ -15,6 +15,15 @@ export type InstalledItem = {
 }
 
 export type RouteInstallationDocument = { routeId: string; version: number; items: InstalledItem[] }
+export type InstallationStatus = 'empty' | 'ducts' | 'cables'
+export type InstallationSummary = { status: InstallationStatus; ducts: number; cables: number; items: number }
+
+export function installationSummary(document?: RouteInstallationDocument): InstallationSummary {
+  const items = document?.items ?? []
+  const cables = items.filter(item => item.cable !== null).length
+  const ducts = items.length - cables
+  return { status: cables ? 'cables' : ducts ? 'ducts' : 'empty', ducts, cables, items: items.length }
+}
 export type InstallationAdd = {
   catalogId: string | null
   parentId: string | null

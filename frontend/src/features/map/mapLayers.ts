@@ -1,5 +1,6 @@
 import type { Map } from 'maplibre-gl'
 import type { Coordinates, NetworkPoint } from './networkPoints'
+import { installationSummary, type RouteInstallationDocument } from './routeInstallations'
 import { routeCoordinates, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
 
 export const POINT_SOURCE_ID = 'network-points'
@@ -16,7 +17,8 @@ export const ROUTE_DRAFT_SOURCE_ID = 'underground-route-draft'
 export const ROUTE_VERTEX_SOURCE_ID = 'underground-route-vertices'
 export const ROUTE_VERTEX_LAYER_ID = 'underground-route-vertex-dots'
 
-export function routeCollection(routes: UndergroundRoute[], points: NetworkPoint[]) {
+export function routeCollection(routes: UndergroundRoute[], points: NetworkPoint[], installations: RouteInstallationDocument[] | null) {
+  const byRoute = new globalThis.Map(installations?.map(document => [document.routeId, installationSummary(document)]) ?? [])
   return {
     type: 'FeatureCollection' as const,
     features: routes.flatMap(route => {
@@ -24,7 +26,8 @@ export function routeCollection(routes: UndergroundRoute[], points: NetworkPoint
       return coordinates.length < 2 ? [] : [{
         type: 'Feature' as const,
         geometry: { type: 'LineString' as const, coordinates: coordinates.map(point => [point.longitude, point.latitude]) },
-        properties: { id: route.id, name: route.name },
+        properties: { id: route.id, name: route.name,
+          installationStatus: installations === null ? 'unknown' : byRoute.get(route.id)?.status ?? 'empty' },
       }]
     }),
   }
@@ -75,7 +78,8 @@ export function initializeMapLayers(map: Map) {
   map.addLayer({ id: HOVERED_ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
     filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#f0b344', 'line-width': 12, 'line-opacity': 0.9 } })
   map.addLayer({ id: ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
-    paint: { 'line-color': '#b8613e', 'line-width': 4, 'line-opacity': 0.9 } })
+    paint: { 'line-color': ['match', ['get', 'installationStatus'],
+      'cables', '#2d6f9f', 'ducts', '#26766b', 'unknown', '#74817d', '#b8613e'], 'line-width': 5, 'line-opacity': 0.95 } })
   map.addSource(ROUTE_DRAFT_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: 'underground-route-draft-line', type: 'line', source: ROUTE_DRAFT_SOURCE_ID,
     paint: { 'line-color': '#de8a39', 'line-width': 4, 'line-dasharray': [2, 1.5] } })
