@@ -1,9 +1,10 @@
-import { useRef, useState, type CSSProperties, type FormEvent } from 'react'
-import { Check, Layers3, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
+import { Check, Layers3, Maximize2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import type { CableSpecification } from '../cable-catalog/model'
 import { kindLabel, type DuctType } from '../duct-catalog/model'
-import { canPlaceItem, installationContinuations, installationFit, installationSummary,
-  type InstalledItem, type RouteInstallationDocument } from './routeInstallations'
+import { canPlaceItem, hasAvailablePlacement, installationContinuations, installationFit, installationSummary,
+  type InstalledItem, type InstallationSummary, type RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
 import { useRouteInstallations } from './useRouteInstallations'
 import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
@@ -12,6 +13,14 @@ type Candidate = { key: string; label: string; duct: DuctType | null; cable: Cab
 const itemKind = (item: InstalledItem) => item.duct ? kindLabel(item.duct.kind) : 'Optický kabel'
 const itemColor = (item: InstalledItem) => item.duct?.color ?? item.cable?.tubes[0]?.color ?? '#286d61'
 const routeName = (id: string, routes: UndergroundRoute[]) => routes.find(route => route.id === id)?.name ?? 'Jiný úsek'
+
+function InstallationOverview({ summary }: { summary: InstallationSummary }) {
+  return <div className={`installation-overview ${summary.status}`} aria-live="polite">
+    <strong>{summary.status === 'empty' ? 'Zatím bez osazení' : summary.status === 'cables' ? 'V úseku je optický kabel' : 'Osazeno bez kabelu'}</strong>
+    <span>Chráničky, mikrotrubičky, sestavy <b>{summary.ducts}</b></span>
+    <span>Optické kabely <b>{summary.cables}</b></span>
+  </div>
+}
 
 function SectionDiagram({ item, items, selectedId, onSelect, depth = 0 }: {
   item: InstalledItem; items: InstalledItem[]; selectedId: string | null;
@@ -68,7 +77,7 @@ function InstallationTreeItem({ item, items, documents, routes, busy, onRename, 
           : fit === 'too-small' ? 'Rozměry nevyhovují' : 'Kompatibilita neurčená'}</small>}
       </div>
       <div className="install-item-actions">
-        {item.duct && <button type="button" title={`Vložit do ${item.label}`} aria-label={`Vložit do ${item.label}`}
+        {hasAvailablePlacement(item, items) && <button type="button" title={`Vložit do ${item.label}`} aria-label={`Vložit do ${item.label}`}
           onClick={() => onAddInside(item.id)} disabled={busy}><Plus size={15} /></button>}
         <button type="button" title={`Přejmenovat ${item.label}`} aria-label={`Přejmenovat ${item.label}`}
           onClick={() => { setLabel(item.label); setEditing(value => !value) }} disabled={busy}><Pencil size={14} /></button>
@@ -107,8 +116,17 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
   const [selectionEditing, setSelectionEditing] = useState(false)
   const [selectionLabel, setSelectionLabel] = useState('')
+  const [editorOpen, setEditorOpen] = useState(false)
   const sectionRef = useRef<HTMLElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+    if (editorOpen && !dialog.open) dialog.showModal()
+    if (!editorOpen && dialog.open) dialog.close()
+    return () => { if (dialog.open) dialog.close() }
+  }, [editorOpen])
   const parent = document.items.find(item => item.id === parentId) ?? null
   const slots = parent?.duct?.kind === 'assembly' ? parent.duct.slots : []
   const selectedSlot = parent?.duct?.kind === 'assembly' ? slotIndex : null
@@ -116,9 +134,13 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     ...ducts.map(duct => ({ key: `duct:${duct.id}`, label: `${kindLabel(duct.kind)} · ${duct.name}`,
       duct, cable: null })),
     ...cables.map(cable => ({ key: `cable:${cable.id}`, label: `Kabel · ${cable.name}`, duct: null, cable })),
-  ].filter(candidate => canPlaceItem(parent, document.items, candidate, selectedSlot))
+  ].filter(candidate => canPlaceItem(parent, document.items, candidate, selectedSlot)
+    && installationFit(candidate, parent, selectedSlot,
+      document.items.filter(item => item.parentId === parent?.id)) !== 'too-small')
   const continuations = installationContinuations(route, routes, documents)
-    .filter(item => canPlaceItem(parent, document.items, item, selectedSlot))
+    .filter(item => canPlaceItem(parent, document.items, item, selectedSlot)
+      && installationFit(item, parent, selectedSlot,
+        document.items.filter(other => other.parentId === parent?.id)) !== 'too-small')
   const selectedCandidate = sourceMode === 'catalog'
     ? candidates.find(candidate => candidate.key === catalogKey) ?? null
     : continuations.find(item => item.id === continuationId) ?? null
@@ -127,6 +149,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const roots = document.items.filter(item => item.parentId === null)
   const selectedItem = document.items.find(item => item.id === selectedItemId) ?? null
   const selectedHasChildren = selectedItem !== null && document.items.some(item => item.parentId === selectedItem.id)
+  const selectedHasRoom = selectedItem !== null && hasAvailablePlacement(selectedItem, document.items)
   const summary = installationSummary(document)
   const selectItem = (item: InstalledItem) => {
     setSelectedItemId(item.id)
@@ -144,6 +167,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     setContinuationId('')
   }
   const addInside = (id: string) => {
+    const item = document.items.find(other => other.id === id)
+    if (!item || !hasAvailablePlacement(item, document.items)) return
     chooseParent(id)
     setSourceMode('catalog')
     setAddOpen(true)
@@ -161,10 +186,9 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     if (success) {
       setSavedMessage(`Uloženo do trasy: ${label.trim() || selectedCandidate.label}.`)
       setLabel(''); setCatalogKey(''); setContinuationId(''); setFormError('')
+      setParentId(''); setSlotIndex(null)
       setAddOpen(false)
       requestAnimationFrame(() => sectionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
-      if (slots.length > 0) setSlotIndex(slots.findIndex((_, index) => index !== selectedSlot
-        && !document.items.some(item => item.parentId === parent?.id && item.slotIndex === index)))
     }
   }
   const renameItem = async (id: string, nextLabel: string) => {
@@ -182,7 +206,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     }
     return success
   }
-  return <section className="installation-panel" aria-label="Osazení trasy" ref={sectionRef}>
+  const editorContent = <section className="installation-panel installation-editor-panel" aria-label="Osazení trasy" ref={sectionRef}>
     <div className="installation-heading"><div><span className="section-label">Fyzická infrastruktura</span>
       <h2>Osazení úseku</h2></div><div className="installation-heading-actions">
         <button type="button" className="move-button" aria-expanded={addOpen} aria-controls="installation-add-form"
@@ -193,10 +217,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
         <button type="button" className="icon-button" title="Načíst osazení znovu"
           aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button>
       </div></div>
-    {!loading && !loadFailed && <div className={`installation-overview ${summary.status}`} aria-live="polite">
-      <strong>{summary.status === 'empty' ? 'Zatím bez osazení' : summary.status === 'cables' ? 'V úseku je optický kabel' : 'V úseku je potrubí'}</strong>
-      <span>Potrubí a trubičky <b>{summary.ducts}</b></span><span>Optické kabely <b>{summary.cables}</b></span>
-    </div>}
+    {!loading && !loadFailed && <InstallationOverview summary={summary} />}
     {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
     <p className="route-help">{view === 'diagram'
       ? 'Kliknutím na prvek ve schématu zobrazíte jeho možnosti.'
@@ -207,15 +228,15 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
         : <><div className="installation-view-switch" role="group" aria-label="Zobrazení osazení">
           <button type="button" aria-pressed={view === 'diagram'} onClick={() => setView('diagram')}>Schéma</button>
           <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>Seznam prvků</button>
-        </div><div className="installation-view" hidden={view !== 'diagram'}><div className="installation-cross-sections" aria-label="Schematické průřezy instalace">
+        </div><div className="installation-view installation-diagram-view" hidden={view !== 'diagram'}><div className="installation-cross-sections" aria-label="Schematické průřezy instalace">
           {roots.map(root => <div className="installation-cross-section" key={root.id}>
             <div className="installation-visual"><SectionDiagram item={root} items={document.items}
               selectedId={selectedItemId} onSelect={selectItem} /></div>
             <strong>{root.label}</strong>
           </div>)}
-        </div>{selectedItem && <div className="installation-selection">
-          <div className="installation-selection-heading"><div><span>Vybraný prvek</span><strong>{selectedItem.label}</strong>
-            <small>{itemKind(selectedItem)} · {selectedItem.duct?.name ?? selectedItem.cable?.name}</small></div>
+        </div>{selectedItem ? <div className="installation-selection">
+          <div className="installation-selection-heading"><div><span>Vybraný prvek · {itemKind(selectedItem)}</span><strong>{selectedItem.label}</strong>
+            <small>Typ: {selectedItem.duct?.name ?? selectedItem.cable?.name}</small></div>
             <button type="button" className="installation-selection-close" aria-label="Zrušit výběr prvku"
               onClick={() => setSelectedItemId(null)}><X size={15} /></button></div>
           {selectionEditing ? <form className="install-rename" onSubmit={async event => {
@@ -226,7 +247,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
             <button type="submit" disabled={busy || !selectionLabel.trim()} aria-label="Uložit označení"><Check size={15} /></button>
             <button type="button" onClick={() => setSelectionEditing(false)} aria-label="Zrušit přejmenování"><X size={15} /></button>
           </form> : <div className="installation-selection-actions">
-            {selectedItem.duct && <button type="button" onClick={() => addInside(selectedItem.id)} disabled={!editable || busy}>
+            {selectedHasRoom && <button type="button" onClick={() => addInside(selectedItem.id)} disabled={!editable || busy}>
               <Plus size={14} /> Vložit dovnitř</button>}
             <button type="button" onClick={() => { setSelectionLabel(selectedItem.label); setSelectionEditing(true) }}
               disabled={!editable || busy}><Pencil size={14} /> Přejmenovat</button>
@@ -234,6 +255,13 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
               onClick={() => { if (window.confirm(`Odebrat instalovaný prvek „${selectedItem.label}“?`)) void removeItem(selectedItem.id) }}
               disabled={!editable || busy || selectedHasChildren}><Trash2 size={14} /> Odebrat</button>
           </div>}
+          {selectedItem.duct && !selectedHasRoom && <p className="installation-muted">{selectedItem.duct.kind === 'assembly'
+            ? 'Všechny pozice sestavy jsou obsazené.'
+            : selectedItem.duct.kind === 'microduct' ? 'Mikrotrubička už obsahuje kabel.'
+              : 'Chránička s přímým kabelem nemá další volné místo.'}</p>}
+        </div> : <div className="installation-selection installation-selection-empty">
+          <strong>Vyberte prvek ve schématu</strong>
+          <p>Chránička → mikrotrubička, sestava nebo přímo kabel. Mikrotrubička → kabel. Sestava → volná pozice odpovídajícího typu.</p>
         </div>}</div><ul className="installation-tree installation-view" hidden={view !== 'list'}>{roots.map(root => <InstallationTreeItem key={root.id} item={root}
           items={document.items} documents={documents} routes={routes} busy={busy || !editable}
           onRename={renameItem} onRemove={removeItem} onAddInside={addInside} />)}</ul></>}
@@ -243,7 +271,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
         <label htmlFor="installation-parent">Kam vložit</label>
         <select id="installation-parent" value={parentId} onChange={event => chooseParent(event.target.value)} disabled={!editable || busy}>
           <option value="">Volně do úseku</option>
-          {document.items.filter(item => item.duct).map(item => <option key={item.id} value={item.id}>
+          {document.items.filter(item => hasAvailablePlacement(item, document.items)).map(item => <option key={item.id} value={item.id}>
             Do: {item.label} ({itemKind(item)})</option>)}
         </select>
         {slots.length > 0 && <><label htmlFor="installation-slot">Pozice v sestavě</label>
@@ -264,7 +292,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
             <option value="">Vyberte typ…</option>
             {candidates.map(candidate => <option key={candidate.key} value={candidate.key}>{candidate.label}</option>)}
           </select>
-          {candidates.length === 0 && <p className="installation-muted">Zde není volná pozice nebo vhodný typ z katalogu.</p>}</>
+          {candidates.length === 0 && <p className="installation-muted">Zde není volná pozice nebo vhodný typ z katalogu.</p>}
+          {candidates.length > 0 && parent && <p className="installation-muted">Nabídka vynechává nepřípustné druhy a prvky, které se podle známých průměrů nevejdou.</p>}</>
           : <><label htmlFor="installation-continuation">Navázat na sousední úsek</label>
           <select id="installation-continuation" value={continuationId} onChange={event => setContinuationId(event.target.value)} disabled={!editable || busy}>
             <option value="">Vyberte instalovaný prvek…</option>
@@ -287,4 +316,36 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       </form></div>}
     </>}
   </section>
+  return <>
+    <section className="installation-panel installation-preview-panel" aria-label="Přehled osazení trasy">
+      <div className="installation-heading"><div><span className="section-label">Fyzická infrastruktura</span>
+        <h2>Osazení úseku</h2></div>
+        <button type="button" className="icon-button" title="Načíst osazení znovu"
+          aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button></div>
+      {!loading && !loadFailed && <InstallationOverview summary={summary} />}
+      {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
+      {loading ? <p className="installation-muted">Načítání osazení…</p>
+        : error ? <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>
+          : roots.length === 0 ? <p className="installation-empty">Úsek zatím nemá žádné uložené prvky.</p>
+            : <><div className="installation-cross-sections" aria-label="Náhled osazení">
+              {roots.slice(0, 2).map(root => <div className="installation-cross-section" key={root.id}>
+                <div className="installation-visual"><SectionDiagram item={root} items={document.items}
+                  selectedId={null} onSelect={item => { selectItem(item); setEditorOpen(true) }} /></div>
+                <strong>{root.label}</strong>
+              </div>)}
+            </div>{roots.length > 2 && <p className="installation-muted">A dalších {roots.length - 2} vnějších prvků.</p>}</>}
+      <button type="button" className="installation-open-editor" disabled={loading || loadFailed}
+        onClick={() => setEditorOpen(true)}><Maximize2 size={16} /> Otevřít editor osazení</button>
+    </section>
+    {createPortal(<dialog ref={dialogRef} className="installation-editor-dialog"
+      aria-labelledby="installation-editor-title" onCancel={event => { event.preventDefault(); setEditorOpen(false) }}>
+      <div className="installation-editor-shell">
+        <header className="installation-editor-header"><div><span>Podzemní trasa</span>
+          <h2 id="installation-editor-title">Osazení · {route.name}</h2></div>
+          <button type="button" onClick={() => setEditorOpen(false)} aria-label="Zavřít editor osazení"><X size={18} /></button>
+        </header>
+        <div className="installation-editor-scroll">{editorContent}</div>
+      </div>
+    </dialog>, globalThis.document.body)}
+  </>
 }

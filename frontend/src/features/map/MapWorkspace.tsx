@@ -298,7 +298,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
                   setRouteFocusRequest(current => ({ id: item.id, sequence: (current?.sequence ?? 0) + 1 }))
                 }}><RouteIcon className={`route-list-icon ${status}`} size={17} /><span className="route-list-text"><strong>{item.name}</strong><small>
                   {installations.loading ? 'Načítání osazení…' : installations.loadFailed ? 'Osazení se nenačetlo'
-                    : summary.items ? `Potrubí a trubičky ${summary.ducts} · kabely ${summary.cables}` : 'Bez osazení'}
+                    : summary.items ? `Chráničky, trubičky a sestavy ${summary.ducts} · kabely ${summary.cables}` : 'Bez osazení'}
                 </small></span></button></li>
             })}</ul></div>}
           </div>

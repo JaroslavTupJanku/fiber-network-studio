@@ -175,6 +175,32 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .route-tab-panel[hidden] { display: none; }
 .route-detail-title { margin: 0; color: #23483e; font-size: 15px; }
 .installation-panel { display: grid; gap: 13px; }
+.installation-preview-panel { align-content: start; }
+.installation-preview-panel .installation-cross-sections { max-height: 290px; overflow: auto; }
+.installation-open-editor { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 37px; padding: 7px 10px; border: 1px solid #26766b; border-radius: 6px; background: #26766b; color: #fff; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+.installation-open-editor:hover:not(:disabled) { background: #1f6259; }
+.installation-open-editor:disabled { opacity: .5; cursor: not-allowed; }
+.installation-editor-dialog { width: min(1000px, calc(100vw - 32px)); max-width: none; max-height: calc(100vh - 32px); padding: 0; border: 1px solid #c8d9d1; border-radius: 12px; background: #fff; box-shadow: 0 22px 65px rgb(17 44 37 / 28%); color: #29473c; }
+.installation-editor-dialog::backdrop { background: rgb(13 36 31 / 52%); }
+.installation-editor-shell { display: flex; flex-direction: column; max-height: calc(100vh - 34px); }
+.installation-editor-header { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 16px 20px; border-bottom: 1px solid #d9e6df; background: #f5faf7; }
+.installation-editor-header span { color: #647a70; font-size: 11px; }
+.installation-editor-header h2 { margin: 3px 0 0; color: #23483e; font-size: 18px; }
+.installation-editor-header button { display: grid; place-items: center; flex: none; width: 30px; height: 30px; padding: 0; border: 0; border-radius: 5px; background: transparent; color: #526f63; cursor: pointer; }
+.installation-editor-header button:hover { background: #e2f1e8; }
+.installation-editor-scroll { min-height: 0; overflow: auto; padding: 18px 20px 24px; }
+.installation-editor-dialog .installation-cross-sections { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); }
+.installation-editor-dialog .installation-cross-section { min-height: 155px; padding: 12px; }
+.installation-editor-dialog .installation-visual { min-height: 110px; max-height: 175px; overflow: auto; }
+.installation-editor-dialog .install-diagram-ring.root { width: 96px; height: 96px; }
+.installation-editor-dialog .install-diagram-ring .install-diagram-ring { width: 33px; height: 33px; }
+.installation-editor-dialog .installation-diagram-view { display: grid; grid-template-columns: minmax(0, 1fr) 320px; align-items: start; gap: 18px; }
+.installation-editor-dialog .installation-tree { max-height: 55vh; overflow: auto; }
+@media (max-width: 700px) {
+  .installation-editor-dialog .installation-diagram-view { grid-template-columns: 1fr; }
+  .installation-editor-header { padding: 12px 14px; }
+  .installation-editor-scroll { padding: 14px; }
+}
 .installation-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .installation-heading h2 { margin: 3px 0 0; color: #23483e; font-size: 16px; }
 .installation-heading-actions { display: flex; gap: 5px; }
@@ -210,6 +236,9 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .install-diagram-empty { width: 24px; height: 24px; border: 4px solid; border-radius: 50%; opacity: .5; }
 .install-diagram-slot small { color: #73847e; font-size: 9px; }
 .installation-selection { display: grid; gap: 8px; padding: 10px; border: 1px solid #b8d9ca; border-radius: 7px; background: #f3faf6; }
+.installation-selection-empty { align-content: center; min-height: 155px; border-style: dashed; background: #f8fbf9; }
+.installation-selection-empty strong { color: #28574e; font-size: 12px; }
+.installation-selection-empty p { margin: 0; color: #647a70; font-size: 11px; line-height: 1.45; }
 .installation-selection-heading { display: flex; justify-content: space-between; gap: 8px; }
 .installation-selection-heading > div { display: grid; gap: 2px; min-width: 0; }
 .installation-selection-heading span { color: #517064; font-size: 10px; font-weight: 650; }

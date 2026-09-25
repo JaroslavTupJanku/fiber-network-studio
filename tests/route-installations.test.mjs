@@ -7,7 +7,18 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
-import { canPlaceItem, installationContinuations, installationFit, installationSummary } from '../frontend/src/features/map/routeInstallations.ts'
+import { canPlaceItem, hasAvailablePlacement, installationContinuations, installationFit, installationSummary } from '../frontend/src/features/map/routeInstallations.ts'
+
+test('occupied parents stop offering an add-inside action', () => {
+  const microduct = { id: 'microduct', duct: { kind: 'microduct' }, cable: null }
+  const assembly = { id: 'assembly', duct: { kind: 'assembly', slots: [{ kind: 'microduct' }] }, cable: null }
+  const conduit = { id: 'conduit', duct: { kind: 'conduit' }, cable: null }
+  assert.equal(hasAvailablePlacement(microduct, []), true)
+  assert.equal(hasAvailablePlacement(microduct, [{ parentId: 'microduct', cable: {} }]), false)
+  assert.equal(hasAvailablePlacement(assembly, [{ parentId: 'assembly', slotIndex: 0 }]), false)
+  assert.equal(hasAvailablePlacement(conduit, [{ parentId: 'conduit', cable: {} }]), false)
+  assert.equal(hasAvailablePlacement(conduit, [{ parentId: 'conduit', duct: { kind: 'microduct' }, cable: null }]), true)
+})
 
 test('route status follows saved contents instead of treating every route as cabled', () => {
   assert.deepEqual(installationSummary(), { status: 'empty', ducts: 0, cables: 0, items: 0 })

@@ -91,6 +91,15 @@ export function canPlaceItem(parent: InstalledItem | null, items: InstalledItem[
     : candidate.duct?.kind !== 'conduit' && !children.some(item => item.cable !== null)
 }
 
+export function hasAvailablePlacement(item: InstalledItem, items: InstalledItem[]): boolean {
+  if (!item.duct) return false
+  const children = items.filter(child => child.parentId === item.id)
+  if (item.duct.kind === 'assembly') return item.duct.slots.some((_, index) =>
+    !children.some(child => child.slotIndex === index))
+  if (item.duct.kind === 'microduct') return children.length === 0
+  return !children.some(child => child.cable !== null)
+}
+
 async function request<T>(path = '', options?: RequestInit): Promise<T> {
   const response = await fetch(`/api/route-installations${path}`, options)
   if (!response.ok) {

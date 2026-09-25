@@ -608,7 +608,7 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
         <div className="route-map-legend" aria-label="Barvy podzemních tras">
           {installations === null ? <span><i className="route-key unknown" /> {installationLoading ? 'Načítání osazení…' : 'Osazení se nenačetlo'}</span> : <>
             <span><i className="route-key empty" /> Bez osazení</span>
-            <span><i className="route-key ducts" /> Potrubí a trubičky</span>
+            <span><i className="route-key ducts" /> Osazeno bez kabelu</span>
             <span><i className="route-key cables" /> S kabelem</span>
           </>}
         </div>
