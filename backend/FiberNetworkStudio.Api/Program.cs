@@ -1,12 +1,15 @@
 using FiberNetworkStudio.Api;
+using FiberNetworkStudio.Api.CableCatalog;
 using System.Text.Json;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.AddCableCatalog(builder.Configuration, builder.Environment.ContentRootPath);
 var dataPath = builder.Configuration["NetworkPoints:Path"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "network-points.json");
 builder.Services.AddSingleton(new NetworkPointStore(dataPath));
 builder.Services.AddHttpClient<ParcelLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
 var app = builder.Build();
+app.MapCableCatalog();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/parcels/at", async (double latitude, double longitude, ParcelLookup lookup,
