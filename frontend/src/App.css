@@ -312,7 +312,13 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-overview.cables { border-color: #bfd6e9; background: #f2f8fc; color: #275674; }
 .installation-overview strong { grid-column: 1 / -1; font-size: 13px; }
 .installation-overview b { margin-left: 5px; font-variant-numeric: tabular-nums; }
-.installation-saved { display: flex; align-items: center; gap: 6px; margin: 0; padding: 8px 10px; border: 1px solid #badbd1; border-radius: 6px; background: #f2faf6; color: #22584d; font-size: 11px; }
+.installation-saved { display: flex; align-items: center; gap: 6px; max-height: 90px; overflow: hidden; margin: 0; padding: 8px 10px; border: 1px solid #badbd1; border-radius: 6px; background: #f2faf6; color: #22584d; font-size: 11px; animation: installation-saved-lifetime 5s ease-in-out both; }
+@keyframes installation-saved-lifetime {
+  0% { opacity: 0; transform: translateY(-8px); max-height: 0; padding-block: 0; border-width: 0; }
+  8%, 90% { opacity: 1; transform: translateY(0); max-height: 90px; padding-block: 8px; border-width: 1px; }
+  100% { opacity: 0; transform: translateY(-8px); max-height: 0; padding-block: 0; border-width: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .installation-saved { animation: none; } }
 .installation-muted, .installation-empty { margin: 0; color: #647a70; font-size: 12px; line-height: 1.45; }
 .installation-empty { padding: 13px; border: 1px dashed #bfcfca; border-radius: 7px; background: #f7faf8; }
 .installation-view[hidden], .installation-add-container[hidden] { display: none; }
