@@ -176,7 +176,28 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .route-detail-title { margin: 0; color: #23483e; font-size: 15px; }
 .installation-panel { display: grid; gap: 13px; }
 .installation-preview-panel { align-content: start; }
-.installation-preview-panel .installation-cross-sections { max-height: 290px; overflow: auto; }
+.installation-quick-add-toggle { display: inline-flex; align-items: center; gap: 3px; min-height: 30px; padding: 4px 7px; border: 1px solid #bed8ca; border-radius: 5px; background: #edf7f1; color: #225f55; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.installation-quick-add-toggle:hover:not(:disabled) { background: #e0f1e7; }
+.installation-quick-add-toggle:disabled { opacity: .5; cursor: not-allowed; }
+.installation-quick-add { display: grid; gap: 7px; padding: 12px; border: 1px solid #c9dfd2; border-radius: 8px; background: #f5faf7; }
+.installation-quick-add > strong { color: #28574e; font-size: 12px; }
+.installation-quick-add p { margin: 0 0 3px; color: #61776d; font-size: 11px; line-height: 1.4; }
+.installation-quick-add label { color: #526a61; font-size: 11px; font-weight: 650; }
+.installation-quick-add label span { font-weight: 400; }
+.installation-quick-add select, .installation-quick-add input { width: 100%; min-width: 0; min-height: 33px; padding: 5px 7px; border: 1px solid #bfcfca; border-radius: 5px; background: #fff; color: #29473c; font: inherit; font-size: 11px; }
+.installation-quick-actions { display: flex; justify-content: flex-end; gap: 6px; margin-top: 3px; }
+.installation-quick-actions button { min-height: 31px; padding: 5px 9px; border: 1px solid #c9dfd2; border-radius: 5px; background: #fff; color: #28574e; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+.installation-quick-actions .primary-button { border-color: #26766b; background: #26766b; color: #fff; }
+.installation-quick-actions .primary-button:disabled { opacity: .5; cursor: not-allowed; }
+.installation-preview-list { display: grid; gap: 6px; max-height: 300px; overflow: auto; }
+.installation-preview-item { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 54px; padding: 8px 10px; border: 1px solid #d9e6df; border-radius: 7px; background: #fff; color: #35554a; font: inherit; text-align: left; cursor: pointer; }
+.installation-preview-item:hover { border-color: #8bbcab; background: #f5faf7; }
+.installation-preview-item:focus-visible { outline: 2px solid #26766b; outline-offset: 2px; }
+.installation-preview-item > span:nth-child(2) { display: grid; flex: 1; min-width: 0; gap: 2px; }
+.installation-preview-item strong { overflow: hidden; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
+.installation-preview-item small { color: #6c8175; font-size: 10px; }
+.installation-preview-mark { flex: none; width: 5px; height: 29px; border-radius: 4px; }
+.installation-preview-hint { margin: 0; color: #61776d; font-size: 11px; line-height: 1.4; }
 .installation-open-editor { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 37px; padding: 7px 10px; border: 1px solid #26766b; border-radius: 6px; background: #26766b; color: #fff; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
 .installation-open-editor:hover:not(:disabled) { background: #1f6259; }
 .installation-open-editor:disabled { opacity: .5; cursor: not-allowed; }
@@ -209,12 +230,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-canvas { min-width: 0; padding: 19px; background-image: radial-gradient(#d8e5de 0.65px, transparent 0.65px); background-size: 16px 16px; }
 .installation-canvas-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; color: #527064; font-size: 11px; font-weight: 700; }
 .installation-canvas-heading small { color: #7b9186; font-size: 10px; font-weight: 500; }
-.installation-editor-dialog .installation-cross-sections { grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 12px; }
-.installation-editor-dialog .installation-cross-section { min-height: 205px; padding: 16px 12px; border-color: #d4e2d9; border-radius: 9px; background: #fff; box-shadow: 0 5px 16px rgb(35 69 54 / 7%); }
-.installation-editor-dialog .installation-cross-section strong { font-size: 12px; }
-.installation-editor-dialog .installation-visual { min-height: 132px; max-height: 190px; overflow: auto; }
-.installation-editor-dialog .install-diagram-ring.root { width: 108px; height: 108px; }
-.installation-editor-dialog .install-diagram-ring .install-diagram-ring { width: 36px; height: 36px; }
+.installation-layout-roots { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 270px), 1fr)); align-items: start; gap: 12px; }
 .installation-editor-dialog .installation-selection { align-content: start; min-height: 100%; padding: 21px; border: 0; border-left: 1px solid #d7e4dc; border-radius: 0; background: #fff; }
 .installation-editor-dialog .installation-selection-empty { background: #fbfdfb; }
 .installation-editor-dialog .installation-selection-heading span { color: #26766b; font-size: 11px; }
@@ -245,27 +261,27 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-saved { display: flex; align-items: center; gap: 6px; margin: 0; padding: 8px 10px; border: 1px solid #badbd1; border-radius: 6px; background: #f2faf6; color: #22584d; font-size: 11px; }
 .installation-muted, .installation-empty { margin: 0; color: #647a70; font-size: 12px; line-height: 1.45; }
 .installation-empty { padding: 13px; border: 1px dashed #bfcfca; border-radius: 7px; background: #f7faf8; }
-.installation-cross-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
-.installation-cross-section { display: grid; justify-items: center; gap: 5px; min-width: 0; padding: 9px 5px; border: 1px solid #d9e6df; border-radius: 7px; background: #f8fbf9; }
-.installation-cross-section strong { max-width: 100%; overflow-wrap: anywhere; color: #35554a; font-size: 11px; line-height: 1.25; text-align: center; }
 .installation-view[hidden], .installation-add-container[hidden] { display: none; }
 .installation-view-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 3px; border: 1px solid #d8e2df; border-radius: 6px; background: #f5f8f6; }
 .installation-view-switch button { min-height: 30px; border: 0; border-radius: 4px; background: transparent; color: #526a61; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
 .installation-view-switch button[aria-pressed=true] { background: #fff; color: #225f55; box-shadow: 0 1px 3px rgb(30 65 54 / 12%); }
 .installation-view-switch button:focus-visible { outline: 2px solid #26766b; outline-offset: -2px; }
-.installation-visual { display: grid; place-items: center; min-height: 78px; width: 100%; }
-.install-diagram-ring { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 2px; flex-wrap: wrap; width: 34px; height: 34px; padding: 3px; border: 5px solid var(--install-color); border-radius: 50%; background: #fff; }
-.install-diagram-ring.root { width: 69px; height: 69px; border-width: 9px; }
-.install-diagram-ring .install-diagram-ring { width: 26px; height: 26px; padding: 1px; border-width: 4px; }
-.install-diagram-cable { position: relative; display: inline-block; width: 13px; height: 13px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #71857b; }
-.install-diagram-assembly { position: relative; display: grid; gap: 3px; width: 100%; max-width: 180px; max-height: 90px; overflow: auto; padding: 5px; border: 2px solid #7d948a; border-radius: 8px; background: #fff; }
-.install-diagram-target { position: absolute; inset: 0; width: 100%; padding: 0; border: 0; border-radius: inherit; background: transparent; cursor: pointer; }
-.install-diagram-target:hover, .install-diagram-target[aria-pressed=true] { box-shadow: 0 0 0 3px #e5a533; }
-.install-diagram-target:focus-visible { outline: 3px solid #26766b; outline-offset: 3px; }
-.install-diagram-slot { position: relative; display: grid; justify-items: center; min-width: 0; }
-.install-diagram-slot .install-diagram-ring { width: 25px; height: 25px; border-width: 4px; }
-.install-diagram-empty { width: 24px; height: 24px; border: 4px solid; border-radius: 50%; opacity: .5; }
-.install-diagram-slot small { color: #73847e; font-size: 9px; }
+.install-layout-node { min-width: 0; padding: 7px; border: 1px solid #d4e2d9; border-radius: 8px; background: #fff; box-shadow: 0 3px 10px rgb(35 69 54 / 5%); }
+.install-layout-node.cable { background: #f7fbfe; }
+.install-layout-head { display: flex; align-items: center; gap: 9px; width: 100%; min-width: 0; padding: 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #29473c; font: inherit; text-align: left; cursor: pointer; }
+.install-layout-head:hover { border-color: #a7cbbc; background: #f0f8f3; }
+.install-layout-head[aria-pressed=true] { border-color: #d49b30; background: #fff9ec; }
+.install-layout-head:focus-visible { outline: 2px solid #26766b; outline-offset: 2px; }
+.install-layout-head > svg { flex: none; color: #82988d; }
+.install-layout-mark { flex: none; width: 5px; height: 31px; border-radius: 4px; background: var(--install-color); }
+.install-layout-text { display: grid; flex: 1; min-width: 0; gap: 2px; }
+.install-layout-text small { color: #6a8176; font-size: 10px; }
+.install-layout-text strong { overflow-wrap: anywhere; font-size: 11px; line-height: 1.25; }
+.install-layout-children { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr)); align-items: start; gap: 8px; margin: 6px 2px 2px 11px; padding: 9px 0 0 10px; border-top: 1px solid #e2ece6; border-left: 2px solid #d6e7dc; }
+.install-layout-slots { grid-template-columns: repeat(auto-fit, minmax(min(100%, 130px), 1fr)); }
+.install-layout-slot { display: grid; gap: 4px; min-width: 0; padding: 5px; border: 1px dashed #cddbd3; border-radius: 6px; background: #fafcfb; }
+.install-layout-slot > small { color: #6d8278; font-size: 10px; }
+.install-layout-vacant { padding: 9px 5px; color: #81958a; font-size: 10px; }
 .installation-selection { display: grid; gap: 8px; padding: 10px; border: 1px solid #b8d9ca; border-radius: 7px; background: #f3faf6; }
 .installation-selection-empty { align-content: center; min-height: 155px; border-style: dashed; background: #f8fbf9; }
 .installation-selection-empty strong { color: #28574e; font-size: 12px; }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, Layers3, Maximize2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { Check, ChevronRight, Layers3, Maximize2, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import type { CableSpecification } from '../cable-catalog/model'
 import { kindLabel, type DuctType } from '../duct-catalog/model'
 import { canPlaceItem, hasAvailablePlacement, installationContinuations, installationFit, installationSummary,
@@ -14,6 +14,19 @@ const itemKind = (item: InstalledItem) => item.duct ? kindLabel(item.duct.kind) 
 const itemColor = (item: InstalledItem) => item.duct?.color ?? item.cable?.tubes[0]?.color ?? '#286d61'
 const routeName = (id: string, routes: UndergroundRoute[]) => routes.find(route => route.id === id)?.name ?? 'Jiný úsek'
 
+function nestedItemCount(root: InstalledItem, items: InstalledItem[]): number {
+  const seen = new Set([root.id])
+  const pending = [root.id]
+  while (pending.length) {
+    const parentId = pending.pop()
+    for (const item of items) if (item.parentId === parentId && !seen.has(item.id)) {
+      seen.add(item.id)
+      pending.push(item.id)
+    }
+  }
+  return seen.size - 1
+}
+
 function InstallationOverview({ summary }: { summary: InstallationSummary }) {
   return <div className={`installation-overview ${summary.status}`} aria-live="polite">
     <strong>{summary.status === 'empty' ? 'Zatím bez osazení' : summary.status === 'cables' ? 'V úseku je optický kabel' : 'Osazeno bez kabelu'}</strong>
@@ -22,32 +35,33 @@ function InstallationOverview({ summary }: { summary: InstallationSummary }) {
   </div>
 }
 
-function SectionDiagram({ item, items, selectedId, onSelect, depth = 0 }: {
+function SectionDiagram({ item, items, selectedId, onSelect }: {
   item: InstalledItem; items: InstalledItem[]; selectedId: string | null;
-  onSelect: (item: InstalledItem) => void; depth?: number
+  onSelect: (item: InstalledItem) => void
 }) {
   const children = items.filter(child => child.parentId === item.id)
-  const target = <button type="button" className="install-diagram-target"
-    aria-label={`Vybrat prvek: ${item.label}`}
-    aria-pressed={selectedId === item.id} title={`Vybrat: ${item.label}`}
-    onClick={() => onSelect(item)} />
-  if (item.duct?.kind === 'assembly') return <div className="install-diagram-assembly" style={{
-    gridTemplateColumns: `repeat(${item.duct.columns}, minmax(0, 1fr))`,
-  }}>{target}{item.duct.slots.map((slot, index) => {
-    const child = children.find(other => other.slotIndex === index)
-    return <div key={index} className="install-diagram-slot" title={`${slot.name}: ${child?.label ?? 'volná pozice'}`}>
-      {child ? <SectionDiagram item={child} items={items} selectedId={selectedId} onSelect={onSelect} depth={depth + 1} />
-        : <span className="install-diagram-empty" style={{ borderColor: slot.color }} />}
-      <small>{index + 1}</small>
-    </div>
-  })}</div>
-  if (item.cable) return <span className="install-diagram-cable" style={{ background: itemColor(item) }}>{target}</span>
-  return <span className={`install-diagram-ring ${depth === 0 ? 'root' : ''}`}
+  return <div className={`install-layout-node ${item.cable ? 'cable' : ''}`}
     style={{ '--install-color': itemColor(item) } as CSSProperties}>
-    {target}
-    {children.map(child => <SectionDiagram key={child.id} item={child} items={items}
-      selectedId={selectedId} onSelect={onSelect} depth={depth + 1} />)}
-  </span>
+    <button type="button" className="install-layout-head" aria-label={`Vybrat prvek: ${item.label}`}
+      aria-pressed={selectedId === item.id} onClick={() => onSelect(item)}>
+      <span className="install-layout-mark" aria-hidden="true" />
+      <span className="install-layout-text"><small>{itemKind(item)}</small><strong>{item.label}</strong></span>
+      <ChevronRight size={15} aria-hidden="true" />
+    </button>
+    {item.duct?.kind === 'assembly' ? <div className="install-layout-children install-layout-slots">
+      {item.duct.slots.map((slot, index) => {
+        const child = children.find(other => other.slotIndex === index)
+        return <div key={index} className="install-layout-slot">
+          <small>Pozice {index + 1} · {slot.name}</small>
+          {child ? <SectionDiagram item={child} items={items} selectedId={selectedId} onSelect={onSelect} />
+            : <span className="install-layout-vacant">Volná pozice</span>}
+        </div>
+      })}
+    </div> : children.length > 0 && <div className="install-layout-children">
+      {children.map(child => <SectionDiagram key={child.id} item={child} items={items}
+        selectedId={selectedId} onSelect={onSelect} />)}
+    </div>}
+  </div>
 }
 
 function InstallationTreeItem({ item, items, documents, routes, busy, onRename, onRemove, onAddInside }:
@@ -117,6 +131,12 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const [selectionEditing, setSelectionEditing] = useState(false)
   const [selectionLabel, setSelectionLabel] = useState('')
   const [editorOpen, setEditorOpen] = useState(false)
+  const [quickAddOpen, setQuickAddOpen] = useState(false)
+  const [quickParentId, setQuickParentId] = useState('')
+  const [quickSlotIndex, setQuickSlotIndex] = useState<number | null>(null)
+  const [quickCatalogKey, setQuickCatalogKey] = useState('')
+  const [quickLabel, setQuickLabel] = useState('')
+  const [quickError, setQuickError] = useState('')
   const sectionRef = useRef<HTMLElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -131,11 +151,12 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const parent = storedParent && hasAvailablePlacement(storedParent, document.items) ? storedParent : null
   const slots = parent?.duct?.kind === 'assembly' ? parent.duct.slots : []
   const selectedSlot = parent?.duct?.kind === 'assembly' ? slotIndex : null
-  const candidates: Candidate[] = [
+  const catalogItems: Candidate[] = [
     ...ducts.map(duct => ({ key: `duct:${duct.id}`, label: `${kindLabel(duct.kind)} · ${duct.name}`,
       duct, cable: null })),
     ...cables.map(cable => ({ key: `cable:${cable.id}`, label: `Kabel · ${cable.name}`, duct: null, cable })),
-  ].filter(candidate => canPlaceItem(parent, document.items, candidate, selectedSlot)
+  ]
+  const candidates = catalogItems.filter(candidate => canPlaceItem(parent, document.items, candidate, selectedSlot)
     && installationFit(candidate, parent, selectedSlot,
       document.items.filter(item => item.parentId === parent?.id)) !== 'too-small')
   const continuations = installationContinuations(route, routes, documents)
@@ -152,6 +173,14 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const selectedHasChildren = selectedItem !== null && document.items.some(item => item.parentId === selectedItem.id)
   const selectedHasRoom = selectedItem !== null && hasAvailablePlacement(selectedItem, document.items)
   const summary = installationSummary(document)
+  const storedQuickParent = document.items.find(item => item.id === quickParentId) ?? null
+  const quickParent = storedQuickParent && hasAvailablePlacement(storedQuickParent, document.items) ? storedQuickParent : null
+  const quickSlots = quickParent?.duct?.kind === 'assembly' ? quickParent.duct.slots : []
+  const quickSlot = quickSlots.length ? quickSlotIndex : null
+  const quickCandidates = catalogItems.filter(candidate => canPlaceItem(quickParent, document.items, candidate, quickSlot)
+    && installationFit(candidate, quickParent, quickSlot,
+      document.items.filter(item => item.parentId === quickParent?.id)) !== 'too-small')
+  const quickType = quickCandidates.find(candidate => candidate.key === quickCatalogKey)
   const selectItem = (item: InstalledItem) => {
     setSelectedItemId(item.id)
     setSelectionLabel(item.label)
@@ -192,6 +221,19 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       requestAnimationFrame(() => sectionRef.current?.scrollIntoView({ block: 'start', behavior: 'smooth' }))
     }
   }
+  const submitQuick = async (event: FormEvent) => {
+    event.preventDefault()
+    if (!editable || !quickType) { setQuickError('Vyberte typ z katalogu.'); return }
+    setSavedMessage('')
+    const success = await add({ catalogId: quickType.key.split(':')[1], parentId: quickParent?.id ?? null,
+      slotIndex: quickSlot,
+      label: quickLabel, continueFromItemId: null })
+    if (success) {
+      setSavedMessage(`Uloženo do trasy: ${quickLabel.trim() || quickType.label}.`)
+      setQuickParentId(''); setQuickSlotIndex(null); setQuickCatalogKey('')
+      setQuickLabel(''); setQuickError(''); setQuickAddOpen(false)
+    }
+  }
   const renameItem = async (id: string, nextLabel: string) => {
     setSavedMessage('')
     const success = await rename(id, nextLabel)
@@ -229,14 +271,11 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
           <button type="button" aria-pressed={view === 'diagram'} onClick={() => setView('diagram')}>Schéma</button>
           <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>Seznam prvků</button>
         </div><div className="installation-view installation-diagram-view" hidden={view !== 'diagram'}>
-          <div className="installation-canvas"><div className="installation-canvas-heading"><span>Průřez úseku</span>
+          <div className="installation-canvas"><div className="installation-canvas-heading"><span>Uložení prvků</span>
             <small>{roots.length} {roots.length === 1 ? 'hlavní prvek' : roots.length < 5 ? 'hlavní prvky' : 'hlavních prvků'}</small></div>
-          <div className="installation-cross-sections" aria-label="Schematické průřezy instalace">
-          {roots.map(root => <div className="installation-cross-section" key={root.id}>
-            <div className="installation-visual"><SectionDiagram item={root} items={document.items}
-              selectedId={selectedItemId} onSelect={selectItem} /></div>
-            <strong>{root.label}</strong>
-          </div>)}
+          <div className="installation-layout-roots" aria-label="Schéma uložení prvků">
+          {roots.map(root => <SectionDiagram key={root.id} item={root} items={document.items}
+            selectedId={selectedItemId} onSelect={selectItem} />)}
         </div></div>{selectedItem ? <div className="installation-selection">
           <div className="installation-selection-heading"><div><span>Vybraný prvek · {itemKind(selectedItem)}</span><strong>{selectedItem.label}</strong>
             <small>Typ: {selectedItem.duct?.name ?? selectedItem.cable?.name}</small></div>
@@ -322,21 +361,69 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   return <>
     <section className="installation-panel installation-preview-panel" aria-label="Přehled osazení trasy">
       <div className="installation-heading"><div><span className="section-label">Fyzická infrastruktura</span>
-        <h2>Osazení úseku</h2></div>
+        <h2>Osazení úseku</h2></div><div className="installation-heading-actions">
+        <button type="button" className="installation-quick-add-toggle" disabled={!editable || loading || loadFailed}
+          aria-expanded={quickAddOpen} aria-controls="installation-quick-add"
+          onClick={() => { setQuickAddOpen(value => !value); setQuickError('') }}>
+          <Plus size={14} /> Přidat</button>
         <button type="button" className="icon-button" title="Načíst osazení znovu"
-          aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button></div>
+          aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button></div></div>
       {!loading && !loadFailed && <InstallationOverview summary={summary} />}
       {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
+      {quickAddOpen && !loadFailed && <form id="installation-quick-add" className="installation-quick-add" onSubmit={submitQuick}>
+        <strong>Přidat prvek do trasy</strong>
+        <label htmlFor="installation-quick-parent">Kam vložit</label>
+        <select id="installation-quick-parent" value={quickParent?.id ?? ''} disabled={busy || !editable}
+          onChange={event => {
+            const id = event.target.value
+            const next = document.items.find(item => item.id === id)
+            setQuickParentId(id)
+            setQuickSlotIndex(next?.duct?.kind === 'assembly'
+              ? next.duct.slots.findIndex((_, index) => !document.items.some(item => item.parentId === id && item.slotIndex === index))
+              : null)
+            setQuickCatalogKey(''); setQuickError('')
+          }}>
+          <option value="">Volně do úseku</option>
+          {document.items.filter(item => hasAvailablePlacement(item, document.items)).map(item => <option key={item.id} value={item.id}>
+            Do: {item.label} ({itemKind(item)})</option>)}
+        </select>
+        {quickSlots.length > 0 && <><label htmlFor="installation-quick-slot">Pozice v sestavě</label>
+          <select id="installation-quick-slot" value={quickSlotIndex ?? -1} disabled={busy || !editable}
+            onChange={event => { setQuickSlotIndex(Number(event.target.value)); setQuickCatalogKey('') }}>
+            {quickSlots.map((slot, index) => <option key={index} value={index}
+              disabled={document.items.some(item => item.parentId === quickParent?.id && item.slotIndex === index)}>
+              {index + 1}. {slot.name} · {kindLabel(slot.kind)}
+              {document.items.some(item => item.parentId === quickParent?.id && item.slotIndex === index) ? ' (obsazeno)' : ''}</option>)}
+          </select></>}
+        <label htmlFor="installation-quick-type">Typ z katalogu</label>
+        <select id="installation-quick-type" value={quickType?.key ?? ''} disabled={busy || !editable}
+          onChange={event => { setQuickCatalogKey(event.target.value); setQuickError('') }}>
+          <option value="">Vyberte typ…</option>
+          {quickCandidates.map(candidate => <option key={candidate.key} value={candidate.key}>{candidate.label}</option>)}
+        </select>
+        {quickCandidates.length === 0 && <p>Na tomto místě není dostupný vhodný typ.</p>}
+        <label htmlFor="installation-quick-label">Označení <span>(volitelné)</span></label>
+        <input id="installation-quick-label" value={quickLabel} maxLength={80} disabled={busy || !editable}
+          onChange={event => setQuickLabel(event.target.value)}
+          onKeyDown={event => acceptExampleOnArrowRight(event, setQuickLabel, quickType?.label)}
+          placeholder={quickType?.label ?? 'Např. Chránička CH-01'} />
+        {quickError && <p className="form-error" role="alert">{quickError}</p>}
+        <div className="installation-quick-actions"><button type="button" onClick={() => setQuickAddOpen(false)}>Zrušit</button>
+          <button type="submit" className="primary-button" disabled={!editable || busy || !quickType}>
+            {busy ? 'Ukládání…' : 'Přidat prvek'}</button></div>
+      </form>}
       {loading ? <p className="installation-muted">Načítání osazení…</p>
         : error ? <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>
-          : roots.length === 0 ? <p className="installation-empty">Úsek zatím nemá žádné uložené prvky.</p>
-            : <><div className="installation-cross-sections" aria-label="Náhled osazení">
-              {roots.slice(0, 2).map(root => <div className="installation-cross-section" key={root.id}>
-                <div className="installation-visual"><SectionDiagram item={root} items={document.items}
-                  selectedId={null} onSelect={item => { selectItem(item); setEditorOpen(true) }} /></div>
-                <strong>{root.label}</strong>
-              </div>)}
-            </div>{roots.length > 2 && <p className="installation-muted">A dalších {roots.length - 2} vnějších prvků.</p>}</>}
+          : roots.length === 0 ? <p className="installation-empty">Úsek zatím nemá žádné uložené prvky. Přidejte první chráničku nebo mikrotrubičku.</p>
+            : <><div className="installation-preview-list" aria-label="Hlavní prvky v úseku">
+              {roots.slice(0, 4).map(root => <button type="button" className="installation-preview-item" key={root.id}
+                onClick={() => { selectItem(root); setEditorOpen(true) }}>
+                <span className="installation-preview-mark" style={{ background: itemColor(root) }} aria-hidden="true" />
+                <span><strong>{root.label}</strong><small>{itemKind(root)} · {nestedItemCount(root, document.items)} uvnitř</small></span>
+                <ChevronRight size={16} aria-hidden="true" />
+              </button>)}
+            </div>{roots.length > 4 && <p className="installation-muted">A další {roots.length - 4} hlavní prvky v editoru.</p>}</>}
+      <p className="installation-preview-hint">Editor nabídne přehled celého uložení, navázání pokračování a úpravy prvků.</p>
       <button type="button" className="installation-open-editor" disabled={loading || loadFailed}
         onClick={() => setEditorOpen(true)}><Maximize2 size={16} /> Otevřít editor osazení</button>
     </section>
