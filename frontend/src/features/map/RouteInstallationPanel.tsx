@@ -127,7 +127,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     if (!editorOpen && dialog.open) dialog.close()
     return () => { if (dialog.open) dialog.close() }
   }, [editorOpen])
-  const parent = document.items.find(item => item.id === parentId) ?? null
+  const storedParent = document.items.find(item => item.id === parentId) ?? null
+  const parent = storedParent && hasAvailablePlacement(storedParent, document.items) ? storedParent : null
   const slots = parent?.duct?.kind === 'assembly' ? parent.duct.slots : []
   const selectedSlot = parent?.duct?.kind === 'assembly' ? slotIndex : null
   const candidates: Candidate[] = [
@@ -207,8 +208,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     return success
   }
   const editorContent = <section className="installation-panel installation-editor-panel" aria-label="Osazení trasy" ref={sectionRef}>
-    <div className="installation-heading"><div><span className="section-label">Fyzická infrastruktura</span>
-      <h2>Osazení úseku</h2></div><div className="installation-heading-actions">
+    <div className="installation-heading"><div><span className="section-label">Prvky v úseku</span>
+      <h2>{view === 'diagram' ? 'Schéma uložení' : 'Seznam osazení'}</h2></div><div className="installation-heading-actions">
         <button type="button" className="move-button" aria-expanded={addOpen} aria-controls="installation-add-form"
           onClick={() => {
             setAddOpen(current => !current)
@@ -217,7 +218,6 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
         <button type="button" className="icon-button" title="Načíst osazení znovu"
           aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button>
       </div></div>
-    {!loading && !loadFailed && <InstallationOverview summary={summary} />}
     {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
     <p className="route-help">{view === 'diagram'
       ? 'Kliknutím na prvek ve schématu zobrazíte jeho možnosti.'
@@ -228,13 +228,16 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
         : <><div className="installation-view-switch" role="group" aria-label="Zobrazení osazení">
           <button type="button" aria-pressed={view === 'diagram'} onClick={() => setView('diagram')}>Schéma</button>
           <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>Seznam prvků</button>
-        </div><div className="installation-view installation-diagram-view" hidden={view !== 'diagram'}><div className="installation-cross-sections" aria-label="Schematické průřezy instalace">
+        </div><div className="installation-view installation-diagram-view" hidden={view !== 'diagram'}>
+          <div className="installation-canvas"><div className="installation-canvas-heading"><span>Průřez úseku</span>
+            <small>{roots.length} {roots.length === 1 ? 'hlavní prvek' : roots.length < 5 ? 'hlavní prvky' : 'hlavních prvků'}</small></div>
+          <div className="installation-cross-sections" aria-label="Schematické průřezy instalace">
           {roots.map(root => <div className="installation-cross-section" key={root.id}>
             <div className="installation-visual"><SectionDiagram item={root} items={document.items}
               selectedId={selectedItemId} onSelect={selectItem} /></div>
             <strong>{root.label}</strong>
           </div>)}
-        </div>{selectedItem ? <div className="installation-selection">
+        </div></div>{selectedItem ? <div className="installation-selection">
           <div className="installation-selection-heading"><div><span>Vybraný prvek · {itemKind(selectedItem)}</span><strong>{selectedItem.label}</strong>
             <small>Typ: {selectedItem.duct?.name ?? selectedItem.cable?.name}</small></div>
             <button type="button" className="installation-selection-close" aria-label="Zrušit výběr prvku"
@@ -269,7 +272,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       <form className="installation-add" onSubmit={submit} ref={formRef}>
         <h3><Layers3 size={16} /> Vložit prvek do trasy</h3>
         <label htmlFor="installation-parent">Kam vložit</label>
-        <select id="installation-parent" value={parentId} onChange={event => chooseParent(event.target.value)} disabled={!editable || busy}>
+        <select id="installation-parent" value={parent?.id ?? ''} onChange={event => chooseParent(event.target.value)} disabled={!editable || busy}>
           <option value="">Volně do úseku</option>
           {document.items.filter(item => hasAvailablePlacement(item, document.items)).map(item => <option key={item.id} value={item.id}>
             Do: {item.label} ({itemKind(item)})</option>)}
@@ -340,9 +343,13 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     {createPortal(<dialog ref={dialogRef} className="installation-editor-dialog"
       aria-labelledby="installation-editor-title" onCancel={event => { event.preventDefault(); setEditorOpen(false) }}>
       <div className="installation-editor-shell">
-        <header className="installation-editor-header"><div><span>Podzemní trasa</span>
-          <h2 id="installation-editor-title">Osazení · {route.name}</h2></div>
-          <button type="button" onClick={() => setEditorOpen(false)} aria-label="Zavřít editor osazení"><X size={18} /></button>
+        <header className="installation-editor-header">
+          <div className="installation-editor-header-main"><div className="installation-editor-emblem"><Layers3 size={22} /></div>
+            <div><span>Podzemní trasa · {route.name}</span>
+              <h2 id="installation-editor-title">Editor osazení</h2></div>
+            <button type="button" onClick={() => setEditorOpen(false)} aria-label="Zavřít editor osazení"><X size={18} /></button>
+          </div>
+          {!loading && !loadFailed && <InstallationOverview summary={summary} />}
         </header>
         <div className="installation-editor-scroll">{editorContent}</div>
       </div>
