@@ -163,6 +163,11 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
 }) {
   const { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh, add, rename, move, remove } = installations
   const [savedMessage, setSavedMessage] = useState('')
+  useEffect(() => {
+    if (!savedMessage) return
+    const timer = window.setTimeout(() => setSavedMessage(''), 5000)
+    return () => window.clearTimeout(timer)
+  }, [savedMessage])
   const [view, setView] = useState<'diagram' | 'list'>('diagram')
   const [addOpen, setAddOpen] = useState(false)
   const [parentId, setParentId] = useState('')
