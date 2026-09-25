@@ -128,8 +128,8 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
         ? current.map(route => route.id === saved.id ? saved : route)
         : [...current, saved])
       setDraft(copyRoute(saved))
-    } catch {
-      setError('Trasu se nepodařilo uložit. Zkontrolujte API a koncové body.')
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Trasu se nepodařilo uložit.')
     } finally {
       setSaving(false)
     }
@@ -143,8 +143,8 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
       await deleteUndergroundRoute(draft.id)
       setRoutes(current => current.filter(route => route.id !== draft.id))
       cancel()
-    } catch {
-      setError('Trasu se nepodařilo smazat. Zkontrolujte API.')
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Trasu se nepodařilo smazat.')
     } finally {
       setSaving(false)
     }

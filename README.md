@@ -14,7 +14,9 @@ Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z n�
 
 Panel **Nástroje mapy** seskupuje umisťování objektů a nastavení vrstev. Lze ho sbalit; na úzké obrazovce se otevírá sbalený.
 
-**Podzemní trasa:** nejprve založte alespoň dva body sítě. V panelu zvolte Podzemní trasa, klikněte na výchozí budovu nebo šachtu, případné lomové body a druhý koncový objekt. Tlačítko Zpět odebere poslední krok; Esc kreslení zruší. Tlačítkem Dokončit kreslení přejdete do formuláře, zadáte název a teprve Uložit zapíše trasu. Uloženou čáru lze vybrat na mapě, upravit její lomové body tažením, prodloužit či smazat. Zobrazená délka je přibližná délka mapové čáry, nikoliv délka instalovaného kabelu. Posun koncového bodu mění geometrii navázané trasy; bod s navázanou trasou nelze smazat, dokud se trasa neupraví či nesmaže. Trasy ukládá API do `backend/FiberNetworkStudio.Api/App_Data/underground-routes.json`, odděleně od bodů. Vložení chrániček a kabelů do trasy je další úkol.
+**Podzemní trasa:** nejprve založte alespoň dva body sítě. V panelu zvolte Podzemní trasa, klikněte na výchozí budovu nebo šachtu, případné lomové body a druhý koncový objekt. Tlačítko Zpět odebere poslední krok; Esc kreslení zruší. Tlačítkem Dokončit kreslení přejdete do formuláře, zadáte název a teprve Uložit zapíše trasu. Uloženou čáru lze vybrat na mapě, upravit její lomové body tažením, prodloužit či smazat. Zobrazená délka je přibližná délka mapové čáry, nikoliv délka instalovaného kabelu. Posun koncového bodu mění geometrii navázané trasy; bod s navázanou trasou nelze smazat, dokud se trasa neupraví či nesmaže. Trasy ukládá API do `backend/FiberNetworkStudio.Api/App_Data/underground-routes.json`, odděleně od bodů.
+
+**Osazení trasy:** vyberte uloženou trasu. Ta je jedním úsekem mezi dvěma body sítě. Do úseku vložte jednu nebo více chrániček, mikrotrubiček či sestav z katalogu. V další úrovni vyberte volnou pozici sestavy nebo vnitřek chráničky; kabel lze vložit do mikrotrubičky nebo přímo do prázdné chráničky. Přepínač **Pokračování** naváže tentýž fyzický kus na sousední trasu se společným koncovým bodem. Každý instalovaný kus má vlastní ID, označení a kopii katalogové specifikace z okamžiku vložení; pozdější editace nebo smazání katalogového typu jej nepřepíše. Záznam lze přejmenovat či po vyprázdnění odebrat. API brání dvojímu obsazení pozice a známému rozměrovému rozporu, ale chybějící průměry i společné uložení více trubiček zůstávají **neověřené**; schematický průřez není v měřítku. Trasu s osazením nelze smazat ani změnit její koncové body. Osazení ukládá API do `backend/FiberNetworkStudio.Api/App_Data/route-installations.json`. Propojení jednotlivých vláken a výpočet celé fyzické cesty patří do navazujících úkolů.
 
 V panelu mapy lze přepnout podklad mezi běžnou mapou a **Ortofotem ČR** od ČÚZK. **Katastr** je samostatná vrstva, kterou lze zapnout nad kterýmkoli podkladem. Přepnutí podkladu nemění uložené ani rozpracované objekty. Ortofoto je online služba pro území ČR; při jejím výpadku lze přepnout zpět na mapu. [Zdroj a podmínky služby ČÚZK](https://geoportal.cuzk.gov.cz/Default.aspx?metadataID=CZ-CUZK-WMTS-ORTOFOTO_900913&metadataXSL=metadata.sluzba&mode=TextMeta&side=wmts.uvod).
 
@@ -42,7 +44,7 @@ Hromadná úprava sjednotí počty vláken a přidává nebo odebírá položky 
 položky si ponechají názvy, barvy i značky. Odebrání vyžaduje potvrzení a poslední tubu či
 vlákno nelze odebrat. Po odebrání uprostřed se příslušný profil přepne na vlastní značení,
 aby se zbývající barvy nepřepisovaly podle nového pořadí. Výchozí šablony jsou chráněné.
-Katalog eviduje specifikace; skutečné kabely, trasy a jejich vazby zatím nevytváří.
+Katalog eviduje specifikace; konkrétní kusy v mapových trasách eviduje oddělený modul osazení.
 
 Specifikace může obsahovat nepovinný útlum pro 1310 a 1550 nm v dB/km, podle technického listu.
 API používá pole `attenuation1310DbPerKm` a `attenuation1550DbPerKm`: nezáporná konečná čísla

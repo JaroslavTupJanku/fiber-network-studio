@@ -4,7 +4,7 @@
 .app-brand { display: flex; align-items: center; gap: 10px; color: #1e3d38; font-size: 15px; font-weight: 700; }
 .app-brand svg { color: #26766b; }
 .header-section, .section-label { color: #6d7f79; font-size: 12px; font-weight: 600; }
-.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 320px; min-height: 0; height: calc(100vh - 58px); }
+.workspace { display: grid; grid-template-columns: minmax(0, 1fr) 360px; min-height: 0; height: calc(100vh - 58px); }
 .map-region { position: relative; min-width: 0; overflow: hidden; }
 .map-canvas { position: absolute; inset: 0; }
 .placement-cursor { position: absolute; z-index: 3; width: 44px; height: 54px; transform: translate(-50%, -100%); pointer-events: none; }
@@ -134,6 +134,55 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .route-list li button { display: flex; align-items: center; gap: 9px; width: 100%; padding: 10px 5px; border: 0; background: #fff; color: #36524b; font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
 .route-list li button:hover { background: #f4f8f6; }
 .route-list svg { color: #b8613e; }
+.installation-panel { display: grid; gap: 13px; margin-top: 19px; padding-top: 17px; border-top: 1px solid #d8e2df; }
+.installation-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.installation-heading h2 { margin: 3px 0 0; color: #23483e; font-size: 16px; }
+.installation-muted, .installation-empty { margin: 0; color: #647a70; font-size: 12px; line-height: 1.45; }
+.installation-empty { padding: 13px; border: 1px dashed #bfcfca; border-radius: 7px; background: #f7faf8; }
+.installation-cross-sections { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px; }
+.installation-cross-sections > small { grid-column: 1 / -1; color: #73847e; font-size: 10px; }
+.installation-cross-section { display: grid; justify-items: center; gap: 5px; min-width: 0; padding: 9px 5px; border: 1px solid #d9e6df; border-radius: 7px; background: #f8fbf9; }
+.installation-cross-section strong { overflow: hidden; max-width: 100%; color: #35554a; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.installation-visual { display: grid; place-items: center; min-height: 78px; width: 100%; }
+.install-diagram-ring { display: inline-flex; align-items: center; justify-content: center; gap: 2px; flex-wrap: wrap; width: 34px; height: 34px; padding: 3px; border: 5px solid var(--install-color); border-radius: 50%; background: #fff; }
+.install-diagram-ring.root { width: 69px; height: 69px; border-width: 9px; }
+.install-diagram-ring .install-diagram-ring { width: 26px; height: 26px; padding: 1px; border-width: 4px; }
+.install-diagram-cable { display: inline-block; width: 13px; height: 13px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #71857b; }
+.install-diagram-assembly { display: grid; gap: 3px; width: 100%; max-width: 180px; max-height: 90px; overflow: auto; padding: 5px; border: 2px solid #7d948a; border-radius: 8px; background: #fff; }
+.install-diagram-slot { display: grid; justify-items: center; min-width: 0; }
+.install-diagram-slot .install-diagram-ring { width: 25px; height: 25px; border-width: 4px; }
+.install-diagram-empty { width: 24px; height: 24px; border: 4px solid; border-radius: 50%; opacity: .5; }
+.install-diagram-slot small { color: #73847e; font-size: 9px; }
+.installation-tree, .installation-tree ul { margin: 0; padding: 0; list-style: none; }
+.installation-tree { display: grid; gap: 7px; }
+.install-tree-item { min-width: 0; padding: 8px; border: 1px solid #e0e9e4; border-radius: 6px; background: #fff; }
+.install-tree-item .install-tree-item { margin-top: 7px; background: #f8fbf9; }
+.install-item-head { display: flex; align-items: flex-start; gap: 7px; }
+.install-item-dot { flex: none; width: 11px; height: 11px; margin-top: 4px; border: 1px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #a8bdb2; }
+.install-item-text { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.install-item-text strong { overflow-wrap: anywhere; color: #29473c; font-size: 12px; }
+.install-item-text small { color: #6c8175; font-size: 10px; line-height: 1.3; }
+.install-item-text .install-continuity { color: #26766b; }
+.install-item-text .install-fit { font-size: 10px; }
+.install-item-actions { display: flex; flex: none; gap: 2px; }
+.install-item-actions button, .install-rename button { display: grid; place-items: center; width: 25px; height: 25px; padding: 0; border: 0; border-radius: 4px; background: transparent; color: #526f63; cursor: pointer; }
+.install-item-actions button:hover, .install-rename button:hover { background: #eaf3ee; }
+.install-item-actions button:disabled { opacity: .35; cursor: not-allowed; }
+.install-rename { display: flex; gap: 4px; margin-top: 6px; }
+.install-rename input { flex: 1; min-width: 0; min-height: 28px; padding: 4px 6px; border: 1px solid #bfcfca; border-radius: 4px; font: inherit; font-size: 11px; }
+.installation-add { display: grid; gap: 8px; padding: 12px; border: 1px solid #cadfd3; border-radius: 7px; background: #f5faf7; }
+.installation-add h3 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; color: #28574e; font-size: 13px; }
+.installation-add label { color: #526a61; font-size: 11px; font-weight: 650; }
+.installation-add label span { font-weight: 400; }
+.installation-add input:not([type=radio]), .installation-add select { width: 100%; min-width: 0; min-height: 34px; padding: 5px 7px; border: 1px solid #bfcfca; border-radius: 4px; background: #fff; color: #29473c; font: inherit; font-size: 12px; }
+.installation-add .primary-button:disabled { opacity: .5; cursor: not-allowed; }
+.installation-source-modes { display: flex; gap: 10px; margin: 4px 0; }
+.installation-source-modes label { display: flex; align-items: center; gap: 4px; cursor: pointer; font-weight: 500; }
+.installation-source-modes input { margin: 0; accent-color: #26766b; }
+.install-fit { margin: 0; color: #6d7f79; font-size: 11px; line-height: 1.4; }
+.install-fit.possible { color: #2b7257; }
+.install-fit.too-small { color: #a03e2e; }
+.install-fit.unknown { color: #9a7133; }
 @media (max-width: 720px) {
   .app-header { padding: 0 16px; }
   .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(280px, 1fr) auto; height: calc(100dvh - 58px); }

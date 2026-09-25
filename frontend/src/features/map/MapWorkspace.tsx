@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { CircleDot, Copy, Crosshair, House, MapPin, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
 import { MapCanvas } from './MapCanvas'
+import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { useMapWorkspace } from './useMapWorkspace'
 import type { NetworkPointKind } from './networkPoints'
 import { routeCoordinates, routeLengthMeters } from './undergroundRoutes'
@@ -102,7 +103,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
           <form className="point-form route-form" onSubmit={route.save}>
             <p className="route-help">{route.drawing
               ? 'Klikněte na počáteční bod sítě, případné lomové body a koncový bod. Pak stiskněte Dokončit.'
-              : 'Trasa spojuje dva body sítě. Kabely a chráničky se do ní osadí později.'}</p>
+              : 'Trasa spojuje dva body sítě. Konkrétní chráničky a kabely vložíte níže do jejího úseku.'}</p>
             <div className="route-endpoints">
               <span><strong>Od</strong>{pointName(routeDraft.startPointId)}</span>
               <span><strong>Do</strong>{pointName(routeDraft.endPointId)}</span>
@@ -130,6 +131,10 @@ export function MapWorkspace({ active }: { active: boolean }) {
             </div>
           </form>
         )}
+
+        {routeDraft?.id && route.routes.find(item => item.id === routeDraft.id) &&
+          <RouteInstallationPanel key={routeDraft.id} route={route.routes.find(item => item.id === routeDraft.id)!}
+            routes={route.routes} editable={!route.drawing && route.preview === null} />}
 
         {editor && (
           <form className="point-form" onSubmit={savePoint}>
