@@ -21,15 +21,28 @@
 @media (hover: none), (prefers-reduced-motion: reduce) { .placement-cursor-figure { animation: none; } }
 @media (hover: none) { .placement-cursor { display: none; } }
 .maplibregl-control-container { font-family: inherit; }
-.map-toolbar { position: absolute; top: 12px; left: 12px; z-index: 1; display: grid; gap: 5px; width: 206px; padding: 8px; border: 1px solid #bfcfca; border-radius: 6px; background: #fff; box-shadow: 0 1px 5px rgb(20 45 38 / 14%); }
+.map-toolbar { position: absolute; top: 12px; left: 12px; z-index: 1; width: 236px; max-height: calc(100% - 24px); overflow-y: auto; border: 1px solid #bfcfca; border-radius: 8px; background: #fff; box-shadow: 0 3px 12px rgb(20 45 38 / 15%); }
+.map-toolbar.collapsed { width: 183px; }
+.map-toolbox-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 39px; padding: 9px 11px; border: 0; background: #f7faf8; color: #23483e; font: inherit; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
+.map-toolbox-header:hover { background: #edf5f1; }
+.map-toolbox-header > span { display: flex; align-items: center; gap: 8px; }
+.map-toolbox-header svg:first-child { color: #26766b; }
+.toolbox-chevron { color: #61796f; transition: transform .15s ease; }
+.toolbox-chevron.open { transform: rotate(180deg); }
+.map-toolbox-content { display: grid; gap: 10px; padding: 10px; }
+.map-toolbox-content[hidden] { display: none; }
+.map-toolbox-section { display: grid; gap: 7px; min-width: 0; }
+.map-toolbox-section + .map-toolbox-section { padding-top: 10px; border-top: 1px solid #e5ece9; }
+.map-toolbox-section h2 { margin: 0; color: #415d52; font-size: 11px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase; }
+.map-toolbox-hint { margin: 0; color: #647a70; font-size: 11px; line-height: 1.35; }
 .map-tool-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
-.map-tool, .quick-add button { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 33px; padding: 5px; border: 1px solid #cbd9d3; border-radius: 4px; background: #fff; color: #28574e; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; user-select: none; }
+.map-tool, .quick-add button { display: flex; align-items: center; justify-content: center; gap: 5px; min-height: 38px; padding: 5px; border: 1px solid #cbd9d3; border-radius: 4px; background: #fff; color: #28574e; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; user-select: none; }
 .map-tool:hover, .quick-add button:hover { background: #eef6f2; }
 .map-tool.active { border-color: #26766b; background: #e6f2ee; }
 .map-tool:disabled { opacity: .5; cursor: not-allowed; }
 .placement-state, .layer-toggle, .layer-status { display: flex; align-items: center; gap: 7px; }
 .placement-state { justify-content: space-between; padding: 3px 5px; color: #28574e; font-size: 11px; font-weight: 600; }
-.base-map-options { display: grid; gap: 6px; min-width: 0; margin-top: 3px; padding: 8px 0 3px; border-top: 1px solid #e5ece9; }
+.base-map-options { display: grid; gap: 6px; min-width: 0; }
 .base-map-title { color: #60736c; font-size: 11px; font-weight: 650; }
 .base-map-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
 .base-map-options label { display: flex; align-items: center; justify-content: center; gap: 4px; min-height: 30px; padding: 3px 5px; border: 1px solid #cbd9d3; border-radius: 4px; color: #28574e; cursor: pointer; font-size: 12px; font-weight: 600; }
@@ -99,6 +112,6 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
   .app-header { padding: 0 16px; }
   .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(280px, 1fr) auto; height: calc(100dvh - 58px); }
   .details-panel { min-height: 152px; max-height: 43dvh; padding: 16px; border-left: 0; border-top: 1px solid #d8e2df; }
-  .map-toolbar { top: 10px; left: 10px; }
+  .map-toolbar { top: 10px; left: 10px; max-height: calc(100% - 20px); }
   .point-counts { margin: 12px 0; padding-bottom: 12px; }
 }

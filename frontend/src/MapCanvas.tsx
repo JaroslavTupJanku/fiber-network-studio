@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, CheckCircle2, CircleDot, House, HousePlus, Layers3, LoaderCircle, RefreshCw, X, ZoomIn } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ChevronDown, CircleDot, House, HousePlus, Layers3, LoaderCircle, MousePointer2, RefreshCw, X, ZoomIn, type LucideIcon } from 'lucide-react'
 import { GeoJSONSource, Map, Marker, NavigationControl, setWorkerUrl, type ErrorEvent, type MapMouseEvent, type MapSourceDataEvent } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -13,6 +13,11 @@ const POINT_LAYER_ID = 'network-point-dots'
 const SELECTED_LAYER_ID = 'network-point-selected'
 const PARCEL_SOURCE_ID = 'selected-parcel'
 const PARCEL_FILL_LAYER_ID = 'selected-parcel-fill'
+
+const POINT_TOOLS: { kind: NetworkPointKind; label: string; Icon: LucideIcon; hint: string }[] = [
+  { kind: 'building', label: 'Budova', Icon: HousePlus, hint: 'Přidat budovu nebo ji přetáhnout na mapu' },
+  { kind: 'chamber', label: 'Šachta', Icon: CircleDot, hint: 'Přidat šachtu nebo ji přetáhnout na mapu' },
+]
 
 function pointCollection(points: NetworkPoint[], selectedPointId: string | null, preview: Coordinates | null) {
   return {
@@ -76,6 +81,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   const [baseMap, setBaseMap] = useState<BaseMap>('street')
   const [orthophotoStatus, setOrthophotoStatus] = useState<OrthophotoStatus>('loading')
   const [orthophotoRetryVersion, setOrthophotoRetryVersion] = useState(0)
+  const [toolboxOpen, setToolboxOpen] = useState(() => !window.matchMedia('(max-width: 720px)').matches)
   const [placementPointer, setPlacementPointer] = useState<PlacementPointer | null>(null)
   const [dragPointer, setDragPointer] = useState<PlacementPointer | null>(null)
 
@@ -469,65 +475,77 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
           <span className="placement-cursor-target" />
         </div>
       )}
-      <div className="map-toolbar">
-        <div className="map-tool-actions" role="group" aria-label="Přidat objekt">
-          <button type="button" className={activeTool === 'building' ? 'map-tool active' : 'map-tool'} aria-pressed={activeTool === 'building'} disabled={toolsDisabled} onClick={() => handleToolClick('building')} onPointerDown={(event) => handleToolPointerDown('building', event)} onPointerMove={handleToolPointerMove} onPointerUp={handleToolPointerUp} onPointerCancel={handleToolPointerCancel} title="Přidat budovu nebo přetáhnout na mapu">
-            <HousePlus size={17} aria-hidden="true" /> Budova
-          </button>
-          <button type="button" className={activeTool === 'chamber' ? 'map-tool active' : 'map-tool'} aria-pressed={activeTool === 'chamber'} disabled={toolsDisabled} onClick={() => handleToolClick('chamber')} onPointerDown={(event) => handleToolPointerDown('chamber', event)} onPointerMove={handleToolPointerMove} onPointerUp={handleToolPointerUp} onPointerCancel={handleToolPointerCancel} title="Přidat šachtu nebo přetáhnout na mapu">
-            <CircleDot size={17} aria-hidden="true" /> Šachta
-          </button>
-        </div>
-        {placementActive && (
-          <div className="placement-state">
-            <span>{activeTool === 'building' ? 'Umístit budovu' : activeTool === 'chamber' ? 'Umístit šachtu' : 'Přesunout bod'}</span>
-            <button type="button" className="layer-action" onClick={() => onToolChange(null)} title="Zrušit umístění" aria-label="Zrušit umístění"><X size={15} /></button>
-          </div>
-        )}
-        <div className="base-map-options" role="radiogroup" aria-label="Podklad mapy">
-          <span className="base-map-title">Podklad mapy</span>
-          <div className="base-map-choices">
-            <label><input type="radio" name="base-map" value="street" checked={baseMap === 'street'} onChange={() => setBaseMap('street')} />Mapa</label>
-            <label><input type="radio" name="base-map" value="orthophoto" checked={baseMap === 'orthophoto'} onChange={() => { setOrthophotoStatus('loading'); setBaseMap('orthophoto') }} />Ortofoto</label>
-          </div>
-        </div>
-        {baseMap === 'orthophoto' && (
-          <div className={`layer-status ${orthophotoStatus === 'error' ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
-            {orthophotoStatus === 'error' ? <><AlertCircle size={15} /><span>Ortofoto se nenačetlo</span>
-              <button type="button" className="layer-action" onClick={() => { setOrthophotoStatus('loading'); setOrthophotoRetryVersion(value => value + 1) }} title="Zkusit znovu" aria-label="Načíst ortofoto znovu"><RefreshCw size={15} /></button></>
-              : orthophotoStatus === 'ready' ? <><CheckCircle2 size={15} /><span>Ortofoto ČÚZK</span></>
-                : <><LoaderCircle size={15} className="spin" /><span>Načítání ortofota…</span></>}
-          </div>
-        )}
-        <label className="layer-toggle">
-          <input type="checkbox" checked={cadastreEnabled} onChange={(event) => {
-            setCadastreStatus('loading')
-            setCadastreEnabled(event.target.checked)
-            if (!event.target.checked) onCadastreDisable()
-          }} />
-          <Layers3 size={17} aria-hidden="true" />
-          <span>Katastr</span>
-        </label>
-        {cadastreEnabled && (
-          <div className={`layer-status ${cadastreStatus === 'error' && !needsZoom ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
-            {needsZoom ? (
-              <button type="button" className="layer-zoom-action" onClick={() => mapRef.current?.easeTo({ zoom: CADASTRE_MIN_ZOOM, duration: 400 })}>
-                <ZoomIn size={16} aria-hidden="true" /><span>Přiblížit na parcely</span>
-              </button>
-            ) : cadastreStatus === 'error' ? (
-              <><AlertCircle size={15} aria-hidden="true" /><span>ČÚZK se nenačetl</span>
-                <button type="button" className="layer-action" onClick={() => {
-                  setCadastreStatus('loading')
-                  setRetryVersion((value) => value + 1)
-                }} title="Zkusit načíst znovu" aria-label="Zkusit načíst katastr znovu"><RefreshCw size={15} /></button>
-              </>
-            ) : cadastreStatus === 'ready' ? (
-              <><CheckCircle2 size={15} aria-hidden="true" /><span>Katastr načten</span></>
-            ) : (
-              <><LoaderCircle size={15} className="spin" aria-hidden="true" /><span>Načítání ČÚZK</span></>
+      <div className={`map-toolbar ${toolboxOpen ? '' : 'collapsed'}`} aria-label="Panel nástrojů mapy">
+        <button type="button" className="map-toolbox-header" aria-expanded={toolboxOpen} aria-controls="map-toolbox-content" onClick={() => setToolboxOpen(value => !value)}>
+          <span><MousePointer2 size={17} aria-hidden="true" /> Nástroje mapy</span>
+          <ChevronDown size={17} className={toolboxOpen ? 'toolbox-chevron open' : 'toolbox-chevron'} aria-hidden="true" />
+        </button>
+        <div className="map-toolbox-content" id="map-toolbox-content" hidden={!toolboxOpen}>
+          <section className="map-toolbox-section" aria-label="Bodové objekty">
+            <h2>Bodové objekty</h2>
+            <div className="map-tool-actions" role="group" aria-label="Přidat bodový objekt">
+              {POINT_TOOLS.map(({ kind, label, Icon, hint }) => (
+                <button key={kind} type="button" className={activeTool === kind ? 'map-tool active' : 'map-tool'} aria-pressed={activeTool === kind} disabled={toolsDisabled} onClick={() => handleToolClick(kind)} onPointerDown={(event) => handleToolPointerDown(kind, event)} onPointerMove={handleToolPointerMove} onPointerUp={handleToolPointerUp} onPointerCancel={handleToolPointerCancel} title={hint}>
+                  <Icon size={18} aria-hidden="true" /> {label}
+                </button>
+              ))}
+            </div>
+            <p className="map-toolbox-hint">Vyberte nástroj a klikněte do mapy, nebo ho přetáhněte.</p>
+            {placementActive && (
+              <div className="placement-state">
+                <span>{activeTool ? `Umístit: ${POINT_TOOLS.find(tool => tool.kind === activeTool)?.label ?? ''}` : 'Přesunout bod'}</span>
+                <button type="button" className="layer-action" onClick={() => onToolChange(null)} title="Zrušit umístění" aria-label="Zrušit umístění"><X size={15} /></button>
+              </div>
             )}
-          </div>
-        )}
+          </section>
+          <section className="map-toolbox-section" aria-label="Podklady a vrstvy">
+            <h2>Podklady a vrstvy</h2>
+            <div className="base-map-options" role="radiogroup" aria-label="Podklad mapy">
+              <span className="base-map-title">Podklad mapy</span>
+              <div className="base-map-choices">
+                <label><input type="radio" name="base-map" value="street" checked={baseMap === 'street'} onChange={() => setBaseMap('street')} />Mapa</label>
+                <label><input type="radio" name="base-map" value="orthophoto" checked={baseMap === 'orthophoto'} onChange={() => { setOrthophotoStatus('loading'); setBaseMap('orthophoto') }} />Ortofoto</label>
+              </div>
+            </div>
+            {baseMap === 'orthophoto' && (
+              <div className={`layer-status ${orthophotoStatus === 'error' ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
+                {orthophotoStatus === 'error' ? <><AlertCircle size={15} /><span>Ortofoto se nenačetlo</span>
+                  <button type="button" className="layer-action" onClick={() => { setOrthophotoStatus('loading'); setOrthophotoRetryVersion(value => value + 1) }} title="Zkusit znovu" aria-label="Načíst ortofoto znovu"><RefreshCw size={15} /></button></>
+                  : orthophotoStatus === 'ready' ? <><CheckCircle2 size={15} /><span>Ortofoto ČÚZK</span></>
+                    : <><LoaderCircle size={15} className="spin" /><span>Načítání ortofota…</span></>}
+              </div>
+            )}
+            <label className="layer-toggle">
+              <input type="checkbox" checked={cadastreEnabled} onChange={(event) => {
+                setCadastreStatus('loading')
+                setCadastreEnabled(event.target.checked)
+                if (!event.target.checked) onCadastreDisable()
+              }} />
+              <Layers3 size={17} aria-hidden="true" />
+              <span>Katastr</span>
+            </label>
+            {cadastreEnabled && (
+              <div className={`layer-status ${cadastreStatus === 'error' && !needsZoom ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
+                {needsZoom ? (
+                  <button type="button" className="layer-zoom-action" onClick={() => mapRef.current?.easeTo({ zoom: CADASTRE_MIN_ZOOM, duration: 400 })}>
+                    <ZoomIn size={16} aria-hidden="true" /><span>Přiblížit na parcely</span>
+                  </button>
+                ) : cadastreStatus === 'error' ? (
+                  <><AlertCircle size={15} aria-hidden="true" /><span>ČÚZK se nenačetl</span>
+                    <button type="button" className="layer-action" onClick={() => {
+                      setCadastreStatus('loading')
+                      setRetryVersion((value) => value + 1)
+                    }} title="Zkusit načíst znovu" aria-label="Zkusit načíst katastr znovu"><RefreshCw size={15} /></button>
+                  </>
+                ) : cadastreStatus === 'ready' ? (
+                  <><CheckCircle2 size={15} aria-hidden="true" /><span>Katastr načten</span></>
+                ) : (
+                  <><LoaderCircle size={15} className="spin" aria-hidden="true" /><span>Načítání ČÚZK</span></>
+                )}
+              </div>
+            )}
+          </section>
+        </div>
       </div>
     </>
   )
