@@ -13,6 +13,20 @@ const SELECTED_LAYER_ID = 'network-point-selected'
 const PARCEL_SOURCE_ID = 'selected-parcel'
 const PARCEL_FILL_LAYER_ID = 'selected-parcel-fill'
 
+function pointCollection(points: NetworkPoint[], selectedPointId: string | null, preview: Coordinates | null) {
+  return {
+    type: 'FeatureCollection' as const,
+    features: points.map((point) => {
+      const location = point.id === selectedPointId && preview ? preview : point
+      return {
+        type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [location.longitude, location.latitude] },
+        properties: { id: point.id, kind: point.kind, name: point.name },
+      }
+    }),
+  }
+}
+
 type MapCanvasProps = {
   points: NetworkPoint[]
   selectedPointId: string | null
@@ -25,20 +39,24 @@ type MapCanvasProps = {
   onToolDrop: (kind: NetworkPointKind, location: Coordinates) => void
   onLocationClick: (location: Coordinates, lookupParcel: boolean) => void
   onPointSelect: (id: string) => void
+  onPointMove: (id: string, location: Coordinates) => void
   onCadastreDisable: () => void
 }
 
 type CadastreStatus = 'loading' | 'ready' | 'error'
 type PlacementPointer = { kind: NetworkPointKind, x: number, y: number }
 type ToolDrag = { kind: NetworkPointKind, pointerId: number, startX: number, startY: number, dragging: boolean }
+type PointDrag = { id: string, startX: number, startY: number, original: Coordinates, location: Coordinates, moved: boolean }
 
 setWorkerUrl(workerUrl)
 
-export function MapCanvas({ points, selectedPointId, selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop, onLocationClick, onPointSelect, onCadastreDisable }: MapCanvasProps) {
+export function MapCanvas({ points, selectedPointId, selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop, onLocationClick, onPointSelect, onPointMove, onCadastreDisable }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const readyMapRef = useRef<Map | null>(null)
-  const interactionRef = useRef({ placementActive, activeTool, onLocationClick, onPointSelect })
+  const interactionRef = useRef({ placementActive, activeTool, onLocationClick, onPointSelect, onPointMove })
+  const pointData = useRef(pointCollection([], null, null))
+  const skipSelectionEase = useRef<string | null>(null)
   const toolDrag = useRef<ToolDrag | null>(null)
   const suppressToolClick = useRef(false)
   const cadastreActive = useRef(false)
@@ -54,8 +72,8 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   const [dragPointer, setDragPointer] = useState<PlacementPointer | null>(null)
 
   useEffect(() => {
-    interactionRef.current = { placementActive, activeTool, onLocationClick, onPointSelect }
-  }, [placementActive, activeTool, onLocationClick, onPointSelect])
+    interactionRef.current = { placementActive, activeTool, onLocationClick, onPointSelect, onPointMove }
+  }, [placementActive, activeTool, onLocationClick, onPointSelect, onPointMove])
 
   useEffect(() => {
     if (!container.current) return
@@ -76,11 +94,15 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     map.addControl(new NavigationControl({ showCompass: false }), 'top-right')
     const canvas = map.getCanvas()
     let overPoint = false
+    let overParcel = false
     let dragging = false
+    let pointDrag: PointDrag | null = null
+    let suppressMapClick = false
     const updateCursor = () => {
-      if (dragging) canvas.style.cursor = 'grabbing'
+      if (dragging || pointDrag?.moved) canvas.style.cursor = 'grabbing'
       else if (interactionRef.current.placementActive) canvas.style.cursor = 'crosshair'
-      else if (overPoint) canvas.style.cursor = 'pointer'
+      else if (overPoint) canvas.style.cursor = 'move'
+      else if (overParcel) canvas.style.cursor = 'pointer'
       else canvas.style.cursor = 'grab'
     }
     refreshCursor.current = updateCursor
@@ -91,6 +113,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
       loadTimeout.current = null
     }
     const handleClick = (event: MapMouseEvent) => {
+      if (suppressMapClick) { suppressMapClick = false; return }
       const { placementActive, onLocationClick, onPointSelect } = interactionRef.current
       if (!placementActive && map.getLayer(POINT_LAYER_ID)) {
         const feature = map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] })[0]
@@ -108,16 +131,64 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
       const { activeTool, placementActive } = interactionRef.current
       if (activeTool && !dragging) setPlacementPointer({ kind: activeTool, x: event.point.x, y: event.point.y })
       else setPlacementPointer(null)
-      overPoint = !placementActive
-        && Boolean(map.getLayer(POINT_LAYER_ID))
-        && Boolean(map.getLayer(PARCEL_FILL_LAYER_ID))
-        && map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID, PARCEL_FILL_LAYER_ID] }).length > 0
+      overPoint = !placementActive && Boolean(map.getLayer(POINT_LAYER_ID))
+        && map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] }).length > 0
+      overParcel = !placementActive && !overPoint && Boolean(map.getLayer(PARCEL_FILL_LAYER_ID))
+        && map.queryRenderedFeatures(event.point, { layers: [PARCEL_FILL_LAYER_ID] }).length > 0
       updateCursor()
     }
     const handleMouseLeave = () => {
       overPoint = false
+      overParcel = false
       setPlacementPointer(null)
       updateCursor()
+    }
+    const setPointPosition = (id: string, location: Coordinates) => {
+      pointData.current = {
+        ...pointData.current,
+        features: pointData.current.features.map((feature) => feature.properties.id === id
+          ? { ...feature, geometry: { ...feature.geometry, coordinates: [location.longitude, location.latitude] } }
+          : feature),
+      }
+      map.getSource<GeoJSONSource>(POINT_SOURCE_ID)?.setData(pointData.current)
+    }
+    const handlePointMouseMove = (event: MouseEvent) => {
+      if (!pointDrag) return
+      if (!pointDrag.moved && Math.hypot(event.clientX - pointDrag.startX, event.clientY - pointDrag.startY) < 4) return
+      const rect = canvas.getBoundingClientRect()
+      const location = map.unproject([event.clientX - rect.left, event.clientY - rect.top])
+      pointDrag.moved = true
+      pointDrag.location = { latitude: location.lat, longitude: location.lng }
+      setPointPosition(pointDrag.id, pointDrag.location)
+      updateCursor()
+    }
+    const handlePointMouseUp = (event: MouseEvent) => {
+      if (!pointDrag) return
+      const { id, original, location, moved } = pointDrag
+      pointDrag = null
+      window.removeEventListener('mousemove', handlePointMouseMove)
+      window.removeEventListener('mouseup', handlePointMouseUp)
+      suppressMapClick = true
+      window.setTimeout(() => { suppressMapClick = false }, 0)
+      if (!moved) interactionRef.current.onPointSelect(id)
+      else if (map.getCanvasContainer().contains(document.elementFromPoint(event.clientX, event.clientY))) {
+        skipSelectionEase.current = id
+        interactionRef.current.onPointMove(id, location)
+      } else setPointPosition(id, original)
+      updateCursor()
+    }
+    const handlePointMouseDown = (event: MapMouseEvent) => {
+      if (interactionRef.current.placementActive) return
+      const feature = map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] })[0]
+      const id = feature?.properties?.id
+      const renderedPoint = pointData.current.features.find((item) => item.properties.id === id)
+      if (!id || !renderedPoint) return
+      event.preventDefault()
+      const [longitude, latitude] = renderedPoint.geometry.coordinates
+      const original = { latitude, longitude }
+      pointDrag = { id: String(id), startX: event.originalEvent.clientX, startY: event.originalEvent.clientY, original, location: original, moved: false }
+      window.addEventListener('mousemove', handlePointMouseMove)
+      window.addEventListener('mouseup', handlePointMouseUp)
     }
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.altKey || event.ctrlKey || event.metaKey) return
@@ -218,6 +289,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     })
     map.on('zoomend', () => setZoom(map.getZoom()))
     map.on('click', handleClick)
+    map.on('mousedown', POINT_LAYER_ID, handlePointMouseDown)
     map.on('mousemove', handleMouseMove)
     canvas.addEventListener('mouseleave', handleMouseLeave)
     map.on('dragstart', () => { dragging = true; setPlacementPointer(null); updateCursor() })
@@ -229,6 +301,8 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
 
     return () => {
       clearLoadTimeout()
+      window.removeEventListener('mousemove', handlePointMouseMove)
+      window.removeEventListener('mouseup', handlePointMouseUp)
       canvas.removeEventListener('keydown', handleKeyDown)
       canvas.removeEventListener('mouseleave', handleMouseLeave)
       refreshCursor.current = null
@@ -241,15 +315,9 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   useEffect(() => {
     const map = mapRef.current
     if (!map || readyMapRef.current !== map) return
-    map.getSource<GeoJSONSource>(POINT_SOURCE_ID)?.setData({
-      type: 'FeatureCollection',
-      features: points.map((point) => ({
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [point.longitude, point.latitude] },
-        properties: { id: point.id, kind: point.kind, name: point.name },
-      })),
-    })
-  }, [points, mapGeneration])
+    pointData.current = pointCollection(points, selectedPointId, preview)
+    map.getSource<GeoJSONSource>(POINT_SOURCE_ID)?.setData(pointData.current)
+  }, [points, selectedPointId, preview, mapGeneration])
 
   useEffect(() => {
     const map = mapRef.current
@@ -275,6 +343,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     const point = points.find((item) => item.id === selectedPointId)
     const map = mapRef.current
     if (point && map && readyMapRef.current === map) {
+      if (skipSelectionEase.current === selectedPointId) { skipSelectionEase.current = null; return }
       map.easeTo({ center: [point.longitude, point.latitude], zoom: Math.max(map.getZoom(), 15), duration: 350 })
     }
   }, [selectedPointId, points, mapGeneration])
@@ -284,12 +353,12 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   }, [placementActive, mapGeneration])
 
   useEffect(() => {
-    if (!preview || !mapRef.current) return
+    if (!preview || selectedPointId || !mapRef.current) return
     const marker = new Marker({ color: preview.kind === 'chamber' ? '#b8613e' : '#24796d' })
       .setLngLat([preview.longitude, preview.latitude])
       .addTo(mapRef.current)
     return () => { marker.remove() }
-  }, [preview, mapGeneration])
+  }, [preview, selectedPointId, mapGeneration])
 
   const canShowCadastre = zoom >= CADASTRE_MIN_ZOOM
 
@@ -388,9 +457,9 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
         {cadastreEnabled && (
           <div className={`layer-status ${cadastreStatus === 'error' && !needsZoom ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
             {needsZoom ? (
-              <><ZoomIn size={15} aria-hidden="true" /><span>Přibližte mapu</span>
-                <button type="button" className="layer-action" onClick={() => mapRef.current?.easeTo({ zoom: CADASTRE_MIN_ZOOM, duration: 400 })} title="Přiblížit na parcely" aria-label="Přiblížit na parcely"><ZoomIn size={16} /></button>
-              </>
+              <button type="button" className="layer-zoom-action" onClick={() => mapRef.current?.easeTo({ zoom: CADASTRE_MIN_ZOOM, duration: 400 })}>
+                <ZoomIn size={16} aria-hidden="true" /><span>Přiblížit na parcely</span>
+              </button>
             ) : cadastreStatus === 'error' ? (
               <><AlertCircle size={15} aria-hidden="true" /><span>ČÚZK se nenačetl</span>
                 <button type="button" className="layer-action" onClick={() => {

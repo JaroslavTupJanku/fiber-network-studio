@@ -35,6 +35,8 @@ Po nasazení uživatel otevře jen webovou adresu. Dva vývojové procesy spouš
 
 **Parcela** je evidovaný pozemek, ne naše budova. **Polygon** je tvar její hranice. Po kliknutí backend požádá online službu RÚIAN o data jedné parcely ve formátu **GeoJSON**; číslo a obrys zobrazíme, ale neukládáme.
 
+**Rozpracovaná poloha** je změna bodu viditelná ve frontendu. Při tažení se překreslí bod v mapové vrstvě GeoJSON, ale backend dostane nové souřadnice až po kliknutí na **Uložit**.
+
 **Optické ztráty** jsou úbytek signálu na kabelu, spojích a rozbočovačích. V aplikaci se
 počítají pro jednu zadanou cestu. **dB** je jednotka ztráty; **dBm** vyjadřuje výkon signálu
 na výstupu nebo vstupu zařízení. Stejné číslo v dB a dBm proto neznamená totéž.
