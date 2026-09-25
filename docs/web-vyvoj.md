@@ -23,7 +23,7 @@ Po nasazení uživatel otevře jen webovou adresu. Dva vývojové procesy spouš
 
 **Uložení dat** má dvě místa. Katalogy a mapové objekty ukládá backend do JSON souborů, takže zůstanou i po restartu serveru a vidí je uživatelé stejné instance. Rozpracovanou kalkulaci a katalog profilů zařízení drží **localStorage** konkrétního prohlížeče. Pro společný provoz později použijeme databázi PostgreSQL; PostGIS přidává práci s polohou a tvary na mapě.
 
-**Komponenta** je část obrazovky, třeba seznam kabelů. **Stav** jsou hodnoty, které se při používání mění, třeba rozepsaný formulář. V Reactu nepoužíváme formální MVVM: komponenty zobrazují rozhraní, vlastní **hook** spravuje stav a akce, model obsahuje pravidla a modul API komunikuje se serverem. Backend dělíme na endpointy, pravidla a ukládání dat.
+**Komponenta** je část obrazovky, třeba seznam kabelů. **Stav** jsou hodnoty, které se při používání mění, třeba rozepsaný formulář. V Reactu nepoužíváme formální MVVM: komponenty zobrazují rozhraní, vlastní **hook** spravuje stav a akce, model obsahuje pravidla a modul API komunikuje se serverem. Mapa je stejným způsobem oddělená od hlavní navigace. Backend dělíme na endpointy, pravidla a ukládání dat. Při každém PR automaticky běží lint, sestavení a testy.
 
 **Vite** spouští frontend při vývoji a připraví jeho soubory pro nasazení. **Nasazení** znamená umístit sestavenou aplikaci na server, aby ji lidé otevřeli přes webovou adresu.
 

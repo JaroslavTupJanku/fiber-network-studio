@@ -3,6 +3,7 @@ import { Download, Plus, Save, Trash2, Upload } from 'lucide-react'
 import { type Technology, type Wavelength } from './model'
 import { emptyCatalog, emptyEndpointSelection, equipmentStorageKey, evaluateEquipment, mergeEquipmentCatalog, newProfile, parseEquipmentCatalog, profileErrors, profileWavelengths, type EquipmentCatalog, type EquipmentKind, type EquipmentProfile, type EndpointSelection } from './equipment'
 import type { Scenario } from './model'
+import { saveEquipmentCatalog } from './equipmentStorage'
 
 const kindLabels: Record<EquipmentKind, string> = { olt: 'Port/karta OLT', onu: 'ONT/ONU', module: 'Optický modul' }
 const waves = ['1270', '1310', '1490', '1550', '1577'] as const
@@ -22,9 +23,10 @@ export function EquipmentProfiles({ scenario, onChange }: { scenario: Scenario; 
   const catalogInput = useRef<HTMLInputElement>(null)
   const selection = scenario.equipment ?? emptyEndpointSelection()
   const persist = (next: EquipmentCatalog) => {
-    if (!initial.enabled) return
-    try { localStorage.setItem(equipmentStorageKey, JSON.stringify(next)); setStorageError('') }
-    catch { setStorageError('Katalog zařízení se nepodařilo uložit v tomto prohlížeči.') }
+    if (!initial.enabled) return false
+    const saved = saveEquipmentCatalog(localStorage, next)
+    setStorageError(saved ? '' : 'Katalog zařízení se nepodařilo uložit v tomto prohlížeči.')
+    return saved
   }
   const choose = (key: keyof EndpointSelection, value: string) => onChange({ ...scenario, equipment: { ...selection, [key]: value } })
   const save = () => {
@@ -33,13 +35,15 @@ export function EquipmentProfiles({ scenario, onChange }: { scenario: Scenario; 
     if (errors.length) { setFormError(errors.join(' ')); return }
     const next = { ...catalog, profiles: catalog.profiles.some(p => p.id === draft.id)
       ? catalog.profiles.map(p => p.id === draft.id ? draft : p) : [...catalog.profiles, draft] }
-    persist(next); setCatalog(next)
+    if (!persist(next)) return
+    setCatalog(next)
     setDraft(null); setFormError('')
   }
   const remove = (id: string) => {
     if (!window.confirm('Opravdu odstranit tento profil z katalogu?')) return
     const next = { ...catalog, profiles: catalog.profiles.filter(p => p.id !== id) }
-    persist(next); setCatalog(next)
+    if (!persist(next)) return
+    setCatalog(next)
     onChange({ ...scenario, equipment: Object.fromEntries(Object.entries(selection).map(([key, value]) => [key, value === id ? '' : value])) as EndpointSelection })
   }
   const downloadCatalog = () => {
@@ -54,7 +58,8 @@ export function EquipmentProfiles({ scenario, onChange }: { scenario: Scenario; 
       const preview = mergeEquipmentCatalog(catalog, imported)
       if (preview.conflicts.length && !window.confirm('Soubor obsahuje ' + preview.conflicts.length + ' profilů se stejným ID jako místní katalog. Nahradit tyto místní profily importovanými? Ostatní profily zůstanou zachovány.')) return
       const next = preview.conflicts.length ? mergeEquipmentCatalog(catalog, imported, true).catalog : preview.catalog
-      persist(next); setCatalog(next); setImportError('')
+      if (!persist(next)) return
+      setCatalog(next); setImportError('')
     } catch (error) { setImportError(error instanceof Error ? error.message : 'Katalog se nepodařilo načíst.') }
   }
   const checked = evaluateEquipment(scenario, catalog, selection)

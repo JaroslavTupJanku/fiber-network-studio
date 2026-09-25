@@ -20,6 +20,9 @@
 @keyframes placement-wobble { from { transform: rotate(-6deg) translateY(0); } to { transform: rotate(6deg) translateY(-3px); } }
 @media (hover: none), (prefers-reduced-motion: reduce) { .placement-cursor-figure { animation: none; } }
 @media (hover: none) { .placement-cursor { display: none; } }
+.placement-guide { position: absolute; z-index: 2; right: 16px; bottom: 16px; display: flex; align-items: center; gap: 12px; max-width: calc(100% - 32px); padding: 8px 10px; border: 1px solid #a5c9bc; border-radius: 7px; background: #fff; color: #28574e; box-shadow: 0 3px 12px rgb(20 45 38 / 18%); font-size: 12px; font-weight: 650; }
+.placement-guide button { flex: none; padding: 5px 8px; border: 1px solid #bfcfca; border-radius: 4px; background: #f7faf8; color: #28574e; font: inherit; cursor: pointer; }
+.placement-guide button:hover { background: #e6f2ee; }
 .maplibregl-control-container { font-family: inherit; }
 .map-toolbar { position: absolute; top: 12px; left: 12px; z-index: 1; width: 236px; max-height: calc(100% - 24px); overflow-y: auto; border: 1px solid #bfcfca; border-radius: 8px; background: #fff; box-shadow: 0 3px 12px rgb(20 45 38 / 15%); }
 .map-toolbar.collapsed { width: 183px; }
@@ -40,6 +43,7 @@
 .map-tool:hover, .quick-add button:hover { background: #eef6f2; }
 .map-tool.active { border-color: #26766b; background: #e6f2ee; }
 .map-tool:disabled { opacity: .5; cursor: not-allowed; }
+.map-tool.dragging { cursor: copy; }
 .placement-state, .layer-toggle, .layer-status { display: flex; align-items: center; gap: 7px; }
 .placement-state { justify-content: space-between; padding: 3px 5px; color: #28574e; font-size: 11px; font-weight: 600; }
 .base-map-options { display: grid; gap: 6px; min-width: 0; }
