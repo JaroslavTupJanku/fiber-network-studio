@@ -31,9 +31,13 @@ Po nasazení uživatel otevře jen webovou adresu. Dva vývojové procesy spouš
 
 ## Pojmy mapy a optické sítě
 
-**Mapová vrstva** je samostatný obsah nad základní mapou. **WMS** je služba, která podle polohy a měřítka vrací obrázky mapy; zde přes ni zobrazujeme katastr ČÚZK. Není to knihovna ani kopie celého katastru uložená v aplikaci.
+**Mapový podklad** je obraz země pod našimi objekty. Uživatel přepíná mezi běžnou mapou a ortofotem ČÚZK. **Mapová vrstva** je samostatný obsah nad podkladem: například katastr nebo naše body. Přepnutí podkladu pouze mění, co MapLibre kreslí; neukládá ani nemaže síťové objekty. **WMS** je služba, která podle polohy a měřítka vrací obrázky mapy; zde přes ni zobrazujeme katastr ČÚZK.
 
-**Parcela** je evidovaný pozemek, ne naše budova. **Polygon** je tvar její hranice. Po kliknutí backend požádá online službu RÚIAN o data jedné parcely ve formátu **GeoJSON**; číslo a obrys zobrazíme, ale neukládáme.
+**Parcela** je evidovaný pozemek, ne naše budova. **Polygon** je tvar její hranice. Po kliknutí backend požádá online službu RÚIAN o data jedné parcely ve formátu **GeoJSON**; číslo a obrys zobrazíme, ale neukládáme. **WMTS** dodává hotové mapové dlaždice; ortofoto ČÚZK načítáme jako dlaždice kompatibilní s tímto principem. **WFS** umí dotazy na mapové objekty, ale zatím ho nepoužíváme.
+
+**Gesto** je způsob ovládání myší nebo dotykem. MapLibre zde zajišťuje posun tažením a přiblížení kolečkem; aplikace nastavuje vzhled kurzoru.
+
+**Drag and drop** znamená přetáhnout prvek a pustit ho na cílovém místě. U nás mapa převede místo puštění na souřadnice; objekt se uloží až po potvrzení formuláře.
 
 **Rozpracovaná poloha** je změna bodu viditelná ve frontendu. Při tažení se překreslí bod v mapové vrstvě GeoJSON, ale backend dostane nové souřadnice až po kliknutí na **Uložit**.
 

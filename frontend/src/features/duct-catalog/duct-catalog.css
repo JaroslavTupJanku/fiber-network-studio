@@ -4,11 +4,15 @@
 .dc-filters { display: flex; gap: 3px; overflow-x: auto; background: #f2f5f3; border-radius: 6px; padding: 3px; margin: 13px 0 15px; }
 .dc-filters button { flex: 1; white-space: nowrap; background: transparent; border: 0; border-radius: 4px; color: #6d8077; padding: 7px 5px; font-size: 10px; font-weight: 600; cursor: pointer; }
 .dc-filters button[aria-pressed=true] { background: #fff; color: #235e4f; box-shadow: 0 1px 3px #233e3614; }
-.dc-diagram { display: grid; justify-items: center; gap: 14px; padding: 25px 18px 12px; margin: 22px 0; border: 1px solid #dce6df; border-radius: 10px; background: radial-gradient(circle at 50% 25%, #f5fbf7, #eef5f1); overflow-x: auto; }
-.dc-diagram > p { margin: 0; color: #789083; font-size: 10px; text-align: center; }
+.dc-diagram { display: grid; justify-items: center; gap: 13px; padding: 24px 18px 18px; margin: 22px 0; border: 1px solid #dce6df; border-radius: 10px; background: radial-gradient(circle at 50% 25%, #f5fbf7, #eef5f1); overflow-x: auto; }
+.dc-diagram-visual { display: grid; place-items: center; min-height: 180px; width: 100%; }
+.dc-diagram-explanation { display: grid; gap: 5px; max-width: 440px; text-align: center; color: #435e51; font-size: 12px; line-height: 1.45; }
+.dc-diagram-explanation strong { font-size: 13px; color: #244e3e; }
+.dc-diagram-explanation small { color: #789083; font-size: 10px; }
 .dc-ring { display: grid; place-items: center; width: 42px; aspect-ratio: 1; border-radius: 50%; background: var(--ring); box-shadow: 0 2px 8px #223c3440, inset 0 0 0 1px #ffffff80; }
 .dc-ring::after { content: ''; display: block; width: var(--inner); aspect-ratio: 1; border-radius: 50%; background: #f8fbfa; box-shadow: inset 0 1px 4px #213f3660; }
-.dc-ring-large { width: 170px; margin: 12px 0; }
+.dc-ring-large { width: 170px; }
+.dc-diagram-microduct .dc-ring-large { width: 122px; }
 .dc-diagram-grid { display: grid; gap: 12px; max-width: min(100%, 620px); justify-items: center; padding: 20px; border: 2px dashed #9ab8aa; border-radius: 16px; background: #fff; }
 .dc-slot { display: grid; justify-items: center; gap: 4px; min-width: 43px; }
 .dc-slot small { color: #668276; font-size: 10px; }
@@ -41,4 +45,4 @@
 .dc-slot-edit > strong { align-self: center; font-size: 11px; color: #729083; }.dc-slot-edit label { min-width: 0; }
 .dc-error { color: #a04736 !important; }
 @media (max-width: 1050px) { .dc-slot-edit { grid-template-columns: repeat(2, minmax(0, 1fr)); }.dc-slot-edit > strong { grid-column: 1 / -1; } }
-@media (max-width: 760px) { .dc-create-actions { width: 100%; }.dc-create-actions button { flex: 1; }.dc-diagram-grid { gap: 7px; padding: 12px; }.dc-slot { min-width: 30px; }.dc-ring { width: 29px; }.dc-ring-large { width: 140px; }.dc-slot-edit { grid-template-columns: repeat(2, minmax(0, 1fr)); }.dc-filters button { font-size: 9px; } }
+@media (max-width: 760px) { .dc-create-actions { width: 100%; }.dc-create-actions button { flex: 1; }.dc-diagram-grid { gap: 7px; padding: 12px; }.dc-slot { min-width: 30px; }.dc-ring { width: 29px; }.dc-ring-large { width: 140px; }.dc-diagram-microduct .dc-ring-large { width: 100px; }.dc-slot-edit { grid-template-columns: repeat(2, minmax(0, 1fr)); }.dc-filters button { font-size: 9px; } }

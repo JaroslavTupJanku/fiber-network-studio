@@ -10,7 +10,9 @@ Přepínač **Katastr** připojuje online WMS ČÚZK od přiblížení 17. Klikn
 
 Mapu lze táhnout myší a přiblížit kolečkem bez další klávesy. Fungují také šipky, WASD a tlačítka přiblížení. Vybraná parcela je zvýrazněná modře.
 
-Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z nástrojů přímo na místo. Existující bod lze na mapě uchopit a přesunout; nová poloha se uloží až tlačítkem **Uložit**. Základní mapa zůstává zapnutá; přepíná se pouze Katastr.
+Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z nástrojů přímo na místo. Existující bod lze na mapě uchopit a přesunout; nová poloha se uloží až tlačítkem **Uložit**.
+
+V panelu mapy lze přepnout podklad mezi běžnou mapou a **Ortofotem ČR** od ČÚZK. **Katastr** je samostatná vrstva, kterou lze zapnout nad kterýmkoli podkladem. Přepnutí podkladu nemění uložené ani rozpracované objekty. Ortofoto je online služba pro území ČR; při jejím výpadku lze přepnout zpět na mapu. [Zdroj a podmínky služby ČÚZK](https://geoportal.cuzk.gov.cz/Default.aspx?metadataID=CZ-CUZK-WMTS-ORTOFOTO_900913&metadataXSL=metadata.sluzba&mode=TextMeta&side=wmts.uvod).
 
 ## Lokální spuštění
 
