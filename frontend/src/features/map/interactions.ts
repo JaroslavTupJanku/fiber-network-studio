@@ -11,11 +11,12 @@ export type MapCursorState = {
   overParcel: boolean
 }
 
-export function mapCursor(state: MapCursorState): 'copy' | 'grab' | 'grabbing' | 'crosshair' | 'pointer' {
+export function mapCursor(state: MapCursorState): 'copy' | 'grab' | 'grabbing' | 'crosshair' | 'move' | 'pointer' {
   if (state.draggingTool) return 'copy'
   if (state.draggingMap || state.draggingPoint) return 'grabbing'
+  if (state.overPoint) return 'move'
   if (state.placing) return 'crosshair'
-  if (state.overPoint || state.overParcel) return 'pointer'
+  if (state.overParcel) return 'pointer'
   return 'grab'
 }
 
@@ -26,7 +27,7 @@ export function resolveMapClick(
   zoom: number,
   cadastreMinZoom: number,
 ): MapClick {
-  if (!placementActive && pointId) return { kind: 'point', id: pointId }
+  if (pointId) return { kind: 'point', id: pointId }
   return {
     kind: 'location',
     lookupParcel: !placementActive && cadastreAvailable && zoom >= cadastreMinZoom,

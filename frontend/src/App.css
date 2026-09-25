@@ -7,8 +7,22 @@
 .workspace { display: grid; grid-template-columns: minmax(0, 1fr) 320px; min-height: 0; height: calc(100vh - 58px); }
 .map-region { position: relative; min-width: 0; overflow: hidden; }
 .map-canvas { position: absolute; inset: 0; }
-.tool-drag-preview { position: absolute; z-index: 3; display: flex; align-items: center; gap: 6px; padding: 5px 8px; transform: translate(14px, 14px); pointer-events: none; border: 1px solid #8eb8a8; border-radius: 5px; background: #fff; color: #206e60; box-shadow: 0 2px 8px rgb(22 52 47 / 18%); font-size: 12px; font-weight: 650; }
-.tool-drag-preview.chamber { border-color: #d7a58e; color: #a35538; }
+.placement-cursor { position: absolute; z-index: 3; width: 44px; height: 54px; transform: translate(-50%, -100%); pointer-events: none; }
+.placement-cursor-figure { position: absolute; bottom: 13px; left: 3px; display: grid; place-items: center; width: 38px; height: 38px; border: 2px solid currentColor; border-radius: 8px; background: #e9f5ee; color: #20776b; box-shadow: 0 2px 6px rgb(22 52 47 / 22%); transform-origin: 50% 100%; animation: placement-wobble .7s ease-in-out infinite alternate; }
+.placement-cursor.building .placement-cursor-figure { border: 0; background: transparent; box-shadow: none; filter: drop-shadow(0 1px 0 #fff) drop-shadow(0 2px 3px rgb(22 52 47 / 28%)); }
+.placement-cursor.building .placement-cursor-figure svg { fill: #d8f0e5; }
+.placement-cursor.building .placement-cursor-figure svg path:first-child { display: none; }
+.placement-cursor.building .placement-cursor-figure::before { position: absolute; top: 22px; left: 14px; width: 3px; height: 3px; border-radius: 50%; background: #245c53; box-shadow: 8px 0 #245c53; content: ''; }
+.placement-cursor.building .placement-cursor-figure::after { position: absolute; top: 25px; left: 16px; width: 8px; height: 5px; border-bottom: 2px solid #245c53; border-radius: 0 0 8px 8px; content: ''; }
+.placement-cursor.chamber .placement-cursor-figure { background: #fff0e8; color: #ad5b3b; }
+.placement-cursor-target { position: absolute; bottom: -5px; left: 50%; width: 10px; height: 10px; transform: translateX(-50%); border: 2px solid #fff; border-radius: 50%; background: #20776b; box-shadow: 0 0 0 1px #164f48, 0 1px 4px rgb(0 0 0 / 26%); }
+.placement-cursor.chamber .placement-cursor-target { background: #ad5b3b; box-shadow: 0 0 0 1px #81422e, 0 1px 4px rgb(0 0 0 / 26%); }
+@keyframes placement-wobble { from { transform: rotate(-6deg) translateY(0); } to { transform: rotate(6deg) translateY(-3px); } }
+@media (hover: none), (prefers-reduced-motion: reduce) { .placement-cursor-figure { animation: none; } }
+@media (hover: none) { .placement-cursor { display: none; } }
+.placement-guide { position: absolute; z-index: 2; right: 16px; bottom: 16px; display: flex; align-items: center; gap: 12px; max-width: calc(100% - 32px); padding: 8px 10px; border: 1px solid #a5c9bc; border-radius: 7px; background: #fff; color: #28574e; box-shadow: 0 3px 12px rgb(20 45 38 / 18%); font-size: 12px; font-weight: 650; }
+.placement-guide button { flex: none; padding: 5px 8px; border: 1px solid #bfcfca; border-radius: 4px; background: #f7faf8; color: #28574e; font: inherit; cursor: pointer; }
+.placement-guide button:hover { background: #e6f2ee; }
 .maplibregl-control-container { font-family: inherit; }
 .map-toolbar { position: absolute; top: 12px; left: 12px; z-index: 1; width: 236px; max-height: calc(100% - 24px); overflow-y: auto; border: 1px solid #bfcfca; border-radius: 8px; background: #fff; box-shadow: 0 3px 12px rgb(20 45 38 / 15%); }
 .map-toolbar.collapsed { width: 183px; }

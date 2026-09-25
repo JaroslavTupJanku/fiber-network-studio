@@ -5,9 +5,9 @@ import { crossedDragThreshold, mapCursor, resolveMapClick } from '../frontend/sr
 test('map cursor follows the action under the pointer', () => {
   const idle = { draggingTool: false, draggingMap: false, draggingPoint: false, placing: false, overPoint: false, overParcel: false }
   assert.equal(mapCursor(idle), 'grab')
-  assert.equal(mapCursor({ ...idle, overPoint: true }), 'pointer')
+  assert.equal(mapCursor({ ...idle, overPoint: true }), 'move')
   assert.equal(mapCursor({ ...idle, overParcel: true }), 'pointer')
-  assert.equal(mapCursor({ ...idle, placing: true, overPoint: true }), 'crosshair')
+  assert.equal(mapCursor({ ...idle, placing: true, overPoint: true }), 'move')
   assert.equal(mapCursor({ ...idle, placing: true, draggingMap: true }), 'grabbing')
   assert.equal(mapCursor({ ...idle, draggingPoint: true }), 'grabbing')
   assert.equal(mapCursor({ ...idle, draggingTool: true, placing: true }), 'copy')
@@ -17,8 +17,9 @@ test('map click selects an existing point ahead of parcel lookup', () => {
   assert.deepEqual(resolveMapClick('point-1', false, true, 18, 17), { kind: 'point', id: 'point-1' })
 })
 
-test('placement click creates a location even above a point and does not look up a parcel', () => {
-  assert.deepEqual(resolveMapClick('point-1', true, true, 18, 17), { kind: 'location', lookupParcel: false })
+test('an existing point remains selectable while a placement tool is active', () => {
+  assert.deepEqual(resolveMapClick('point-1', true, true, 18, 17), { kind: 'point', id: 'point-1' })
+  assert.deepEqual(resolveMapClick(null, true, true, 18, 17), { kind: 'location', lookupParcel: false })
 })
 
 test('empty-map click looks up a parcel only when the cadastre is available at sufficient zoom', () => {

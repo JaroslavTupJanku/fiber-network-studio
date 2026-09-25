@@ -35,7 +35,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const readyMapRef = useRef<Map | null>(null)
-  const interactionRef = useRef({ placementActive, onLocationClick, onPointSelect, onPointMove })
+  const interactionRef = useRef({ placementActive, activeTool, onLocationClick, onPointSelect, onPointMove })
   const pointData = useRef(pointCollection([], null, null))
   const skipSelectionEase = useRef<string | null>(null)
   const cadastreActive = useRef(false)
@@ -54,10 +54,11 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   const [orthophotoStatus, setOrthophotoStatus] = useState<OrthophotoStatus>('loading')
   const [orthophotoRetryVersion, setOrthophotoRetryVersion] = useState(0)
   const [dragPointer, setDragPointer] = useState<PlacementPointer | null>(null)
+  const [placementPointer, setPlacementPointer] = useState<PlacementPointer | null>(null)
 
   useEffect(() => {
-    interactionRef.current = { placementActive, onLocationClick, onPointSelect, onPointMove }
-  }, [placementActive, onLocationClick, onPointSelect, onPointMove])
+    interactionRef.current = { placementActive, activeTool, onLocationClick, onPointSelect, onPointMove }
+  }, [placementActive, activeTool, onLocationClick, onPointSelect, onPointMove])
 
   useEffect(() => {
     toolDragActive.current = dragPointer !== null
@@ -120,16 +121,19 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
       else onLocationClick({ latitude: event.lngLat.lat, longitude: event.lngLat.lng }, result.lookupParcel)
     }
     const handleMouseMove = (event: MapMouseEvent) => {
-      const { placementActive } = interactionRef.current
-      overPoint = !placementActive && Boolean(map.getLayer(POINT_LAYER_ID))
+      const { placementActive, activeTool } = interactionRef.current
+      overPoint = Boolean(map.getLayer(POINT_LAYER_ID))
         && map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] }).length > 0
       overParcel = !placementActive && !overPoint && Boolean(map.getLayer(PARCEL_FILL_LAYER_ID))
         && map.queryRenderedFeatures(event.point, { layers: [PARCEL_FILL_LAYER_ID] }).length > 0
+      setPlacementPointer(activeTool && !dragging && !pointDrag && !overPoint
+        ? { kind: activeTool, x: event.point.x, y: event.point.y } : null)
       updateCursor()
     }
     const handleMouseLeave = () => {
       overPoint = false
       overParcel = false
+      setPlacementPointer(null)
       updateCursor()
     }
     const setPointPosition = (id: string, location: Coordinates) => {
@@ -167,7 +171,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
       updateCursor()
     }
     const handlePointMouseDown = (event: MapMouseEvent) => {
-      if (interactionRef.current.placementActive) return
+      if (interactionRef.current.placementActive && !interactionRef.current.activeTool) return
       const feature = map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] })[0]
       const id = feature?.properties?.id
       const renderedPoint = pointData.current.features.find((item) => item.properties.id === id)
@@ -235,7 +239,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     map.on('mousedown', POINT_LAYER_ID, handlePointMouseDown)
     map.on('mousemove', handleMouseMove)
     canvas.addEventListener('mouseleave', handleMouseLeave)
-    map.on('dragstart', () => { dragging = true; updateCursor() })
+    map.on('dragstart', () => { dragging = true; setPlacementPointer(null); updateCursor() })
     map.on('dragend', () => { dragging = false; updateCursor() })
     canvas.addEventListener('keydown', handleKeyDown)
     map.on('sourcedataloading', handleSourceLoading)
@@ -337,14 +341,21 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   }, [mapGeneration, baseMap, orthophotoRetryVersion])
 
   const needsZoom = cadastreEnabled && !canShowCadastre
+  const cursorPreview = dragPointer ?? (activeTool === placementPointer?.kind ? placementPointer : null)
 
   return (
     <>
       <div className="map-canvas" ref={container} aria-label="Mapa" />
-      {dragPointer && (
-        <div className={`tool-drag-preview ${dragPointer.kind}`} style={{ left: dragPointer.x, top: dragPointer.y }} aria-hidden="true">
-          {dragPointer.kind === 'building' ? <House size={16} /> : <CircleDot size={16} />}
-          {dragPointer.kind === 'building' ? 'Budova' : 'Šachta'}
+      {cursorPreview && (
+        <div className={`placement-cursor ${cursorPreview.kind}`} style={{ left: cursorPreview.x, top: cursorPreview.y }} aria-hidden="true">
+          <span className="placement-cursor-figure">{cursorPreview.kind === 'building' ? <House size={38} strokeWidth={2.5} /> : <CircleDot size={30} strokeWidth={2.4} />}</span>
+          <span className="placement-cursor-target" />
+        </div>
+      )}
+      {placementActive && (
+        <div className="placement-guide" role="status">
+          <span>{activeTool ? `${activeTool === 'building' ? 'Budova' : 'Šachta'}: klikněte do mapy pro umístění` : 'Přesun objektu: klikněte na nové místo'}</span>
+          <button type="button" onClick={() => onToolChange(null)}>Zrušit · Esc</button>
         </div>
       )}
       <MapToolbox

@@ -94,7 +94,7 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
               </button>
             ))}
           </div>
-          <p className="map-toolbox-hint">Vyberte nástroj a klikněte do mapy, nebo ho přetáhněte.</p>
+          <p className="map-toolbox-hint">Klikněte na nástroj a potom do mapy, nebo ho rovnou přetáhněte. Zrušení: Esc.</p>
           {placementActive && (
             <div className="placement-state">
               <span>{activeTool ? `Umístit: ${POINT_TOOLS.find(tool => tool.kind === activeTool)?.label ?? ''}` : 'Přesunout bod'}</span>
