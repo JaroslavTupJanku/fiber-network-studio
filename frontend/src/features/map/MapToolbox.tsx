@@ -77,70 +77,70 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
     onToolChange(activeTool === kind ? null : kind)
   }
   return (
-      <div className={`map-toolbar ${toolboxOpen ? '' : 'collapsed'}`} aria-label="Panel nástrojů mapy">
-        <button type="button" className="map-toolbox-header" aria-expanded={toolboxOpen} aria-controls="map-toolbox-content" onClick={() => setToolboxOpen(value => !value)}>
-          <span><MousePointer2 size={17} aria-hidden="true" /> Nástroje mapy</span>
-          <ChevronDown size={17} className={toolboxOpen ? 'toolbox-chevron open' : 'toolbox-chevron'} aria-hidden="true" />
-        </button>
-        <div className="map-toolbox-content" id="map-toolbox-content" hidden={!toolboxOpen}>
-          <section className="map-toolbox-section" aria-label="Bodové objekty">
-            <h2>Bodové objekty</h2>
-            <div className="map-tool-actions" role="group" aria-label="Přidat bodový objekt">
-              {POINT_TOOLS.map(({ kind, label, Icon, hint }) => (
-                <button key={kind} type="button" className={activeTool === kind ? 'map-tool active' : 'map-tool'} aria-pressed={activeTool === kind} disabled={toolsDisabled} onClick={() => handleToolClick(kind)} onPointerDown={(event) => handleToolPointerDown(kind, event)} onPointerMove={handleToolPointerMove} onPointerUp={handleToolPointerUp} onPointerCancel={handleToolPointerCancel} title={hint}>
-                  <Icon size={18} aria-hidden="true" /> {label}
+    <div className={`map-toolbar ${toolboxOpen ? '' : 'collapsed'}`} aria-label="Panel nástrojů mapy">
+      <button type="button" className="map-toolbox-header" aria-expanded={toolboxOpen} aria-controls="map-toolbox-content" onClick={() => setToolboxOpen(value => !value)}>
+        <span><MousePointer2 size={17} aria-hidden="true" /> Nástroje mapy</span>
+        <ChevronDown size={17} className={toolboxOpen ? 'toolbox-chevron open' : 'toolbox-chevron'} aria-hidden="true" />
+      </button>
+      <div className="map-toolbox-content" id="map-toolbox-content" hidden={!toolboxOpen}>
+        <section className="map-toolbox-section" aria-label="Bodové objekty">
+          <h2>Bodové objekty</h2>
+          <div className="map-tool-actions" role="group" aria-label="Přidat bodový objekt">
+            {POINT_TOOLS.map(({ kind, label, Icon, hint }) => (
+              <button key={kind} type="button" className={activeTool === kind ? 'map-tool active' : 'map-tool'} aria-pressed={activeTool === kind} disabled={toolsDisabled} onClick={() => handleToolClick(kind)} onPointerDown={(event) => handleToolPointerDown(kind, event)} onPointerMove={handleToolPointerMove} onPointerUp={handleToolPointerUp} onPointerCancel={handleToolPointerCancel} title={hint}>
+                <Icon size={18} aria-hidden="true" /> {label}
+              </button>
+            ))}
+          </div>
+          <p className="map-toolbox-hint">Vyberte nástroj a klikněte do mapy, nebo ho přetáhněte.</p>
+          {placementActive && (
+            <div className="placement-state">
+              <span>{activeTool ? `Umístit: ${POINT_TOOLS.find(tool => tool.kind === activeTool)?.label ?? ''}` : 'Přesunout bod'}</span>
+              <button type="button" className="layer-action" onClick={() => onToolChange(null)} title="Zrušit umístění" aria-label="Zrušit umístění"><X size={15} /></button>
+            </div>
+          )}
+        </section>
+        <section className="map-toolbox-section" aria-label="Podklady a vrstvy">
+          <h2>Podklady a vrstvy</h2>
+          <div className="base-map-options" role="radiogroup" aria-label="Podklad mapy">
+            <span className="base-map-title">Podklad mapy</span>
+            <div className="base-map-choices">
+              <label><input type="radio" name="base-map" value="street" checked={baseMap === 'street'} onChange={() => onBaseMapChange('street')} />Mapa</label>
+              <label><input type="radio" name="base-map" value="orthophoto" checked={baseMap === 'orthophoto'} onChange={() => onBaseMapChange('orthophoto')} />Ortofoto</label>
+            </div>
+          </div>
+          {baseMap === 'orthophoto' && (
+            <div className={`layer-status ${orthophotoStatus === 'error' ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
+              {orthophotoStatus === 'error' ? <><AlertCircle size={15} /><span>Ortofoto se nenačetlo</span>
+                <button type="button" className="layer-action" onClick={onOrthophotoRetry} title="Zkusit znovu" aria-label="Načíst ortofoto znovu"><RefreshCw size={15} /></button></>
+                : orthophotoStatus === 'ready' ? <><CheckCircle2 size={15} /><span>Ortofoto ČÚZK</span></>
+                  : <><LoaderCircle size={15} className="spin" /><span>Načítání ortofota…</span></>}
+            </div>
+          )}
+          <label className="layer-toggle">
+            <input type="checkbox" checked={cadastreEnabled} onChange={(event) => onCadastreChange(event.target.checked)} />
+            <Layers3 size={17} aria-hidden="true" />
+            <span>Katastr</span>
+          </label>
+          {cadastreEnabled && (
+            <div className={`layer-status ${cadastreStatus === 'error' && !needsZoom ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
+              {needsZoom ? (
+                <button type="button" className="layer-zoom-action" onClick={onZoomToCadastre}>
+                  <ZoomIn size={16} aria-hidden="true" /><span>Přiblížit na parcely</span>
                 </button>
-              ))}
+              ) : cadastreStatus === 'error' ? (
+                <><AlertCircle size={15} aria-hidden="true" /><span>ČÚZK se nenačetl</span>
+                  <button type="button" className="layer-action" onClick={onCadastreRetry} title="Zkusit načíst znovu" aria-label="Zkusit načíst katastr znovu"><RefreshCw size={15} /></button>
+                </>
+              ) : cadastreStatus === 'ready' ? (
+                <><CheckCircle2 size={15} aria-hidden="true" /><span>Katastr načten</span></>
+              ) : (
+                <><LoaderCircle size={15} className="spin" aria-hidden="true" /><span>Načítání ČÚZK</span></>
+              )}
             </div>
-            <p className="map-toolbox-hint">Vyberte nástroj a klikněte do mapy, nebo ho přetáhněte.</p>
-            {placementActive && (
-              <div className="placement-state">
-                <span>{activeTool ? `Umístit: ${POINT_TOOLS.find(tool => tool.kind === activeTool)?.label ?? ''}` : 'Přesunout bod'}</span>
-                <button type="button" className="layer-action" onClick={() => onToolChange(null)} title="Zrušit umístění" aria-label="Zrušit umístění"><X size={15} /></button>
-              </div>
-            )}
-          </section>
-          <section className="map-toolbox-section" aria-label="Podklady a vrstvy">
-            <h2>Podklady a vrstvy</h2>
-            <div className="base-map-options" role="radiogroup" aria-label="Podklad mapy">
-              <span className="base-map-title">Podklad mapy</span>
-              <div className="base-map-choices">
-                <label><input type="radio" name="base-map" value="street" checked={baseMap === 'street'} onChange={() => onBaseMapChange('street')} />Mapa</label>
-                <label><input type="radio" name="base-map" value="orthophoto" checked={baseMap === 'orthophoto'} onChange={() => onBaseMapChange('orthophoto')} />Ortofoto</label>
-              </div>
-            </div>
-            {baseMap === 'orthophoto' && (
-              <div className={`layer-status ${orthophotoStatus === 'error' ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
-                {orthophotoStatus === 'error' ? <><AlertCircle size={15} /><span>Ortofoto se nenačetlo</span>
-                  <button type="button" className="layer-action" onClick={onOrthophotoRetry} title="Zkusit znovu" aria-label="Načíst ortofoto znovu"><RefreshCw size={15} /></button></>
-                  : orthophotoStatus === 'ready' ? <><CheckCircle2 size={15} /><span>Ortofoto ČÚZK</span></>
-                    : <><LoaderCircle size={15} className="spin" /><span>Načítání ortofota…</span></>}
-              </div>
-            )}
-            <label className="layer-toggle">
-              <input type="checkbox" checked={cadastreEnabled} onChange={(event) => onCadastreChange(event.target.checked)} />
-              <Layers3 size={17} aria-hidden="true" />
-              <span>Katastr</span>
-            </label>
-            {cadastreEnabled && (
-              <div className={`layer-status ${cadastreStatus === 'error' && !needsZoom ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
-                {needsZoom ? (
-                  <button type="button" className="layer-zoom-action" onClick={onZoomToCadastre}>
-                    <ZoomIn size={16} aria-hidden="true" /><span>Přiblížit na parcely</span>
-                  </button>
-                ) : cadastreStatus === 'error' ? (
-                  <><AlertCircle size={15} aria-hidden="true" /><span>ČÚZK se nenačetl</span>
-                    <button type="button" className="layer-action" onClick={onCadastreRetry} title="Zkusit načíst znovu" aria-label="Zkusit načíst katastr znovu"><RefreshCw size={15} /></button>
-                  </>
-                ) : cadastreStatus === 'ready' ? (
-                  <><CheckCircle2 size={15} aria-hidden="true" /><span>Katastr načten</span></>
-                ) : (
-                  <><LoaderCircle size={15} className="spin" aria-hidden="true" /><span>Načítání ČÚZK</span></>
-                )}
-              </div>
-            )}
-          </section>
-        </div>
+          )}
+        </section>
       </div>
+    </div>
   )
 }
