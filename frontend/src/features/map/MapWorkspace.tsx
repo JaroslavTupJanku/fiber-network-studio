@@ -18,7 +18,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,
     clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect,
     handleLocationClick, handlePointSelect,
-    handleToolDrop, savePoint, removePoint, copyCoordinates, startDraft,
+    handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   } = useMapWorkspace()
   const routeDraft = route.draft
   const routeLength = routeDraft?.endPointId
@@ -51,6 +51,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
           onLocationClick={handleLocationClick}
           onPointSelect={handlePointSelect}
           onPointMove={handlePointSelect}
+          onDraftMove={moveDraft}
           onCadastreDisable={clearParcel}
         />
       </section>
@@ -139,6 +140,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
               <span>{editor.latitude.toFixed(6)}°, {editor.longitude.toFixed(6)}°</span>
               <button type="button" className="icon-button" onClick={() => copyCoordinates(editor)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button>
             </div>
+            {!editor.id && <p className="point-placement-hint">Polohu doladíte přetažením značky na mapě.</p>}
             <button type="button" className={moving ? 'move-button active' : 'move-button'} onClick={() => {
               setMoving((value) => !value)
               setActiveTool(null)

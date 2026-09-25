@@ -95,6 +95,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .point-form label { color: #526a61; font-size: 12px; font-weight: 600; }
 .point-form input { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid #bfcfca; border-radius: 4px; font: inherit; font-size: 13px; }
 .point-form input:focus, .search-field:focus-within { border-color: #26766b; outline: 2px solid #d7eee5; }
+.point-placement-hint { margin: 0; color: #526a61; font-size: 12px; }
 .point-kind { display: flex; align-items: center; gap: 7px; margin: 2px 0; color: #526a61; font-size: 12px; }
 .coordinates-row { display: flex; align-items: center; justify-content: space-between; gap: 5px; min-height: 37px; padding: 4px 0; border-top: 1px solid #e5ece9; border-bottom: 1px solid #e5ece9; color: #425b52; font-size: 12px; font-variant-numeric: tabular-nums; }
 .move-button, .primary-button, .danger-button { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 35px; padding: 7px 10px; border: 1px solid #bfcfca; border-radius: 4px; background: #fff; color: #28574e; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }

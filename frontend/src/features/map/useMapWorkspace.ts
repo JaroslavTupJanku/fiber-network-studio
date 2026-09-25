@@ -160,6 +160,10 @@ export function useMapWorkspace() {
     setActionError('')
   }
 
+  const moveDraft = useCallback((location: Coordinates) => {
+    setEditor(current => current && !current.id ? { ...current, ...location } : current)
+  }, [])
+
   const savePoint = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!editor || !editor.name.trim() || saving) return
@@ -220,6 +224,6 @@ export function useMapWorkspace() {
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,
     clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect,
     handleLocationClick, handlePointSelect,
-    handleToolDrop, savePoint, removePoint, copyCoordinates, startDraft,
+    handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   }
 }

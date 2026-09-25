@@ -38,6 +38,7 @@ type MapCanvasProps = {
   onLocationClick: (location: Coordinates, lookupParcel: boolean) => void
   onPointSelect: (id: string) => void
   onPointMove: (id: string, location: Coordinates) => void
+  onDraftMove: (location: Coordinates) => void
   onCadastreDisable: () => void
 }
 
@@ -48,7 +49,7 @@ setWorkerUrl(workerUrl)
 export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawingRoute, onRouteToolChange,
   onRouteSelect, onRouteWaypointMove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId,
   selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop,
-  onLocationClick, onPointSelect, onPointMove, onCadastreDisable }: MapCanvasProps) {
+  onLocationClick, onPointSelect, onPointMove, onDraftMove, onCadastreDisable }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const readyMapRef = useRef<Map | null>(null)
@@ -399,11 +400,19 @@ export function MapCanvas({ points, routes, selectedRouteId, routeDraft, drawing
 
   useEffect(() => {
     if (!preview || selectedPointId || !mapRef.current) return
-    const marker = new Marker({ color: preview.kind === 'chamber' ? '#b8613e' : '#24796d' })
+    const draggable = Boolean(preview.kind)
+    const marker = new Marker({ color: preview.kind === 'chamber' ? '#b8613e' : '#24796d', draggable })
       .setLngLat([preview.longitude, preview.latitude])
       .addTo(mapRef.current)
+    if (draggable) {
+      marker.getElement().style.cursor = 'grab'
+      marker.on('dragend', () => {
+        const location = marker.getLngLat()
+        onDraftMove({ latitude: location.lat, longitude: location.lng })
+      })
+    }
     return () => { marker.remove() }
-  }, [preview, selectedPointId, mapGeneration])
+  }, [preview, selectedPointId, onDraftMove, mapGeneration])
 
   const canShowCadastre = zoom >= CADASTRE_MIN_ZOOM
 
