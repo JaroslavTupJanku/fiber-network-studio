@@ -5,11 +5,13 @@ import { routeCoordinates, type RouteDraft, type UndergroundRoute } from './unde
 export const POINT_SOURCE_ID = 'network-points'
 export const POINT_LAYER_ID = 'network-point-dots'
 export const SELECTED_LAYER_ID = 'network-point-selected'
+export const HOVERED_POINT_LAYER_ID = 'network-point-hovered'
 export const PARCEL_SOURCE_ID = 'selected-parcel'
 export const PARCEL_FILL_LAYER_ID = 'selected-parcel-fill'
 export const ROUTE_SOURCE_ID = 'underground-routes'
 export const ROUTE_LAYER_ID = 'underground-route-lines'
 export const SELECTED_ROUTE_LAYER_ID = 'underground-route-selected'
+export const HOVERED_ROUTE_LAYER_ID = 'underground-route-hovered'
 export const ROUTE_DRAFT_SOURCE_ID = 'underground-route-draft'
 export const ROUTE_VERTEX_SOURCE_ID = 'underground-route-vertices'
 export const ROUTE_VERTEX_LAYER_ID = 'underground-route-vertex-dots'
@@ -70,6 +72,8 @@ export function initializeMapLayers(map: Map) {
   map.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: SELECTED_ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
     filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#ffffff', 'line-width': 10, 'line-opacity': 0.95 } })
+  map.addLayer({ id: HOVERED_ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
+    filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#f0b344', 'line-width': 12, 'line-opacity': 0.9 } })
   map.addLayer({ id: ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
     paint: { 'line-color': '#b8613e', 'line-width': 4, 'line-opacity': 0.9 } })
   map.addSource(ROUTE_DRAFT_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
@@ -103,6 +107,18 @@ export function initializeMapLayers(map: Map) {
       'circle-color': 'rgba(0, 0, 0, 0)',
       'circle-stroke-color': '#183c35',
       'circle-stroke-width': 3,
+    },
+  })
+  map.addLayer({
+    id: HOVERED_POINT_LAYER_ID,
+    type: 'circle',
+    source: POINT_SOURCE_ID,
+    filter: ['==', ['get', 'id'], ''],
+    paint: {
+      'circle-radius': 16,
+      'circle-color': 'rgba(0, 0, 0, 0)',
+      'circle-stroke-color': '#f0b344',
+      'circle-stroke-width': 4,
     },
   })
   map.addLayer({
@@ -140,6 +156,7 @@ export function initializeMapLayers(map: Map) {
   }, POINT_LAYER_ID)
   // Map backgrounds are inserted below the parcel layer; keep route geometry above both backgrounds.
   map.moveLayer(SELECTED_ROUTE_LAYER_ID, POINT_LAYER_ID)
+  map.moveLayer(HOVERED_ROUTE_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer(ROUTE_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer('underground-route-draft-line', POINT_LAYER_ID)
   map.moveLayer(ROUTE_VERTEX_LAYER_ID, POINT_LAYER_ID)

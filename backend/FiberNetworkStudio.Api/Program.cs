@@ -1,6 +1,7 @@
 using FiberNetworkStudio.Api;
 using FiberNetworkStudio.Api.CableCatalog;
 using FiberNetworkStudio.Api.DuctCatalog;
+using FiberNetworkStudio.Api.RouteInstallations;
 using FiberNetworkStudio.Api.UndergroundRoutes;
 using System.Text.Json;
 
@@ -13,11 +14,15 @@ builder.Services.AddSingleton(new NetworkPointStore(dataPath));
 var routeDataPath = builder.Configuration["UndergroundRoutes:Path"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "underground-routes.json");
 builder.Services.AddSingleton(new UndergroundRouteStore(routeDataPath));
+var installationDataPath = builder.Configuration["RouteInstallations:Path"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "route-installations.json");
+builder.Services.AddSingleton(new RouteInstallationStore(installationDataPath));
 builder.Services.AddHttpClient<ParcelLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
 var app = builder.Build();
 app.MapCableCatalog();
 app.MapDuctCatalog();
 app.MapUndergroundRoutes();
+app.MapRouteInstallations();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/parcels/at", async (double latitude, double longitude, ParcelLookup lookup,

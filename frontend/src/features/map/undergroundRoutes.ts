@@ -45,7 +45,10 @@ export function undoRouteStep(draft: RouteDraft): RouteDraft {
 }
 
 async function expectOk(response: Response) {
-  if (!response.ok) throw new Error(`Route API returned ${response.status}`)
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null)
+    throw new Error(problem?.error ?? `Route API returned ${response.status}`)
+  }
   return response
 }
 

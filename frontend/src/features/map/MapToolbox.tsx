@@ -113,7 +113,7 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
             <Route size={18} aria-hidden="true" /> Podzemní trasa
           </button>
           <p className="map-toolbox-hint">{canDrawRoute
-            ? 'Vyberte první bod, případné lomové body a koncový bod.'
+            ? 'Konce vyberte na mapě nebo v panelu, lomové body přidejte v mapě.'
             : 'Pro trasu nejdřív přidejte dva body sítě.'}</p>
         </section>
         <section className="map-toolbox-section" aria-label="Podklady a vrstvy">

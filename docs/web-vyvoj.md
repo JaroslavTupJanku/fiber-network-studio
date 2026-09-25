@@ -59,8 +59,11 @@ kontroluje zvlášť podle nejvyššího výkonu vysílače a hranice přetíže
 Výsledek je odhad podle zadaných údajů, nikoli náhrada měření hotové sítě.
 
 **Katalogový typ** popisuje výrobek nebo opakovaně použitelné rozložení. **Instalovaný
-kus** bude konkrétní chránička či kabel v určité mapové trase; ten zatím aplikace
-neeviduje. **Mikrotrubička** chrání kabel zvenku. **Tuba kabelu** je naopak součást
+kus** je konkrétní chránička či kabel v jednom úseku mapové trasy. Při vložení se pořídí
+kopie katalogových údajů, takže úprava typu nemění již zaznamenaný kus. Kusy tvoří strom
+(chránička → mikrotrubička → kabel); obsazená pozice se nesmí použít dvakrát. Stejný
+fyzický kus může pokračovat v sousedním úseku, pokud sdílejí koncový síťový bod.
+**Mikrotrubička** chrání kabel zvenku. **Tuba kabelu** je naopak součást
 samotného kabelu a obsahuje optická vlákna. Jejich průměry ani barvy se nezaměňují.
 **Předběžná rozměrová kontrola** porovná kabel s vnitřkem trubičky; sama nepotvrzuje,
 že je výrobek vhodný pro zvolený způsob instalace.

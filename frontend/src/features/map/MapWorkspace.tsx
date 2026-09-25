@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
-import { CircleDot, Copy, Crosshair, House, MapPin, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
 import { MapCanvas } from './MapCanvas'
+import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { useMapWorkspace } from './useMapWorkspace'
 import type { NetworkPointKind } from './networkPoints'
 import { routeCoordinates, routeLengthMeters } from './undergroundRoutes'
@@ -8,70 +9,93 @@ import { routeCoordinates, routeLengthMeters } from './undergroundRoutes'
 const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : 'Šachta'
 
 export function MapWorkspace({ active }: { active: boolean }) {
+  const [panelOpen, setPanelOpen] = useState(true)
+  const [hoveredPointId, setHoveredPointId] = useState<string | null>(null)
+  const [hoveredRouteId, setHoveredRouteId] = useState<string | null>(null)
+  const [routeFocusRequest, setRouteFocusRequest] = useState<{ id: string, sequence: number } | null>(null)
   useEffect(() => {
-    if (active) window.dispatchEvent(new Event('resize'))
-  }, [active])
+    if (!active) return
+    const frame = requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
+    return () => cancelAnimationFrame(frame)
+  }, [active, panelOpen])
   const {
     points, loading, loadError, actionError, saving, activeTool, moving, editor, route,
     selectedLocation, selectedParcel, parcelStatus, query, visiblePoints,
     buildings, chambers, preview, setQuery, setEditor, setSelectedLocation,
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,
     clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect,
-    handleLocationClick, handlePointSelect,
+    handleLocationClick, handlePointSelect, relocatePoint,
     handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   } = useMapWorkspace()
   const routeDraft = route.draft
   const routeLength = routeDraft?.endPointId
     ? routeLengthMeters(routeCoordinates(routeDraft, points)) : null
   const pointName = (id: string | null) => points.find(point => point.id === id)?.name ?? 'Vyberte na mapě'
+  const endpointPoints = points.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs'))
+  const togglePanel = () => {
+    setPanelOpen(value => !value)
+    setHoveredPointId(null)
+    setHoveredRouteId(null)
+  }
 
   return (
-    <main className="workspace" hidden={!active}>
-      <section className="map-region" aria-label="Mapa sítě">
+    <main className={`workspace${panelOpen ? '' : ' panel-collapsed'}`} hidden={!active}>
+      <section className={`map-region${route.drawing ? ' route-drawing-mode' : activeTool || moving ? ' point-placement-mode' : ''}`} aria-label="Mapa sítě">
         <MapCanvas
           points={points}
           routes={route.routes}
           selectedRouteId={routeDraft?.id ?? null}
+          hoveredRouteId={hoveredRouteId}
+          routeFocusRequest={routeFocusRequest}
           routeDraft={route.preview}
           drawingRoute={route.drawing}
           onRouteToolChange={handleRouteToolChange}
-          onRouteSelect={handleRouteSelect}
+          onRouteSelect={id => { setPanelOpen(true); handleRouteSelect(id) }}
           onRouteWaypointMove={route.moveWaypoint}
           onRouteUndo={route.undo}
           onRouteFinish={route.finish}
           onRouteCancel={route.cancelDrawing}
           selectedPointId={editor?.id ?? null}
+          hoveredPointId={hoveredPointId}
           selectedParcel={selectedParcel}
           preview={preview}
           activeTool={activeTool}
           placementActive={activeTool !== null || moving}
           toolsDisabled={loading || loadError}
           onToolChange={handleToolChange}
-          onToolDrop={handleToolDrop}
-          onLocationClick={handleLocationClick}
-          onPointSelect={handlePointSelect}
-          onPointMove={handlePointSelect}
+          onToolDrop={(kind, location) => { setPanelOpen(true); handleToolDrop(kind, location) }}
+          onLocationClick={(location, lookupParcel) => { setPanelOpen(true); handleLocationClick(location, lookupParcel) }}
+          onPointSelect={id => { setPanelOpen(true); handlePointSelect(id) }}
+          onPointMove={(id, location) => { setPanelOpen(true); void relocatePoint(id, location) }}
           onDraftMove={moveDraft}
           onCadastreDisable={clearParcel}
         />
       </section>
 
-      <aside className="details-panel" aria-label="Objekty sítě">
+      <aside className={`details-panel${panelOpen ? '' : ' collapsed'}`} aria-label="Objekty sítě">
+        {!panelOpen && <button className="details-rail-toggle" type="button" onClick={togglePanel}
+          aria-label="Rozbalit panel Infrastruktura" title="Rozbalit panel Infrastruktura">
+          <PanelRightOpen size={19} aria-hidden="true" /><span>Infrastruktura</span>
+        </button>}
         <div className="panel-heading">
           <div>
             <span className="section-label">{selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
             <h1>{routeDraft ? routeDraft.id ? 'Podzemní trasa' : 'Nová podzemní trasa' : editor ? editor.id ? kindLabel(editor.kind) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
           </div>
-          {(editor || selectedLocation || routeDraft) && (
-            <button className="icon-button" type="button" onClick={() => {
-              route.cancel()
-              setEditor(null)
-              setSelectedLocation(null)
-              clearParcel()
-              setMoving(false)
-              setActionError('')
-            }} title="Zavřít detail" aria-label="Zavřít detail"><X size={18} /></button>
-          )}
+          <div className="panel-heading-actions">
+            {(editor || selectedLocation || routeDraft) && (
+              <button className="icon-button" type="button" onClick={() => {
+                route.cancel()
+                setEditor(null)
+                setSelectedLocation(null)
+                clearParcel()
+                setMoving(false)
+                setActionError('')
+              }} title="Zavřít detail" aria-label="Zavřít detail"><X size={18} /></button>
+            )}
+            <button className="icon-button" type="button" onClick={togglePanel}
+              title="Sbalit panel Infrastruktura" aria-label="Sbalit panel Infrastruktura"><PanelRightClose size={18} /></button>
+          </div>
         </div>
 
         <div className="point-counts" aria-label="Počet objektů">
@@ -101,18 +125,34 @@ export function MapWorkspace({ active }: { active: boolean }) {
         {routeDraft && (
           <form className="point-form route-form" onSubmit={route.save}>
             <p className="route-help">{route.drawing
-              ? 'Klikněte na počáteční bod sítě, případné lomové body a koncový bod. Pak stiskněte Dokončit.'
-              : 'Trasa spojuje dva body sítě. Kabely a chráničky se do ní osadí později.'}</p>
-            <div className="route-endpoints">
+              ? 'Začátek a konec vyberte níže nebo kliknutím na objekty v mapě. Tvar trasy upravte klikáním do mapy. Pak stiskněte Dokončit.'
+              : 'Trasa spojuje dva body sítě. Konkrétní chráničky a kabely vložíte níže do jejího úseku.'}</p>
+            {route.drawing ? <div className="route-endpoint-fields">
+              <label htmlFor="route-start">Začátek trasy
+                <select id="route-start" value={routeDraft.startPointId ?? ''}
+                  onChange={event => route.setEndpoint('startPointId', event.target.value || null)}>
+                  <option value="">Vyberte objekt</option>
+                  {endpointPoints.map(point => <option key={point.id} value={point.id} disabled={point.id === routeDraft.endPointId}>{point.name} · {kindLabel(point.kind)}</option>)}
+                </select>
+              </label>
+              <label htmlFor="route-end">Konec trasy
+                <select id="route-end" value={routeDraft.endPointId ?? ''}
+                  onChange={event => route.setEndpoint('endPointId', event.target.value || null)}>
+                  <option value="">Vyberte objekt</option>
+                  {endpointPoints.map(point => <option key={point.id} value={point.id} disabled={point.id === routeDraft.startPointId}>{point.name} · {kindLabel(point.kind)}</option>)}
+                </select>
+              </label>
+            </div> : <div className="route-endpoints">
               <span><strong>Od</strong>{pointName(routeDraft.startPointId)}</span>
               <span><strong>Do</strong>{pointName(routeDraft.endPointId)}</span>
-            </div>
+            </div>}
             {routeLength !== null && <p className="route-length">Přibližná délka z mapy: <strong>{Math.round(routeLength).toLocaleString('cs-CZ')} m</strong><small>Není to délka instalovaného kabelu.</small></p>}
             {route.drawing && <>
               <div className="route-drawing-actions">
                 <button type="button" className="move-button" onClick={route.undo} disabled={!routeDraft.startPointId}><Undo2 size={16} /> Zpět</button>
                 <button type="button" className="move-button" onClick={route.resetGeometry}>Začít znovu</button>
               </div>
+              <p className="route-help">Lomový bod je ohyb čáry, nikoli samostatný objekt sítě. Přetáhněte jej v mapě, pokud chcete změnit průběh trasy.</p>
               {routeDraft.waypoints.length > 0 && <div className="route-waypoints"><strong>Lomové body</strong>{routeDraft.waypoints.map((point, index) =>
                 <div key={index}><span>{index + 1}. {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}</span>
                   <button type="button" className="icon-button" onClick={() => route.removeWaypoint(index)} aria-label={`Odebrat lomový bod ${index + 1}`}><X size={14} /></button></div>)}</div>}
@@ -131,6 +171,10 @@ export function MapWorkspace({ active }: { active: boolean }) {
           </form>
         )}
 
+        {routeDraft?.id && route.routes.find(item => item.id === routeDraft.id) &&
+          <RouteInstallationPanel key={routeDraft.id} route={route.routes.find(item => item.id === routeDraft.id)!}
+            routes={route.routes} editable={!route.drawing && route.preview === null} />}
+
         {editor && (
           <form className="point-form" onSubmit={savePoint}>
             <label htmlFor="point-name">Název</label>
@@ -140,11 +184,11 @@ export function MapWorkspace({ active }: { active: boolean }) {
               <span>{editor.latitude.toFixed(6)}°, {editor.longitude.toFixed(6)}°</span>
               <button type="button" className="icon-button" onClick={() => copyCoordinates(editor)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button>
             </div>
-            {!editor.id && <p className="point-placement-hint">Polohu doladíte přetažením značky na mapě.</p>}
+            <p className="point-placement-hint">{editor.id ? 'Přetažením nebo kliknutím na nové místo se poloha uloží hned. Tlačítko Uložit slouží ke změně názvu.' : 'Polohu doladíte přetažením značky na mapě.'}</p>
             <button type="button" className={moving ? 'move-button active' : 'move-button'} onClick={() => {
               setMoving((value) => !value)
               setActiveTool(null)
-            }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Přesouvání' : 'Přesunout na mapě'}</button>
+            }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Klikněte na nové místo' : 'Změnit polohu kliknutím'}</button>
             {actionError && <p className="form-error" role="alert">{actionError}</p>}
             <div className="form-actions">
               <button className="primary-button" type="submit" disabled={saving || !editor.name.trim()}><Save size={16} aria-hidden="true" /> {saving ? 'Ukládání…' : 'Uložit'}</button>
@@ -172,10 +216,20 @@ export function MapWorkspace({ active }: { active: boolean }) {
           <div className="point-list">
             <label className="search-field"><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Hledat objekt" aria-label="Hledat objekt" /></label>
             {loading ? <p className="empty-selection">Načítání objektů…</p> : visiblePoints.length === 0 ? <p className="empty-selection">{query ? 'Nic nenalezeno.' : 'Zatím žádné objekty.'}</p> : (
-              <ul>{visiblePoints.map((point) => <li key={point.id}><button type="button" onClick={() => handlePointSelect(point.id)}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}</small></span></button></li>)}</ul>
+              <ul>{visiblePoints.map((point) => <li key={point.id}><button type="button"
+                onMouseEnter={() => setHoveredPointId(point.id)} onMouseLeave={() => setHoveredPointId(null)}
+                onFocus={() => setHoveredPointId(point.id)} onBlur={() => setHoveredPointId(null)}
+                onClick={() => { setHoveredPointId(null); handlePointSelect(point.id) }}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}</small></span></button></li>)}</ul>
             )}
             {route.visibleRoutes.length > 0 && <div className="route-list"><h2>Podzemní trasy</h2><ul>{route.visibleRoutes.map(item =>
-              <li key={item.id}><button type="button" onClick={() => handleRouteSelect(item.id)}><RouteIcon size={17} /><span>{item.name}</span></button></li>)}</ul></div>}
+              <li key={item.id}><button type="button"
+                onMouseEnter={() => setHoveredRouteId(item.id)} onMouseLeave={() => setHoveredRouteId(null)}
+                onFocus={() => setHoveredRouteId(item.id)} onBlur={() => setHoveredRouteId(null)}
+                onClick={() => {
+                  setHoveredRouteId(null)
+                  handleRouteSelect(item.id)
+                  setRouteFocusRequest(current => ({ id: item.id, sequence: (current?.sequence ?? 0) + 1 }))
+                }}><RouteIcon size={17} /><span>{item.name}</span></button></li>)}</ul></div>}
           </div>
         )}
       </aside>
