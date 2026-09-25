@@ -59,15 +59,16 @@ Frontend je seskupený v `frontend/src/features/cable-catalog`: komponenty zobra
 se serverem. Backend je v `backend/FiberNetworkStudio.Api/CableCatalog`. Integrace zasahuje pouze
 do navigace v `App.tsx` a registrace služby a endpointů v `Program.cs`.
 
-Ověření API včetně persistence po restartu a konfliktu souběžných změn:
+Ověření API, katalogů, výpočtů a mapových interakcí (Node 24):
 
 ```sh
 dotnet build backend/FiberNetworkStudio.Api
-node --test tests/cable-catalog.test.mjs
-node --test tests/cable-structure.test.mjs # Node 24
+node --test tests/*.test.mjs
 pnpm --dir frontend build
 pnpm --dir frontend lint
 ```
+
+Stejné kontroly spouští GitHub Actions při PR do `dev` nebo `main`.
 
 ### Barevné značení a zdroje
 

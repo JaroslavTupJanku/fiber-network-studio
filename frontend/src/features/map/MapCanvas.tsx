@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { AlertCircle, CheckCircle2, ChevronDown, CircleDot, House, HousePlus, Layers3, LoaderCircle, MousePointer2, RefreshCw, X, ZoomIn, type LucideIcon } from 'lucide-react'
+import { CircleDot, House } from 'lucide-react'
+import { MapToolbox, type BaseMap, type CadastreStatus, type OrthophotoStatus, type PlacementPointer } from './MapToolbox'
 import { GeoJSONSource, Map, Marker, NavigationControl, setWorkerUrl, type ErrorEvent, type MapMouseEvent, type MapSourceDataEvent } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -7,31 +8,8 @@ import { addCadastreLayer, CADASTRE_LAYER_ID, CADASTRE_MIN_ZOOM, CADASTRE_SOURCE
 import { addOrthophotoLayer, ORTHOPHOTO_SOURCE_ID, removeOrthophotoLayer } from './orthophoto'
 import type { Coordinates, NetworkPoint, NetworkPointKind } from './networkPoints'
 import type { Parcel } from './parcels'
-
-const POINT_SOURCE_ID = 'network-points'
-const POINT_LAYER_ID = 'network-point-dots'
-const SELECTED_LAYER_ID = 'network-point-selected'
-const PARCEL_SOURCE_ID = 'selected-parcel'
-const PARCEL_FILL_LAYER_ID = 'selected-parcel-fill'
-
-const POINT_TOOLS: { kind: NetworkPointKind; label: string; Icon: LucideIcon; hint: string }[] = [
-  { kind: 'building', label: 'Budova', Icon: HousePlus, hint: 'Přidat budovu nebo ji přetáhnout na mapu' },
-  { kind: 'chamber', label: 'Šachta', Icon: CircleDot, hint: 'Přidat šachtu nebo ji přetáhnout na mapu' },
-]
-
-function pointCollection(points: NetworkPoint[], selectedPointId: string | null, preview: Coordinates | null) {
-  return {
-    type: 'FeatureCollection' as const,
-    features: points.map((point) => {
-      const location = point.id === selectedPointId && preview ? preview : point
-      return {
-        type: 'Feature' as const,
-        geometry: { type: 'Point' as const, coordinates: [location.longitude, location.latitude] },
-        properties: { id: point.id, kind: point.kind, name: point.name },
-      }
-    }),
-  }
-}
+import { initializeMapLayers, pointCollection, POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID } from './mapLayers'
+import { crossedDragThreshold, resolveMapClick } from './interactions'
 
 type MapCanvasProps = {
   points: NetworkPoint[]
@@ -49,11 +27,6 @@ type MapCanvasProps = {
   onCadastreDisable: () => void
 }
 
-type CadastreStatus = 'loading' | 'ready' | 'error'
-type BaseMap = 'street' | 'orthophoto'
-type OrthophotoStatus = 'loading' | 'ready' | 'error'
-type PlacementPointer = { kind: NetworkPointKind, x: number, y: number }
-type ToolDrag = { kind: NetworkPointKind, pointerId: number, startX: number, startY: number, dragging: boolean }
 type PointDrag = { id: string, startX: number, startY: number, original: Coordinates, location: Coordinates, moved: boolean }
 
 setWorkerUrl(workerUrl)
@@ -65,8 +38,6 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   const interactionRef = useRef({ placementActive, activeTool, onLocationClick, onPointSelect, onPointMove })
   const pointData = useRef(pointCollection([], null, null))
   const skipSelectionEase = useRef<string | null>(null)
-  const toolDrag = useRef<ToolDrag | null>(null)
-  const suppressToolClick = useRef(false)
   const cadastreActive = useRef(false)
   const cadastreFailed = useRef(false)
   const orthophotoActive = useRef(false)
@@ -81,7 +52,6 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   const [baseMap, setBaseMap] = useState<BaseMap>('street')
   const [orthophotoStatus, setOrthophotoStatus] = useState<OrthophotoStatus>('loading')
   const [orthophotoRetryVersion, setOrthophotoRetryVersion] = useState(0)
-  const [toolboxOpen, setToolboxOpen] = useState(() => !window.matchMedia('(max-width: 720px)').matches)
   const [placementPointer, setPlacementPointer] = useState<PlacementPointer | null>(null)
   const [dragPointer, setDragPointer] = useState<PlacementPointer | null>(null)
 
@@ -133,17 +103,13 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     const handleClick = (event: MapMouseEvent) => {
       if (suppressMapClick) { suppressMapClick = false; return }
       const { placementActive, onLocationClick, onPointSelect } = interactionRef.current
-      if (!placementActive && map.getLayer(POINT_LAYER_ID)) {
-        const feature = map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] })[0]
-        if (feature?.properties?.id) {
-          onPointSelect(String(feature.properties.id))
-          return
-        }
-      }
-      onLocationClick(
-        { latitude: event.lngLat.lat, longitude: event.lngLat.lng },
-        !placementActive && cadastreActive.current && !cadastreFailed.current && map.getZoom() >= CADASTRE_MIN_ZOOM,
-      )
+      const pointId = map.getLayer(POINT_LAYER_ID)
+        ? map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] })[0]?.properties?.id
+        : null
+      const result = resolveMapClick(pointId ? String(pointId) : null, placementActive,
+        cadastreActive.current && !cadastreFailed.current, map.getZoom(), CADASTRE_MIN_ZOOM)
+      if (result.kind === 'point') onPointSelect(result.id)
+      else onLocationClick({ latitude: event.lngLat.lat, longitude: event.lngLat.lng }, result.lookupParcel)
     }
     const handleMouseMove = (event: MapMouseEvent) => {
       const { activeTool, placementActive } = interactionRef.current
@@ -172,7 +138,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     }
     const handlePointMouseMove = (event: MouseEvent) => {
       if (!pointDrag) return
-      if (!pointDrag.moved && Math.hypot(event.clientX - pointDrag.startX, event.clientY - pointDrag.startY) < 4) return
+      if (!pointDrag.moved && !crossedDragThreshold(pointDrag.startX, pointDrag.startY, event.clientX, event.clientY, 4)) return
       const rect = canvas.getBoundingClientRect()
       const location = map.unproject([event.clientX - rect.left, event.clientY - rect.top])
       pointDrag.moved = true
@@ -254,66 +220,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     }
 
     map.on('load', () => {
-      map.addSource(POINT_SOURCE_ID, {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      })
-      map.addLayer({
-        id: POINT_LAYER_ID,
-        type: 'circle',
-        source: POINT_SOURCE_ID,
-        paint: {
-          'circle-radius': 8,
-          'circle-color': ['match', ['get', 'kind'], 'building', '#24796d', 'chamber', '#b8613e', '#64716d'],
-          'circle-stroke-color': '#ffffff',
-          'circle-stroke-width': 2,
-        },
-      })
-      map.addLayer({
-        id: SELECTED_LAYER_ID,
-        type: 'circle',
-        source: POINT_SOURCE_ID,
-        filter: ['==', ['get', 'id'], ''],
-        paint: {
-          'circle-radius': 12,
-          'circle-color': 'rgba(0, 0, 0, 0)',
-          'circle-stroke-color': '#183c35',
-          'circle-stroke-width': 3,
-        },
-      })
-      map.addLayer({
-        id: 'network-point-labels',
-        type: 'symbol',
-        source: POINT_SOURCE_ID,
-        minzoom: 15,
-        layout: {
-          'text-field': ['get', 'name'],
-          'text-size': 12,
-          'text-offset': [0, 1.3],
-          'text-anchor': 'top',
-        },
-        paint: {
-          'text-color': '#233b35',
-          'text-halo-color': '#ffffff',
-          'text-halo-width': 1.5,
-        },
-      })
-      map.addSource(PARCEL_SOURCE_ID, {
-        type: 'geojson',
-        data: { type: 'FeatureCollection', features: [] },
-      })
-      map.addLayer({
-        id: PARCEL_FILL_LAYER_ID,
-        type: 'fill',
-        source: PARCEL_SOURCE_ID,
-        paint: { 'fill-color': '#3b82d6', 'fill-opacity': 0.24 },
-      }, POINT_LAYER_ID)
-      map.addLayer({
-        id: 'selected-parcel-outline',
-        type: 'line',
-        source: PARCEL_SOURCE_ID,
-        paint: { 'line-color': '#1769b8', 'line-width': 3 },
-      }, POINT_LAYER_ID)
+      initializeMapLayers(map)
       readyMapRef.current = map
       setZoom(map.getZoom())
       setMapGeneration((value) => value + 1)
@@ -426,44 +333,6 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
 
   const needsZoom = cadastreEnabled && !canShowCadastre
 
-  const handleToolPointerDown = (kind: NetworkPointKind, event: React.PointerEvent<HTMLButtonElement>) => {
-    if (event.pointerType !== 'mouse' || event.button !== 0) return
-    toolDrag.current = { kind, pointerId: event.pointerId, startX: event.clientX, startY: event.clientY, dragging: false }
-    event.currentTarget.setPointerCapture(event.pointerId)
-  }
-  const handleToolPointerMove = (event: React.PointerEvent<HTMLButtonElement>) => {
-    const drag = toolDrag.current
-    const rect = container.current?.getBoundingClientRect()
-    if (!drag || !rect || drag.pointerId !== event.pointerId) return
-    if (!drag.dragging && Math.hypot(event.clientX - drag.startX, event.clientY - drag.startY) < 6) return
-    drag.dragging = true
-    event.preventDefault()
-    setDragPointer({ kind: drag.kind, x: event.clientX - rect.left, y: event.clientY - rect.top })
-  }
-  const handleToolPointerUp = (event: React.PointerEvent<HTMLButtonElement>) => {
-    const drag = toolDrag.current
-    if (!drag || drag.pointerId !== event.pointerId) return
-    toolDrag.current = null
-    setDragPointer(null)
-    if (!drag.dragging) return
-    event.preventDefault()
-    suppressToolClick.current = true
-    window.setTimeout(() => { suppressToolClick.current = false }, 0)
-    const map = mapRef.current
-    if (!map || !map.getCanvasContainer().contains(document.elementFromPoint(event.clientX, event.clientY))) return
-    const rect = map.getCanvas().getBoundingClientRect()
-    const location = map.unproject([event.clientX - rect.left, event.clientY - rect.top])
-    onToolDrop(drag.kind, { latitude: location.lat, longitude: location.lng })
-  }
-  const handleToolPointerCancel = () => {
-    toolDrag.current = null
-    setDragPointer(null)
-  }
-  const handleToolClick = (kind: NetworkPointKind) => {
-    if (suppressToolClick.current) { suppressToolClick.current = false; return }
-    setPlacementPointer(null)
-    onToolChange(activeTool === kind ? null : kind)
-  }
   const cursorPreview = dragPointer ?? (activeTool ? placementPointer : null)
 
   return (
@@ -475,78 +344,39 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
           <span className="placement-cursor-target" />
         </div>
       )}
-      <div className={`map-toolbar ${toolboxOpen ? '' : 'collapsed'}`} aria-label="Panel nástrojů mapy">
-        <button type="button" className="map-toolbox-header" aria-expanded={toolboxOpen} aria-controls="map-toolbox-content" onClick={() => setToolboxOpen(value => !value)}>
-          <span><MousePointer2 size={17} aria-hidden="true" /> Nástroje mapy</span>
-          <ChevronDown size={17} className={toolboxOpen ? 'toolbox-chevron open' : 'toolbox-chevron'} aria-hidden="true" />
-        </button>
-        <div className="map-toolbox-content" id="map-toolbox-content" hidden={!toolboxOpen}>
-          <section className="map-toolbox-section" aria-label="Bodové objekty">
-            <h2>Bodové objekty</h2>
-            <div className="map-tool-actions" role="group" aria-label="Přidat bodový objekt">
-              {POINT_TOOLS.map(({ kind, label, Icon, hint }) => (
-                <button key={kind} type="button" className={activeTool === kind ? 'map-tool active' : 'map-tool'} aria-pressed={activeTool === kind} disabled={toolsDisabled} onClick={() => handleToolClick(kind)} onPointerDown={(event) => handleToolPointerDown(kind, event)} onPointerMove={handleToolPointerMove} onPointerUp={handleToolPointerUp} onPointerCancel={handleToolPointerCancel} title={hint}>
-                  <Icon size={18} aria-hidden="true" /> {label}
-                </button>
-              ))}
-            </div>
-            <p className="map-toolbox-hint">Vyberte nástroj a klikněte do mapy, nebo ho přetáhněte.</p>
-            {placementActive && (
-              <div className="placement-state">
-                <span>{activeTool ? `Umístit: ${POINT_TOOLS.find(tool => tool.kind === activeTool)?.label ?? ''}` : 'Přesunout bod'}</span>
-                <button type="button" className="layer-action" onClick={() => onToolChange(null)} title="Zrušit umístění" aria-label="Zrušit umístění"><X size={15} /></button>
-              </div>
-            )}
-          </section>
-          <section className="map-toolbox-section" aria-label="Podklady a vrstvy">
-            <h2>Podklady a vrstvy</h2>
-            <div className="base-map-options" role="radiogroup" aria-label="Podklad mapy">
-              <span className="base-map-title">Podklad mapy</span>
-              <div className="base-map-choices">
-                <label><input type="radio" name="base-map" value="street" checked={baseMap === 'street'} onChange={() => setBaseMap('street')} />Mapa</label>
-                <label><input type="radio" name="base-map" value="orthophoto" checked={baseMap === 'orthophoto'} onChange={() => { setOrthophotoStatus('loading'); setBaseMap('orthophoto') }} />Ortofoto</label>
-              </div>
-            </div>
-            {baseMap === 'orthophoto' && (
-              <div className={`layer-status ${orthophotoStatus === 'error' ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
-                {orthophotoStatus === 'error' ? <><AlertCircle size={15} /><span>Ortofoto se nenačetlo</span>
-                  <button type="button" className="layer-action" onClick={() => { setOrthophotoStatus('loading'); setOrthophotoRetryVersion(value => value + 1) }} title="Zkusit znovu" aria-label="Načíst ortofoto znovu"><RefreshCw size={15} /></button></>
-                  : orthophotoStatus === 'ready' ? <><CheckCircle2 size={15} /><span>Ortofoto ČÚZK</span></>
-                    : <><LoaderCircle size={15} className="spin" /><span>Načítání ortofota…</span></>}
-              </div>
-            )}
-            <label className="layer-toggle">
-              <input type="checkbox" checked={cadastreEnabled} onChange={(event) => {
-                setCadastreStatus('loading')
-                setCadastreEnabled(event.target.checked)
-                if (!event.target.checked) onCadastreDisable()
-              }} />
-              <Layers3 size={17} aria-hidden="true" />
-              <span>Katastr</span>
-            </label>
-            {cadastreEnabled && (
-              <div className={`layer-status ${cadastreStatus === 'error' && !needsZoom ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
-                {needsZoom ? (
-                  <button type="button" className="layer-zoom-action" onClick={() => mapRef.current?.easeTo({ zoom: CADASTRE_MIN_ZOOM, duration: 400 })}>
-                    <ZoomIn size={16} aria-hidden="true" /><span>Přiblížit na parcely</span>
-                  </button>
-                ) : cadastreStatus === 'error' ? (
-                  <><AlertCircle size={15} aria-hidden="true" /><span>ČÚZK se nenačetl</span>
-                    <button type="button" className="layer-action" onClick={() => {
-                      setCadastreStatus('loading')
-                      setRetryVersion((value) => value + 1)
-                    }} title="Zkusit načíst znovu" aria-label="Zkusit načíst katastr znovu"><RefreshCw size={15} /></button>
-                  </>
-                ) : cadastreStatus === 'ready' ? (
-                  <><CheckCircle2 size={15} aria-hidden="true" /><span>Katastr načten</span></>
-                ) : (
-                  <><LoaderCircle size={15} className="spin" aria-hidden="true" /><span>Načítání ČÚZK</span></>
-                )}
-              </div>
-            )}
-          </section>
-        </div>
-      </div>
+      <MapToolbox
+        activeTool={activeTool}
+        placementActive={placementActive}
+        toolsDisabled={toolsDisabled}
+        onToolChange={onToolChange}
+        onToolDropAt={(kind, clientX, clientY) => {
+          const map = mapRef.current
+          if (!map || !map.getCanvasContainer().contains(document.elementFromPoint(clientX, clientY))) return
+          const rect = map.getCanvas().getBoundingClientRect()
+          const location = map.unproject([clientX - rect.left, clientY - rect.top])
+          onToolDrop(kind, { latitude: location.lat, longitude: location.lng })
+        }}
+        onDragPointerChange={setDragPointer}
+        onPlacementPointerChange={setPlacementPointer}
+        mapBounds={() => container.current?.getBoundingClientRect()}
+        baseMap={baseMap}
+        onBaseMapChange={(next) => {
+          if (next === 'orthophoto') setOrthophotoStatus('loading')
+          setBaseMap(next)
+        }}
+        orthophotoStatus={orthophotoStatus}
+        onOrthophotoRetry={() => { setOrthophotoStatus('loading'); setOrthophotoRetryVersion(value => value + 1) }}
+        cadastreEnabled={cadastreEnabled}
+        cadastreStatus={cadastreStatus}
+        needsZoom={needsZoom}
+        onCadastreChange={(enabled) => {
+          setCadastreStatus('loading')
+          setCadastreEnabled(enabled)
+          if (!enabled) onCadastreDisable()
+        }}
+        onCadastreRetry={() => { setCadastreStatus('loading'); setRetryVersion(value => value + 1) }}
+        onZoomToCadastre={() => mapRef.current?.easeTo({ zoom: CADASTRE_MIN_ZOOM, duration: 400 })}
+      />
     </>
   )
 }
