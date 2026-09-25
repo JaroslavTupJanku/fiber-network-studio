@@ -13,6 +13,7 @@ export type CableInput = {
   name: string; manufacturer: string; notes: string; tubes: CableTube[]; version: number
   fiberColorCode: string; tubeColorCode: string; sourceUrl: string
   attenuation1310DbPerKm: number | null; attenuation1550DbPerKm: number | null
+  outerDiameterMm: number | null; minimumDuctInnerDiameterMm: number | null
 }
 export type CableSpecification = CableInput & { id: string; isPreset: boolean }
 export type CableDraft = CableInput & { id?: string }
@@ -21,6 +22,7 @@ export const emptyMark: ColorMark = { color: '#64748b', marking: 'none', markerC
 export function normalizeCable(cable: CableSpecification): CableSpecification {
   return { ...cable, fiberColorCode: cable.fiberColorCode ?? 'custom', tubeColorCode: cable.tubeColorCode ?? 'custom',
     attenuation1310DbPerKm: cable.attenuation1310DbPerKm ?? null, attenuation1550DbPerKm: cable.attenuation1550DbPerKm ?? null,
+    outerDiameterMm: cable.outerDiameterMm ?? null, minimumDuctInnerDiameterMm: cable.minimumDuctInnerDiameterMm ?? null,
     sourceUrl: cable.sourceUrl ?? '', tubes: cable.tubes.map(tube => ({ ...emptyMark, ...tube,
       fibers: tube.fibers.map(fiber => ({ ...emptyMark, ...fiber })),
     })) }
@@ -43,6 +45,7 @@ export function createTubes(data: ColorCodeData, tubeCount: number, fiberCount: 
 export const countFibers = (cable: CableInput) => cable.tubes.reduce((sum, tube) => sum + tube.fibers.length, 0)
 export const newCable = (data: ColorCodeData): CableDraft => ({ name: '', manufacturer: '', notes: '', sourceUrl: '',
   attenuation1310DbPerKm: null, attenuation1550DbPerKm: null,
+  outerDiameterMm: null, minimumDuctInnerDiameterMm: null,
   tubes: createTubes(data, 1, 12), version: 0, fiberColorCode: 'tia-598-12', tubeColorCode: 'tia-598-12' })
 export const colorName = (part: ColorMark, data: ColorCodeData) => part.transparent ? 'Bezbarvá'
   : data.colors.find(color => color.hex.toLowerCase() === part.color.toLowerCase())?.name ?? `Vlastní (${part.color.toUpperCase()})`
@@ -53,6 +56,8 @@ export const markSignature = (part: ColorMark) => JSON.stringify([part.color, pa
 export const profileLabel = (data: ColorCodeData, id: string) => data.profiles.find(profile => profile.id === id)?.label ?? 'Vlastní značení'
 
 export function validateCable(cable: CableInput): string | null {
+  if ([cable.outerDiameterMm, cable.minimumDuctInnerDiameterMm].some(value => value !== null && (!Number.isFinite(value) || value <= 0 || value > 1000))) return 'Průměr musí být kladné číslo v mm nebo nevyplněný.'
+  if (cable.outerDiameterMm !== null && cable.minimumDuctInnerDiameterMm !== null && cable.minimumDuctInnerDiameterMm < cable.outerDiameterMm) return 'Doporučený minimální vnitřní průměr trubičky nesmí být menší než průměr kabelu.'
   if ([cable.attenuation1310DbPerKm, cable.attenuation1550DbPerKm].some(value => value !== null && (!Number.isFinite(value) || value < 0))) return 'Útlum musí být nezáporné konečné číslo nebo nevyplněný.'
   if (!cable.name.trim() || cable.name.trim().length > 100) return 'Zadejte název kabelu (1 až 100 znaků).'
   if (cable.manufacturer.length > 100 || cable.notes.length > 2000) return 'Výrobce může mít 100 znaků a poznámka 2000 znaků.'

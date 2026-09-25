@@ -102,3 +102,4 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
   .map-toolbar { top: 10px; left: 10px; }
   .point-counts { margin: 12px 0; padding-bottom: 12px; }
 }
+@media (max-width: 650px) { .app-header { gap: 8px; }.app-brand span { display: none; }.workspace-navigation { overflow-x: auto; }.workspace-navigation button { white-space: nowrap; } }

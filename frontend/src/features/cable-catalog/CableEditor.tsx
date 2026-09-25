@@ -75,6 +75,13 @@ export function CableEditor({ draft, data, busy, dirty, onChange, onSave, onCanc
         onChange={event => onChange({ ...draft, notes: event.target.value })} /></label>
       <label className="cc-source-field">Technický list kabelu <span className="cc-optional">odkaz, nepovinné</span><input type="url" maxLength={2000} value={draft.sourceUrl} placeholder="https://…"
         onChange={event => onChange({ ...draft, sourceUrl: event.target.value })} /></label>
+      <div className="cc-fields">
+        <label>Vnější průměr kabelu (mm) <span className="cc-optional">podle výrobce</span><input type="number" min="0.01" max="1000" step="any" value={draft.outerDiameterMm ?? ''}
+          onChange={event => onChange({ ...draft, outerDiameterMm: event.target.value === '' ? null : Number(event.target.value) })} /></label>
+        <label>Nejmenší vnitřní průměr trubičky (mm) <span className="cc-optional">pokud jej výrobce uvádí</span><input type="number" min="0.01" max="1000" step="any" value={draft.minimumDuctInnerDiameterMm ?? ''}
+          onChange={event => onChange({ ...draft, minimumDuctInnerDiameterMm: event.target.value === '' ? null : Number(event.target.value) })} /></label>
+      </div>
+      <p className="cc-helper">Průměr kabelu nestačí k potvrzení vhodnosti pro zafukování. Pokud výrobce uvádí minimální velikost trubičky, zadejte ji také.</p>
       <div className="cc-fields cc-profile-selects">{(['fibers', 'tubes'] as const).map(scope => <label key={scope}>{scope === 'fibers' ? 'Barevný profil vláken' : 'Barevný profil tub'}
         <select aria-label={scope === 'fibers' ? 'Barevný profil vláken' : 'Barevný profil tub'} value={scope === 'fibers' ? draft.fiberColorCode : draft.tubeColorCode} onChange={event => changeProfile(scope, event.target.value)}>
           <option value="custom">Vlastní značení</option>{data.profiles.filter(profile => profile[scope].length > 0).map(profile => <option key={profile.id} value={profile.id}>{profile.label}</option>)}

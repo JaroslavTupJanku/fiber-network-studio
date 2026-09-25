@@ -25,6 +25,8 @@ function CableDetail({ cable, data, busy, onEdit, onDuplicate, onRemove }: {
       <div><strong>{cable.tubes.length}</strong><span>{cable.tubes.length === 1 ? 'tuba' : cable.tubes.length < 5 ? 'tuby' : 'tub'}</span></div>
       <div><strong>{new Set(cable.tubes.map(tube => tube.fibers.length)).size === 1 ? cable.tubes[0].fibers.length : 'Různý'}</strong><span>vláken v tubě</span></div></div>
     {cable.notes && <p className="cc-notes">{cable.notes}</p>}
+    <div className="cc-code-info"><dl><div><dt>Vnější průměr kabelu</dt><dd>{cable.outerDiameterMm === null ? 'Neuveden' : `${cable.outerDiameterMm} mm`}</dd></div>
+      <div><dt>Nejmenší vnitřní průměr trubičky</dt><dd>{cable.minimumDuctInnerDiameterMm === null ? 'Neuveden' : `${cable.minimumDuctInnerDiameterMm} mm`}</dd></div></dl></div>
     <CableAttenuation cable={cable} />
     <ColorCodeInfo cable={cable} data={data} />
     <div className="cc-section-title"><Layers size={18} /><h3>Struktura kabelu</h3><span>Vyberte tubu pro detail</span></div>

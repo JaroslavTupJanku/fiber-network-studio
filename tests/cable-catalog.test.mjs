@@ -72,6 +72,8 @@ test('catalog presets, validation, persistence and concurrent edits', { timeout:
     const input = { name: '  Test cable  ', manufacturer: ' Example ', notes: 'Persistent test', tubes: presets[1].tubes }
     for (const invalid of [
       { ...input, attenuation1310DbPerKm: -0.1 }, { ...input, attenuation1550DbPerKm: -1 },
+      { ...input, outerDiameterMm: 0 }, { ...input, minimumDuctInnerDiameterMm: -1 },
+      { ...input, outerDiameterMm: 5, minimumDuctInnerDiameterMm: 4 },
       { ...input, attenuation1310DbPerKm: 'NaN' }, { ...input, attenuation1550DbPerKm: 'Infinity' },
       { ...input, name: ' ' }, { ...input, name: 'x'.repeat(101) }, { ...input, tubes: [] },
       { ...input, tubes: [null] }, { ...input, tubes: [{ ...input.tubes[0], fibers: [null] }] },
@@ -94,7 +96,8 @@ test('catalog presets, validation, persistence and concurrent edits', { timeout:
     assert.equal(created.isPreset, false)
     assert.equal(created.version, 1)
     assert.equal(created.attenuation1310DbPerKm, null)
-    const changes = { ...created, name: 'Changed', tubes: structuredClone(created.tubes), attenuation1310DbPerKm: 0.35, attenuation1550DbPerKm: 0.21 }
+    const changes = { ...created, name: 'Changed', tubes: structuredClone(created.tubes), attenuation1310DbPerKm: 0.35, attenuation1550DbPerKm: 0.21,
+      outerDiameterMm: 5.4, minimumDuctInnerDiameterMm: 8 }
     changes.tubes[1].fibers[3] = { name: 'Custom fiber', color: '#123456' }
     const updates = await Promise.all([request(`/${created.id}`, 'PUT', changes), request(`/${created.id}`, 'PUT', changes)])
     assert.deepEqual(updates.map(response => response.status).sort(), [200, 409])
@@ -104,6 +107,8 @@ test('catalog presets, validation, persistence and concurrent edits', { timeout:
     assert.equal(persisted.version, 2)
     assert.equal(persisted.attenuation1310DbPerKm, 0.35)
     assert.equal(persisted.attenuation1550DbPerKm, 0.21)
+    assert.equal(persisted.outerDiameterMm, 5.4)
+    assert.equal(persisted.minimumDuctInnerDiameterMm, 8)
     const clearedResponse = await request(`/${created.id}`, 'PUT', { ...persisted, attenuation1310DbPerKm: null, attenuation1550DbPerKm: 0 })
     assert.equal(clearedResponse.status, 200)
     const cleared = await clearedResponse.json()
@@ -151,6 +156,8 @@ test('catalog presets, validation, persistence and concurrent edits', { timeout:
     assert.equal(migrated.version, 7)
     assert.equal(migrated.attenuation1310DbPerKm, null)
     assert.equal(migrated.attenuation1550DbPerKm, null)
+    assert.equal(migrated.outerDiameterMm, null)
+    assert.equal(migrated.minimumDuctInnerDiameterMm, null)
   } finally {
     await stop()
     await rm(directory, { recursive: true, force: true })
