@@ -18,7 +18,7 @@ Budovu nebo šachtu lze vybrat a kliknout do mapy, případně přetáhnout z n�
 2. Frontend: `pnpm --dir frontend install` a `pnpm --dir frontend dev`
 3. Otevřít adresu, kterou vypíše Vite (obvykle `http://localhost:5173`).
 
-API odpovídá na `http://localhost:5291/api/health`; objekty přes `/api/network-points` a parcely přes `/api/parcels/at`. Aktuální práce je na větvi `codex/map-point-drag`.
+API odpovídá na `http://localhost:5291/api/health`; objekty přes `/api/network-points` a parcely přes `/api/parcels/at`.
 
 Stručné vysvětlení pojmů je v [poznámkách k webovému vývoji](docs/web-vyvoj.md).
 
