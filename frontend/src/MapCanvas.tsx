@@ -3,7 +3,8 @@ import { AlertCircle, CheckCircle2, CircleDot, House, HousePlus, Layers3, Loader
 import { GeoJSONSource, Map, Marker, NavigationControl, setWorkerUrl, type ErrorEvent, type MapMouseEvent, type MapSourceDataEvent } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { addCadastreLayer, CADASTRE_MIN_ZOOM, CADASTRE_SOURCE_ID, removeCadastreLayer } from './cadastre'
+import { addCadastreLayer, CADASTRE_LAYER_ID, CADASTRE_MIN_ZOOM, CADASTRE_SOURCE_ID, removeCadastreLayer } from './cadastre'
+import { addOrthophotoLayer, ORTHOPHOTO_SOURCE_ID, removeOrthophotoLayer } from './orthophoto'
 import type { Coordinates, NetworkPoint, NetworkPointKind } from './networkPoints'
 import type { Parcel } from './parcels'
 
@@ -44,6 +45,8 @@ type MapCanvasProps = {
 }
 
 type CadastreStatus = 'loading' | 'ready' | 'error'
+type BaseMap = 'street' | 'orthophoto'
+type OrthophotoStatus = 'loading' | 'ready' | 'error'
 type PlacementPointer = { kind: NetworkPointKind, x: number, y: number }
 type ToolDrag = { kind: NetworkPointKind, pointerId: number, startX: number, startY: number, dragging: boolean }
 type PointDrag = { id: string, startX: number, startY: number, original: Coordinates, location: Coordinates, moved: boolean }
@@ -61,13 +64,18 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   const suppressToolClick = useRef(false)
   const cadastreActive = useRef(false)
   const cadastreFailed = useRef(false)
+  const orthophotoActive = useRef(false)
   const refreshCursor = useRef<(() => void) | null>(null)
   const loadTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const orthophotoTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [mapGeneration, setMapGeneration] = useState(0)
   const [zoom, setZoom] = useState(12)
   const [cadastreEnabled, setCadastreEnabled] = useState(false)
   const [cadastreStatus, setCadastreStatus] = useState<CadastreStatus>('loading')
   const [retryVersion, setRetryVersion] = useState(0)
+  const [baseMap, setBaseMap] = useState<BaseMap>('street')
+  const [orthophotoStatus, setOrthophotoStatus] = useState<OrthophotoStatus>('loading')
+  const [orthophotoRetryVersion, setOrthophotoRetryVersion] = useState(0)
   const [placementPointer, setPlacementPointer] = useState<PlacementPointer | null>(null)
   const [dragPointer, setDragPointer] = useState<PlacementPointer | null>(null)
 
@@ -111,6 +119,10 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     const clearLoadTimeout = () => {
       if (loadTimeout.current) clearTimeout(loadTimeout.current)
       loadTimeout.current = null
+    }
+    const clearOrthophotoTimeout = () => {
+      if (orthophotoTimeout.current) clearTimeout(orthophotoTimeout.current)
+      orthophotoTimeout.current = null
     }
     const handleClick = (event: MapMouseEvent) => {
       if (suppressMapClick) { suppressMapClick = false; return }
@@ -201,6 +213,11 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
       map.panBy(offset, { duration: 300 })
     }
     const handleSourceLoading = (event: MapSourceDataEvent) => {
+      if (orthophotoActive.current && event.sourceId === ORTHOPHOTO_SOURCE_ID && event.tile) {
+        setOrthophotoStatus('loading')
+        clearOrthophotoTimeout()
+        orthophotoTimeout.current = setTimeout(() => setOrthophotoStatus('error'), 15000)
+      }
       if (!cadastreActive.current || event.sourceId !== CADASTRE_SOURCE_ID || !event.tile || cadastreFailed.current) return
       setCadastreStatus('loading')
       clearLoadTimeout()
@@ -210,12 +227,20 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
       }, 15000)
     }
     const handleSourceData = (event: MapSourceDataEvent) => {
+      if (orthophotoActive.current && event.sourceId === ORTHOPHOTO_SOURCE_ID && event.tile && event.isSourceLoaded) {
+        clearOrthophotoTimeout()
+        setOrthophotoStatus('ready')
+      }
       if (!cadastreActive.current || event.sourceId !== CADASTRE_SOURCE_ID || !event.tile || !event.isSourceLoaded) return
       clearLoadTimeout()
       if (!cadastreFailed.current) setCadastreStatus('ready')
     }
     const handleError = (event: ErrorEvent) => {
       const sourceId = (event as ErrorEvent & { sourceId?: string }).sourceId
+      if (orthophotoActive.current && sourceId === ORTHOPHOTO_SOURCE_ID) {
+        clearOrthophotoTimeout()
+        setOrthophotoStatus('error')
+      }
       if (!cadastreActive.current || sourceId !== CADASTRE_SOURCE_ID) return
       clearLoadTimeout()
       cadastreFailed.current = true
@@ -301,6 +326,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
 
     return () => {
       clearLoadTimeout()
+      clearOrthophotoTimeout()
       window.removeEventListener('mousemove', handlePointMouseMove)
       window.removeEventListener('mouseup', handlePointMouseUp)
       canvas.removeEventListener('keydown', handleKeyDown)
@@ -379,6 +405,19 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     addCadastreLayer(map, PARCEL_FILL_LAYER_ID)
   }, [mapGeneration, cadastreEnabled, canShowCadastre, retryVersion])
 
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || readyMapRef.current !== map) return
+    orthophotoActive.current = baseMap === 'orthophoto'
+    if (orthophotoTimeout.current) clearTimeout(orthophotoTimeout.current)
+    orthophotoTimeout.current = null
+    removeOrthophotoLayer(map)
+    if (baseMap === 'orthophoto') {
+      addOrthophotoLayer(map, map.getLayer(CADASTRE_LAYER_ID) ? CADASTRE_LAYER_ID : PARCEL_FILL_LAYER_ID)
+      orthophotoTimeout.current = setTimeout(() => setOrthophotoStatus('error'), 15000)
+    }
+  }, [mapGeneration, baseMap, orthophotoRetryVersion])
+
   const needsZoom = cadastreEnabled && !canShowCadastre
 
   const handleToolPointerDown = (kind: NetworkPointKind, event: React.PointerEvent<HTMLButtonElement>) => {
@@ -443,6 +482,21 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
           <div className="placement-state">
             <span>{activeTool === 'building' ? 'Umístit budovu' : activeTool === 'chamber' ? 'Umístit šachtu' : 'Přesunout bod'}</span>
             <button type="button" className="layer-action" onClick={() => onToolChange(null)} title="Zrušit umístění" aria-label="Zrušit umístění"><X size={15} /></button>
+          </div>
+        )}
+        <div className="base-map-options" role="radiogroup" aria-label="Podklad mapy">
+          <span className="base-map-title">Podklad mapy</span>
+          <div className="base-map-choices">
+            <label><input type="radio" name="base-map" value="street" checked={baseMap === 'street'} onChange={() => setBaseMap('street')} />Mapa</label>
+            <label><input type="radio" name="base-map" value="orthophoto" checked={baseMap === 'orthophoto'} onChange={() => { setOrthophotoStatus('loading'); setBaseMap('orthophoto') }} />Ortofoto</label>
+          </div>
+        </div>
+        {baseMap === 'orthophoto' && (
+          <div className={`layer-status ${orthophotoStatus === 'error' ? 'layer-status-error' : ''}`} role="status" aria-live="polite">
+            {orthophotoStatus === 'error' ? <><AlertCircle size={15} /><span>Ortofoto se nenačetlo</span>
+              <button type="button" className="layer-action" onClick={() => { setOrthophotoStatus('loading'); setOrthophotoRetryVersion(value => value + 1) }} title="Zkusit znovu" aria-label="Načíst ortofoto znovu"><RefreshCw size={15} /></button></>
+              : orthophotoStatus === 'ready' ? <><CheckCircle2 size={15} /><span>Ortofoto ČÚZK</span></>
+                : <><LoaderCircle size={15} className="spin" /><span>Načítání ortofota…</span></>}
           </div>
         )}
         <label className="layer-toggle">
