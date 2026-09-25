@@ -100,11 +100,11 @@ function App() {
     }
   }, [activeTool, moving, editor, clearParcel])
 
-  const handlePointSelect = useCallback((id: string) => {
+  const handlePointSelect = useCallback((id: string, location?: Coordinates) => {
     const point = points.find((item) => item.id === id)
     if (!point) return
     clearParcel()
-    setEditor({ ...point })
+    setEditor({ ...point, ...location })
     setSelectedLocation(null)
     setActiveTool(null)
     setMoving(false)
@@ -208,6 +208,7 @@ function App() {
             onToolDrop={handleToolDrop}
             onLocationClick={handleLocationClick}
             onPointSelect={handlePointSelect}
+            onPointMove={handlePointSelect}
             onCadastreDisable={clearParcel}
           />
         </section>
