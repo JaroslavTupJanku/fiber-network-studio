@@ -20,6 +20,8 @@
 
 **Drag and drop** znamená přetáhnout prvek a pustit ho na cílovém místě. U nás mapa převede místo puštění na souřadnice; objekt se uloží až po potvrzení formuláře.
 
+**Rozpracovaná poloha** je změna bodu viditelná ve frontendu. Při tažení se překreslí bod v mapové vrstvě GeoJSON, ale backend dostane nové souřadnice až po kliknutí na **Uložit**.
+
 **Optické ztráty** jsou úbytek signálu na kabelu, spojích a rozbočovačích. V aplikaci se
 počítají pro jednu zadanou cestu. **dB** je jednotka ztráty; **dBm** vyjadřuje výkon signálu
 na výstupu nebo vstupu zařízení. Stejné číslo v dB a dBm proto neznamená totéž.
