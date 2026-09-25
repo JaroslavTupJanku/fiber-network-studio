@@ -74,15 +74,19 @@ export function pointCollection(points: NetworkPoint[], selectedPointId: string 
 export function initializeMapLayers(map: Map) {
   map.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: SELECTED_ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
-    filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#ffffff', 'line-width': 10, 'line-opacity': 0.95 } })
+    filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#ffffff',
+      'line-width': ['interpolate', ['linear'], ['zoom'], 9, 4, 12, 6, 15, 9, 18, 10], 'line-opacity': 0.95 } })
   map.addLayer({ id: HOVERED_ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
-    filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#f0b344', 'line-width': 12, 'line-opacity': 0.9 } })
+    filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#f0b344',
+      'line-width': ['interpolate', ['linear'], ['zoom'], 9, 5, 12, 7, 15, 11, 18, 12], 'line-opacity': 0.9 } })
   map.addLayer({ id: ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
     paint: { 'line-color': ['match', ['get', 'installationStatus'],
-      'cables', '#2d6f9f', 'ducts', '#26766b', 'unknown', '#74817d', '#b8613e'], 'line-width': 5, 'line-opacity': 0.95 } })
+      'cables', '#2d6f9f', 'ducts', '#26766b', 'unknown', '#74817d', '#b8613e'],
+    'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 12, 3, 15, 5, 18, 6], 'line-opacity': 0.95 } })
   map.addSource(ROUTE_DRAFT_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: 'underground-route-draft-line', type: 'line', source: ROUTE_DRAFT_SOURCE_ID,
-    paint: { 'line-color': '#de8a39', 'line-width': 4, 'line-dasharray': [2, 1.5] } })
+    paint: { 'line-color': '#de8a39',
+      'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 12, 3, 15, 4, 18, 5], 'line-dasharray': [2, 1.5] } })
   map.addSource(ROUTE_VERTEX_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: ROUTE_VERTEX_LAYER_ID, type: 'circle', source: ROUTE_VERTEX_SOURCE_ID,
     paint: { 'circle-radius': 6, 'circle-color': '#fff', 'circle-stroke-color': '#a4532d', 'circle-stroke-width': 2 } })
