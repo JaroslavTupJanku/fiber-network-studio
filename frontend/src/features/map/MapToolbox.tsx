@@ -21,7 +21,6 @@ type MapToolboxProps = {
   onToolChange: (kind: NetworkPointKind | null) => void
   onToolDropAt: (kind: NetworkPointKind, clientX: number, clientY: number) => void
   onDragPointerChange: Dispatch<SetStateAction<PlacementPointer | null>>
-  onPlacementPointerChange: Dispatch<SetStateAction<PlacementPointer | null>>
   mapBounds: () => DOMRect | undefined
   baseMap: BaseMap
   onBaseMapChange: (baseMap: BaseMap) => void
@@ -36,11 +35,12 @@ type MapToolboxProps = {
 }
 
 export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolChange, onToolDropAt,
-  onDragPointerChange: setDragPointer, onPlacementPointerChange: setPlacementPointer, mapBounds,
+  onDragPointerChange: setDragPointer, mapBounds,
   baseMap, onBaseMapChange, orthophotoStatus, onOrthophotoRetry, cadastreEnabled, cadastreStatus,
   needsZoom, onCadastreChange, onCadastreRetry, onZoomToCadastre }: MapToolboxProps) {
   const [toolboxOpen, setToolboxOpen] = useState(() => !window.matchMedia('(max-width: 720px)').matches)
   const toolDrag = useRef<ToolDrag | null>(null)
+  const [draggingTool, setDraggingTool] = useState<NetworkPointKind | null>(null)
   const suppressToolClick = useRef(false)
   const handleToolPointerDown = (kind: NetworkPointKind, event: PointerEvent<HTMLButtonElement>) => {
     if (event.pointerType !== 'mouse' || event.button !== 0) return
@@ -53,6 +53,7 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
     if (!drag || !rect || drag.pointerId !== event.pointerId) return
     if (!drag.dragging && !crossedDragThreshold(drag.startX, drag.startY, event.clientX, event.clientY, 6)) return
     drag.dragging = true
+    setDraggingTool(drag.kind)
     event.preventDefault()
     setDragPointer({ kind: drag.kind, x: event.clientX - rect.left, y: event.clientY - rect.top })
   }
@@ -60,6 +61,7 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
     const drag = toolDrag.current
     if (!drag || drag.pointerId !== event.pointerId) return
     toolDrag.current = null
+    setDraggingTool(null)
     setDragPointer(null)
     if (!drag.dragging) return
     event.preventDefault()
@@ -69,11 +71,11 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
   }
   const handleToolPointerCancel = () => {
     toolDrag.current = null
+    setDraggingTool(null)
     setDragPointer(null)
   }
   const handleToolClick = (kind: NetworkPointKind) => {
     if (suppressToolClick.current) { suppressToolClick.current = false; return }
-    setPlacementPointer(null)
     onToolChange(activeTool === kind ? null : kind)
   }
   return (
@@ -87,7 +89,7 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
           <h2>Bodové objekty</h2>
           <div className="map-tool-actions" role="group" aria-label="Přidat bodový objekt">
             {POINT_TOOLS.map(({ kind, label, Icon, hint }) => (
-              <button key={kind} type="button" className={activeTool === kind ? 'map-tool active' : 'map-tool'} aria-pressed={activeTool === kind} disabled={toolsDisabled} onClick={() => handleToolClick(kind)} onPointerDown={(event) => handleToolPointerDown(kind, event)} onPointerMove={handleToolPointerMove} onPointerUp={handleToolPointerUp} onPointerCancel={handleToolPointerCancel} title={hint}>
+              <button key={kind} type="button" className={`map-tool${activeTool === kind ? ' active' : ''}${draggingTool === kind ? ' dragging' : ''}`} aria-pressed={activeTool === kind} disabled={toolsDisabled} onClick={() => handleToolClick(kind)} onPointerDown={(event) => handleToolPointerDown(kind, event)} onPointerMove={handleToolPointerMove} onPointerUp={handleToolPointerUp} onPointerCancel={handleToolPointerCancel} onLostPointerCapture={handleToolPointerCancel} title={hint}>
                 <Icon size={18} aria-hidden="true" /> {label}
               </button>
             ))}

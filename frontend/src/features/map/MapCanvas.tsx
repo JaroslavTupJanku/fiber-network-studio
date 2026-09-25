@@ -9,7 +9,7 @@ import { addOrthophotoLayer, ORTHOPHOTO_SOURCE_ID, removeOrthophotoLayer } from 
 import type { Coordinates, NetworkPoint, NetworkPointKind } from './networkPoints'
 import type { Parcel } from './parcels'
 import { initializeMapLayers, pointCollection, POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID } from './mapLayers'
-import { crossedDragThreshold, resolveMapClick } from './interactions'
+import { crossedDragThreshold, mapCursor, resolveMapClick } from './interactions'
 
 type MapCanvasProps = {
   points: NetworkPoint[]
@@ -35,13 +35,14 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const readyMapRef = useRef<Map | null>(null)
-  const interactionRef = useRef({ placementActive, activeTool, onLocationClick, onPointSelect, onPointMove })
+  const interactionRef = useRef({ placementActive, onLocationClick, onPointSelect, onPointMove })
   const pointData = useRef(pointCollection([], null, null))
   const skipSelectionEase = useRef<string | null>(null)
   const cadastreActive = useRef(false)
   const cadastreFailed = useRef(false)
   const orthophotoActive = useRef(false)
   const refreshCursor = useRef<(() => void) | null>(null)
+  const toolDragActive = useRef(false)
   const loadTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const orthophotoTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [mapGeneration, setMapGeneration] = useState(0)
@@ -52,12 +53,16 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
   const [baseMap, setBaseMap] = useState<BaseMap>('street')
   const [orthophotoStatus, setOrthophotoStatus] = useState<OrthophotoStatus>('loading')
   const [orthophotoRetryVersion, setOrthophotoRetryVersion] = useState(0)
-  const [placementPointer, setPlacementPointer] = useState<PlacementPointer | null>(null)
   const [dragPointer, setDragPointer] = useState<PlacementPointer | null>(null)
 
   useEffect(() => {
-    interactionRef.current = { placementActive, activeTool, onLocationClick, onPointSelect, onPointMove }
-  }, [placementActive, activeTool, onLocationClick, onPointSelect, onPointMove])
+    interactionRef.current = { placementActive, onLocationClick, onPointSelect, onPointMove }
+  }, [placementActive, onLocationClick, onPointSelect, onPointMove])
+
+  useEffect(() => {
+    toolDragActive.current = dragPointer !== null
+    refreshCursor.current?.()
+  }, [dragPointer])
 
   useEffect(() => {
     if (!container.current) return
@@ -83,11 +88,14 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     let pointDrag: PointDrag | null = null
     let suppressMapClick = false
     const updateCursor = () => {
-      if (dragging || pointDrag?.moved) canvas.style.cursor = 'grabbing'
-      else if (interactionRef.current.placementActive) canvas.style.cursor = 'crosshair'
-      else if (overPoint) canvas.style.cursor = 'move'
-      else if (overParcel) canvas.style.cursor = 'pointer'
-      else canvas.style.cursor = 'grab'
+      canvas.style.cursor = mapCursor({
+        draggingTool: toolDragActive.current,
+        draggingMap: dragging,
+        draggingPoint: pointDrag?.moved ?? false,
+        placing: interactionRef.current.placementActive,
+        overPoint,
+        overParcel,
+      })
     }
     refreshCursor.current = updateCursor
     updateCursor()
@@ -112,9 +120,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
       else onLocationClick({ latitude: event.lngLat.lat, longitude: event.lngLat.lng }, result.lookupParcel)
     }
     const handleMouseMove = (event: MapMouseEvent) => {
-      const { activeTool, placementActive } = interactionRef.current
-      if (activeTool && !dragging) setPlacementPointer({ kind: activeTool, x: event.point.x, y: event.point.y })
-      else setPlacementPointer(null)
+      const { placementActive } = interactionRef.current
       overPoint = !placementActive && Boolean(map.getLayer(POINT_LAYER_ID))
         && map.queryRenderedFeatures(event.point, { layers: [POINT_LAYER_ID] }).length > 0
       overParcel = !placementActive && !overPoint && Boolean(map.getLayer(PARCEL_FILL_LAYER_ID))
@@ -124,7 +130,6 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     const handleMouseLeave = () => {
       overPoint = false
       overParcel = false
-      setPlacementPointer(null)
       updateCursor()
     }
     const setPointPosition = (id: string, location: Coordinates) => {
@@ -230,7 +235,7 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
     map.on('mousedown', POINT_LAYER_ID, handlePointMouseDown)
     map.on('mousemove', handleMouseMove)
     canvas.addEventListener('mouseleave', handleMouseLeave)
-    map.on('dragstart', () => { dragging = true; setPlacementPointer(null); updateCursor() })
+    map.on('dragstart', () => { dragging = true; updateCursor() })
     map.on('dragend', () => { dragging = false; updateCursor() })
     canvas.addEventListener('keydown', handleKeyDown)
     map.on('sourcedataloading', handleSourceLoading)
@@ -333,15 +338,13 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
 
   const needsZoom = cadastreEnabled && !canShowCadastre
 
-  const cursorPreview = dragPointer ?? (activeTool ? placementPointer : null)
-
   return (
     <>
       <div className="map-canvas" ref={container} aria-label="Mapa" />
-      {cursorPreview && (
-        <div className={`placement-cursor ${cursorPreview.kind}`} style={{ left: cursorPreview.x, top: cursorPreview.y }} aria-hidden="true">
-          <span className="placement-cursor-figure">{cursorPreview.kind === 'building' ? <House size={38} strokeWidth={2.5} /> : <CircleDot size={30} strokeWidth={2.4} />}</span>
-          <span className="placement-cursor-target" />
+      {dragPointer && (
+        <div className={`tool-drag-preview ${dragPointer.kind}`} style={{ left: dragPointer.x, top: dragPointer.y }} aria-hidden="true">
+          {dragPointer.kind === 'building' ? <House size={16} /> : <CircleDot size={16} />}
+          {dragPointer.kind === 'building' ? 'Budova' : 'Šachta'}
         </div>
       )}
       <MapToolbox
@@ -357,7 +360,6 @@ export function MapCanvas({ points, selectedPointId, selectedParcel, preview, ac
           onToolDrop(kind, { latitude: location.lat, longitude: location.lng })
         }}
         onDragPointerChange={setDragPointer}
-        onPlacementPointerChange={setPlacementPointer}
         mapBounds={() => container.current?.getBoundingClientRect()}
         baseMap={baseMap}
         onBaseMapChange={(next) => {
