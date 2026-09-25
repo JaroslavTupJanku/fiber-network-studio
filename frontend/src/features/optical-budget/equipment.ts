@@ -11,7 +11,13 @@ export type EndpointSelection = { oltId: string; onuId: string; oltModuleId: str
 export const equipmentStorageKey = 'fiber-network-studio.optical-equipment.v1'
 export const emptyCatalog = (): EquipmentCatalog => ({ version: 1, profiles: [] })
 export const emptyEndpointSelection = (): EndpointSelection => ({ oltId: '', onuId: '', oltModuleId: '', onuModuleId: '' })
-export const newProfile = (kind: EquipmentKind = 'olt'): EquipmentProfile => ({ id: crypto.randomUUID(), kind, manufacturer: '', model: '', technology: 'gpon', txWavelength: kind === 'onu' ? '1310' : '1490', rxWavelength: kind === 'onu' ? '1490' : '1310', txMin: '', txMax: '', rxSensitivity: '', rxOverload: '', source: '' })
+export const profileWavelengths = (kind: EquipmentKind, technology: Exclude<Technology, 'manual'>) => {
+  const { downstream, upstream } = ponWavelengths[technology]
+  return kind === 'onu'
+    ? { txWavelength: upstream, rxWavelength: downstream }
+    : { txWavelength: downstream, rxWavelength: upstream }
+}
+export const newProfile = (kind: EquipmentKind = 'olt'): EquipmentProfile => ({ id: crypto.randomUUID(), kind, manufacturer: '', model: '', technology: 'gpon', ...profileWavelengths(kind, 'gpon'), txMin: '', txMax: '', rxSensitivity: '', rxOverload: '', source: '' })
 
 const validText = (v: unknown) => typeof v === 'string' && v.trim().length > 0 && v.length <= 2000
 export function parseEquipmentCatalog(raw: string): EquipmentCatalog {
