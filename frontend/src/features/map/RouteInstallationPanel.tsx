@@ -13,22 +13,31 @@ const itemKind = (item: InstalledItem) => item.duct ? kindLabel(item.duct.kind) 
 const itemColor = (item: InstalledItem) => item.duct?.color ?? item.cable?.tubes[0]?.color ?? '#286d61'
 const routeName = (id: string, routes: UndergroundRoute[]) => routes.find(route => route.id === id)?.name ?? 'Jiný úsek'
 
-function SectionDiagram({ item, items, depth = 0 }: { item: InstalledItem; items: InstalledItem[]; depth?: number }) {
+function SectionDiagram({ item, items, selectedId, onSelect, depth = 0 }: {
+  item: InstalledItem; items: InstalledItem[]; selectedId: string | null;
+  onSelect: (item: InstalledItem) => void; depth?: number
+}) {
   const children = items.filter(child => child.parentId === item.id)
+  const target = <button type="button" className="install-diagram-target"
+    aria-label={`Vybrat prvek: ${item.label}`}
+    aria-pressed={selectedId === item.id} title={`Vybrat: ${item.label}`}
+    onClick={() => onSelect(item)} />
   if (item.duct?.kind === 'assembly') return <div className="install-diagram-assembly" style={{
     gridTemplateColumns: `repeat(${item.duct.columns}, minmax(0, 1fr))`,
-  }} aria-hidden="true">{item.duct.slots.map((slot, index) => {
+  }}>{target}{item.duct.slots.map((slot, index) => {
     const child = children.find(other => other.slotIndex === index)
     return <div key={index} className="install-diagram-slot" title={`${slot.name}: ${child?.label ?? 'volná pozice'}`}>
-      {child ? <SectionDiagram item={child} items={items} depth={depth + 1} />
+      {child ? <SectionDiagram item={child} items={items} selectedId={selectedId} onSelect={onSelect} depth={depth + 1} />
         : <span className="install-diagram-empty" style={{ borderColor: slot.color }} />}
       <small>{index + 1}</small>
     </div>
   })}</div>
-  if (item.cable) return <span className="install-diagram-cable" style={{ background: itemColor(item) }} aria-hidden="true" />
+  if (item.cable) return <span className="install-diagram-cable" style={{ background: itemColor(item) }}>{target}</span>
   return <span className={`install-diagram-ring ${depth === 0 ? 'root' : ''}`}
-    style={{ '--install-color': itemColor(item) } as CSSProperties} aria-hidden="true">
-    {children.map(child => <SectionDiagram key={child.id} item={child} items={items} depth={depth + 1} />)}
+    style={{ '--install-color': itemColor(item) } as CSSProperties}>
+    {target}
+    {children.map(child => <SectionDiagram key={child.id} item={child} items={items}
+      selectedId={selectedId} onSelect={onSelect} depth={depth + 1} />)}
   </span>
 }
 
@@ -54,7 +63,7 @@ function InstallationTreeItem({ item, items, documents, routes, busy, onRename, 
       <div className="install-item-text"><strong>{item.label}</strong>
         <small>{itemKind(item)} · typ: {item.duct?.name ?? item.cable?.name}
           {item.slotIndex !== null ? ` · pozice ${item.slotIndex + 1}` : ''}</small>
-        {linkedRoutes.length > 0 && <small className="install-continuity">Souvislý kus pokračuje: {linkedRoutes.join(', ')}</small>}
+        {linkedRoutes.length > 0 && <small className="install-continuity">Prvek pokračuje: {linkedRoutes.join(', ')}</small>}
         {parent && <small className={`install-fit ${fit}`}>{fit === 'possible' ? 'Rozměrově předběžně vyhovuje'
           : fit === 'too-small' ? 'Rozměry nevyhovují' : 'Kompatibilita neurčená'}</small>}
       </div>
@@ -65,7 +74,7 @@ function InstallationTreeItem({ item, items, documents, routes, busy, onRename, 
           onClick={() => { setLabel(item.label); setEditing(value => !value) }} disabled={busy}><Pencil size={14} /></button>
         <button type="button" title={children.length ? 'Nejdřív odeberte obsah' : `Odebrat ${item.label}`}
           aria-label={`Odebrat ${item.label}`} disabled={busy || children.length > 0}
-          onClick={() => { if (window.confirm(`Odebrat instalovaný kus „${item.label}“?`)) void onRemove(item.id) }}><Trash2 size={14} /></button>
+          onClick={() => { if (window.confirm(`Odebrat instalovaný prvek „${item.label}“?`)) void onRemove(item.id) }}><Trash2 size={14} /></button>
       </div>
     </div>
     {editing && <form className="install-rename" onSubmit={saveLabel}>
@@ -95,6 +104,9 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const [continuationId, setContinuationId] = useState('')
   const [label, setLabel] = useState('')
   const [formError, setFormError] = useState('')
+  const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
+  const [selectionEditing, setSelectionEditing] = useState(false)
+  const [selectionLabel, setSelectionLabel] = useState('')
   const sectionRef = useRef<HTMLElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
   const parent = document.items.find(item => item.id === parentId) ?? null
@@ -113,9 +125,17 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const fit = selectedCandidate ? installationFit(selectedCandidate, parent, selectedSlot,
     document.items.filter(item => item.parentId === parent?.id)) : null
   const roots = document.items.filter(item => item.parentId === null)
+  const selectedItem = document.items.find(item => item.id === selectedItemId) ?? null
+  const selectedHasChildren = selectedItem !== null && document.items.some(item => item.parentId === selectedItem.id)
   const summary = installationSummary(document)
+  const selectItem = (item: InstalledItem) => {
+    setSelectedItemId(item.id)
+    setSelectionLabel(item.label)
+    setSelectionEditing(false)
+  }
   const chooseParent = (id: string) => {
     setParentId(id)
+    setFormError('')
     const next = document.items.find(item => item.id === id)
     setSlotIndex(next?.duct?.kind === 'assembly'
       ? next.duct.slots.findIndex((_, index) => !document.items.some(item => item.parentId === id && item.slotIndex === index))
@@ -125,14 +145,15 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   }
   const addInside = (id: string) => {
     chooseParent(id)
+    setSourceMode('catalog')
     setAddOpen(true)
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setSavedMessage('')
-    if (!editable || !selectedCandidate) { setFormError('Vyberte typ nebo návazný kus.'); return }
-    if (fit === 'too-small') { setFormError('Zvolený kus je pro toto místo příliš velký.'); return }
+    if (!editable || !selectedCandidate) { setFormError('Vyberte typ nebo navazující prvek.'); return }
+    if (fit === 'too-small') { setFormError('Zvolený prvek je pro toto místo příliš velký.'); return }
     const success = await add({ catalogId: sourceMode === 'catalog'
       ? catalogKey.split(':')[1] : null,
     parentId: parent?.id ?? null, slotIndex: selectedSlot, label,
@@ -155,7 +176,10 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const removeItem = async (id: string) => {
     setSavedMessage('')
     const success = await remove(id)
-    if (success) setSavedMessage('Kus byl z úseku odebrán.')
+    if (success) {
+      setSavedMessage('Prvek byl z úseku odebrán.')
+      if (selectedItemId === id) setSelectedItemId(null)
+    }
     return success
   }
   return <section className="installation-panel" aria-label="Osazení trasy" ref={sectionRef}>
@@ -165,7 +189,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
           onClick={() => {
             setAddOpen(current => !current)
             if (!addOpen) requestAnimationFrame(() => formRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
-          }} disabled={!editable || loading || loadFailed}><Plus size={15} /> {addOpen ? 'Zavřít' : 'Přidat kus'}</button>
+          }} disabled={!editable || loading || loadFailed}><Plus size={15} /> {addOpen ? 'Zavřít' : 'Přidat prvek'}</button>
         <button type="button" className="icon-button" title="Načíst osazení znovu"
           aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button>
       </div></div>
@@ -174,25 +198,48 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       <span>Potrubí a trubičky <b>{summary.ducts}</b></span><span>Optické kabely <b>{summary.cables}</b></span>
     </div>}
     {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
-    <p className="route-help">Schéma ukazuje uspořádání v úseku. V seznamu lze kusy přejmenovat, odebrat nebo vložit další dovnitř.</p>
+    <p className="route-help">{view === 'diagram'
+      ? 'Kliknutím na prvek ve schématu zobrazíte jeho možnosti.'
+      : 'V seznamu můžete prvky přejmenovat, odebrat nebo do nich vložit další.'}</p>
     {loading ? <p className="installation-muted">Načítání osazení…</p> : <>
       {error && <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>}
-      {loadFailed ? null : roots.length === 0 ? <p className="installation-empty">Trasa je zatím prázdná. Tlačítkem Přidat kus vložte první chráničku, mikrotrubičku nebo sestavu.</p>
+      {loadFailed ? null : roots.length === 0 ? <p className="installation-empty">Trasa je zatím prázdná. Tlačítkem Přidat prvek vložte první chráničku, mikrotrubičku nebo sestavu.</p>
         : <><div className="installation-view-switch" role="group" aria-label="Zobrazení osazení">
           <button type="button" aria-pressed={view === 'diagram'} onClick={() => setView('diagram')}>Schéma</button>
-          <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>Seznam kusů</button>
+          <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>Seznam prvků</button>
         </div><div className="installation-view" hidden={view !== 'diagram'}><div className="installation-cross-sections" aria-label="Schematické průřezy instalace">
           {roots.map(root => <div className="installation-cross-section" key={root.id}>
-            <div className="installation-visual"><SectionDiagram item={root} items={document.items} /></div>
+            <div className="installation-visual"><SectionDiagram item={root} items={document.items}
+              selectedId={selectedItemId} onSelect={selectItem} /></div>
             <strong>{root.label}</strong>
           </div>)}
-          <small>Schéma uspořádání, nikoli měřítko nebo schválení instalace.</small>
-        </div></div><ul className="installation-tree installation-view" hidden={view !== 'list'}>{roots.map(root => <InstallationTreeItem key={root.id} item={root}
+        </div>{selectedItem && <div className="installation-selection">
+          <div className="installation-selection-heading"><div><span>Vybraný prvek</span><strong>{selectedItem.label}</strong>
+            <small>{itemKind(selectedItem)} · {selectedItem.duct?.name ?? selectedItem.cable?.name}</small></div>
+            <button type="button" className="installation-selection-close" aria-label="Zrušit výběr prvku"
+              onClick={() => setSelectedItemId(null)}><X size={15} /></button></div>
+          {selectionEditing ? <form className="install-rename" onSubmit={async event => {
+            event.preventDefault()
+            if (await renameItem(selectedItem.id, selectionLabel)) setSelectionEditing(false)
+          }}><input aria-label="Nové označení prvku" value={selectionLabel} maxLength={80}
+              onChange={event => setSelectionLabel(event.target.value)} required />
+            <button type="submit" disabled={busy || !selectionLabel.trim()} aria-label="Uložit označení"><Check size={15} /></button>
+            <button type="button" onClick={() => setSelectionEditing(false)} aria-label="Zrušit přejmenování"><X size={15} /></button>
+          </form> : <div className="installation-selection-actions">
+            {selectedItem.duct && <button type="button" onClick={() => addInside(selectedItem.id)} disabled={!editable || busy}>
+              <Plus size={14} /> Vložit dovnitř</button>}
+            <button type="button" onClick={() => { setSelectionLabel(selectedItem.label); setSelectionEditing(true) }}
+              disabled={!editable || busy}><Pencil size={14} /> Přejmenovat</button>
+            <button type="button" title={selectedHasChildren ? 'Nejdřív odeberte obsah' : undefined}
+              onClick={() => { if (window.confirm(`Odebrat instalovaný prvek „${selectedItem.label}“?`)) void removeItem(selectedItem.id) }}
+              disabled={!editable || busy || selectedHasChildren}><Trash2 size={14} /> Odebrat</button>
+          </div>}
+        </div>}</div><ul className="installation-tree installation-view" hidden={view !== 'list'}>{roots.map(root => <InstallationTreeItem key={root.id} item={root}
           items={document.items} documents={documents} routes={routes} busy={busy || !editable}
           onRename={renameItem} onRemove={removeItem} onAddInside={addInside} />)}</ul></>}
       {!loadFailed && <div id="installation-add-form" className="installation-add-container" hidden={!addOpen}>
       <form className="installation-add" onSubmit={submit} ref={formRef}>
-        <h3><Layers3 size={16} /> Vložit kus do trasy</h3>
+        <h3><Layers3 size={16} /> Vložit prvek do trasy</h3>
         <label htmlFor="installation-parent">Kam vložit</label>
         <select id="installation-parent" value={parentId} onChange={event => chooseParent(event.target.value)} disabled={!editable || busy}>
           <option value="">Volně do úseku</option>
@@ -208,7 +255,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
             {slots.every((_, index) => document.items.some(item => item.parentId === parent?.id && item.slotIndex === index))
               && <option value={-1}>Všechny pozice jsou obsazené</option>}
           </select></>}
-        <div className="installation-source-modes" role="group" aria-label="Zdroj kusu">
+        <div className="installation-source-modes" role="group" aria-label="Zdroj prvku">
           <label><input type="radio" checked={sourceMode === 'catalog'} onChange={() => setSourceMode('catalog')} /> Nový z katalogu</label>
           <label><input type="radio" checked={sourceMode === 'continuation'} onChange={() => setSourceMode('continuation')} /> Pokračování</label>
         </div>
@@ -216,24 +263,26 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
           <select id="installation-catalog" value={catalogKey} onChange={event => setCatalogKey(event.target.value)} disabled={!editable || busy}>
             <option value="">Vyberte typ…</option>
             {candidates.map(candidate => <option key={candidate.key} value={candidate.key}>{candidate.label}</option>)}
-          </select></> : <><label htmlFor="installation-continuation">Navázat na sousední úsek</label>
+          </select>
+          {candidates.length === 0 && <p className="installation-muted">Zde není volná pozice nebo vhodný typ z katalogu.</p>}</>
+          : <><label htmlFor="installation-continuation">Navázat na sousední úsek</label>
           <select id="installation-continuation" value={continuationId} onChange={event => setContinuationId(event.target.value)} disabled={!editable || busy}>
-            <option value="">Vyberte instalovaný kus…</option>
+            <option value="">Vyberte instalovaný prvek…</option>
             {continuations.map(item => <option key={item.id} value={item.id}>{item.label} · {routeName(item.routeId, routes)}</option>)}
           </select>
-          {continuations.length === 0 && <p className="installation-muted">V sousedním úseku není vhodný kus k navázání.</p>}</>}
+          {continuations.length === 0 && <p className="installation-muted">V sousedním úseku není vhodný prvek k navázání.</p>}</>}
         {selectedCandidate && parent && <p className={`install-fit ${fit}`}>{fit === 'possible'
           ? 'Průměry předběžně vyhovují. Ověřte produktové podmínky a skutečné uložení.'
-          : fit === 'too-small' ? 'Podle zadaných průměrů se kus nevejde.'
+          : fit === 'too-small' ? 'Podle zadaných průměrů se prvek nevejde.'
             : 'Rozměry chybí nebo nelze ověřit společné uložení. Kompatibilita zůstává neurčená.'}</p>}
-        <label htmlFor="installation-label">Označení kusu <span>(volitelné)</span></label>
+        <label htmlFor="installation-label">Označení prvku <span>(volitelné)</span></label>
         <input id="installation-label" maxLength={80} value={label} onChange={event => setLabel(event.target.value)}
           onKeyDown={event => acceptExampleOnArrowRight(event, setLabel, selectedCandidate?.label)}
           title="Šipka doprava převezme šedé označení"
           placeholder={selectedCandidate?.label ?? 'Např. Chránička CH-01'} disabled={!editable || busy} />
         {formError && <p className="form-error" role="alert">{formError}</p>}
         <button type="submit" className="primary-button" disabled={!editable || busy || !selectedCandidate || fit === 'too-small'}>
-          <Plus size={16} /> {busy ? 'Ukládání…' : 'Vložit kus'}</button>
+          <Plus size={16} /> {busy ? 'Ukládání…' : 'Vložit prvek'}</button>
         {!editable && <p className="installation-muted">Nejdřív dokončete a uložte úpravu průběhu trasy.</p>}
       </form></div>}
     </>}

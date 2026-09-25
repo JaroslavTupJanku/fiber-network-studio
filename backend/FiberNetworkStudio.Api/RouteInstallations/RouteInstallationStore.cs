@@ -63,18 +63,18 @@ public sealed class RouteInstallationStore(string path)
                     || !ShareEndpoint(route, sourceRoute))
                     return InstallationResult.Fail(400, "Navázat lze jen na instalaci v sousedním úseku se společným koncovým bodem.");
                 if (current.Items.Any(item => item.RunId == source.RunId))
-                    return InstallationResult.Fail(409, "Stejný souvislý kus je v této trase už evidován.");
+                    return InstallationResult.Fail(409, "Stejný souvislý prvek je v této trase už evidován.");
                 var runRoutes = documents.SelectMany(document => document.Items)
                     .Where(item => item.RunId == source.RunId).Select(item => item.RouteId).ToHashSet();
                 runRoutes.Add(route.Id);
                 if (!FormsSinglePath(runRoutes, routes))
-                    return InstallationResult.Fail(409, "Pokračování by vytvořilo odbočku nebo nesouvislou cestu jednoho kusu.");
+                    return InstallationResult.Fail(409, "Pokračování by vytvořilo odbočku nebo nesouvislou cestu jednoho prvku.");
                 (duct, cable, catalogId, runId) = (source.Duct, source.Cable, source.CatalogId, source.RunId);
             }
             if (catalogId is null || (duct is null) == (cable is null))
                 return InstallationResult.Fail(400, "Vyberte existující typ chráničky, mikrotrubičky, sestavy nebo kabelu.");
             var label = string.IsNullOrWhiteSpace(request.Label) ? duct?.Name ?? cable!.Name : request.Label.Trim();
-            if (label.Length is < 1 or > 80) return InstallationResult.Fail(400, "Označení kusu musí mít 1 až 80 znaků.");
+            if (label.Length is < 1 or > 80) return InstallationResult.Fail(400, "Označení prvku musí mít 1 až 80 znaků.");
             var placementError = ValidatePlacement(current.Items, request.ParentId, request.SlotIndex, duct, cable);
             if (placementError is not null) return InstallationResult.Fail(409, placementError);
 
@@ -99,8 +99,8 @@ public sealed class RouteInstallationStore(string path)
             if (current is null) return InstallationResult.Fail(404, "Osazení trasy neexistuje.");
             if (current.Version != request.Version) return InstallationResult.Fail(409, "Osazení mezitím změnil jiný uživatel. Načtěte trasu znovu.");
             if (string.IsNullOrWhiteSpace(request.Label) || request.Label.Trim().Length > 80)
-                return InstallationResult.Fail(400, "Označení kusu musí mít 1 až 80 znaků.");
-            if (current.Items.All(item => item.Id != itemId)) return InstallationResult.Fail(404, "Instalovaný kus neexistuje.");
+                return InstallationResult.Fail(400, "Označení prvku musí mít 1 až 80 znaků.");
+            if (current.Items.All(item => item.Id != itemId)) return InstallationResult.Fail(404, "Instalovaný prvek neexistuje.");
             var updated = current with { Version = current.Version + 1,
                 Items = current.Items.Select(item => item.Id == itemId ? item with { Label = request.Label.Trim() } : item).ToList() };
             documents[documents.IndexOf(current)] = updated;
@@ -121,14 +121,14 @@ public sealed class RouteInstallationStore(string path)
             if (current is null) return InstallationResult.Fail(404, "Osazení trasy neexistuje.");
             if (current.Version != version) return InstallationResult.Fail(409, "Osazení mezitím změnil jiný uživatel. Načtěte trasu znovu.");
             var removed = current.Items.Find(item => item.Id == itemId);
-            if (removed is null) return InstallationResult.Fail(404, "Instalovaný kus neexistuje.");
+            if (removed is null) return InstallationResult.Fail(404, "Instalovaný prvek neexistuje.");
             if (current.Items.Any(item => item.ParentId == itemId))
-                return InstallationResult.Fail(409, "Nejdřív odeberte kusy uložené uvnitř.");
+                return InstallationResult.Fail(409, "Nejdřív odeberte prvky uložené uvnitř.");
             var remainingRunRoutes = documents.SelectMany(document => document.Items)
                 .Where(item => item.RunId == removed.RunId && item.Id != itemId)
                 .Select(item => item.RouteId).ToHashSet();
             if (!FormsSinglePath(remainingRunRoutes, routes))
-                return InstallationResult.Fail(409, "Nejdřív odeberte navazující krajní úseky; souvislý kus nelze rozdělit uprostřed.");
+                return InstallationResult.Fail(409, "Nejdřív odeberte navazující krajní úseky; souvislý prvek nelze rozdělit uprostřed.");
             var updated = current with { Version = current.Version + 1,
                 Items = current.Items.Where(item => item.Id != itemId).ToList() };
             documents[documents.IndexOf(current)] = updated;
@@ -173,7 +173,7 @@ public sealed class RouteInstallationStore(string path)
             return slotIndex is not null || cable is not null
                 ? "Na volnou trasu vložte nejdřív chráničku, mikrotrubičku nebo sestavu." : null;
         var parent = items.Find(item => item.Id == parentId);
-        if (parent?.Duct is null) return "Vybraný nadřazený kus neexistuje nebo není trubičkou.";
+        if (parent?.Duct is null) return "Vybraný nadřazený prvek neexistuje nebo není trubičkou.";
         var siblings = items.Where(item => item.ParentId == parentId).ToArray();
         if (parent.Duct.Kind == "assembly")
         {
@@ -182,8 +182,8 @@ public sealed class RouteInstallationStore(string path)
                 return "V sestavě vyberte volnou pozici pro odpovídající chráničku či mikrotrubičku.";
             if (siblings.Any(item => item.SlotIndex == slotIndex)) return "Tato pozice je už obsazená.";
             var slot = parent.Duct.Slots[slotIndex.Value];
-            if (duct.Kind != slot.Kind) return "Druh kusu neodpovídá vybrané pozici sestavy.";
-            if (TooLarge(duct.OuterDiameterMm, slot.InnerDiameterMm)) return "Kus je větší než volný vnitřní průměr pozice.";
+            if (duct.Kind != slot.Kind) return "Druh prvku neodpovídá vybrané pozici sestavy.";
+            if (TooLarge(duct.OuterDiameterMm, slot.InnerDiameterMm)) return "Prvek je větší než volný vnitřní průměr pozice.";
             return null;
         }
         if (slotIndex is not null) return "Pozici lze vybírat jen uvnitř sestavy.";
@@ -201,10 +201,10 @@ public sealed class RouteInstallationStore(string path)
             if (duct?.OuterDiameterMm is double outer && parent.Duct.InnerDiameterMm is double inner
                 && siblings.All(item => item.Duct?.OuterDiameterMm is not null)
                 && outer * outer + siblings.Sum(item => Math.Pow(item.Duct!.OuterDiameterMm!.Value, 2)) >= inner * inner)
-                return "Součet průřezů vložených kusů překračuje dostupný průřez chráničky.";
+                return "Součet průřezů vložených prvků překračuje dostupný průřez chráničky.";
         }
         if (duct is not null && TooLarge(duct.OuterDiameterMm, parent.Duct.InnerDiameterMm))
-            return "Vnější průměr vloženého kusu překračuje vnitřní průměr trubičky.";
+            return "Vnější průměr vloženého prvku překračuje vnitřní průměr trubičky.";
         if (cable is not null)
         {
             var minimum = cable.MinimumDuctInnerDiameterMm ?? cable.OuterDiameterMm;

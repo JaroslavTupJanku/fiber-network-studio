@@ -80,7 +80,7 @@ export function DuctCatalogPage({ active }: { active: boolean }) {
         <small>{kindLabel(item.kind)}{item.kind === 'assembly' ? ` · ${item.rows} × ${item.columns}` : item.outerDiameterMm ? ` · Ø ${item.outerDiameterMm} mm` : ''}</small>
         <span className="cc-card-bottom"><span>{item.isPreset ? item.sourceUrl ? 'Vzorový výrobek' : 'Šablona' : 'Vlastní'}</span><span>{item.manufacturer}</span></span></span><ArrowUpRight size={15} className="cc-card-arrow" /></button></li>)}</ul>}
       {!catalog.loading && matches.length === 0 && <div className="cc-empty"><Search size={23} /><strong>Žádný odpovídající typ</strong><p>Zkuste jiný název nebo filtr.</p></div>}
-      <div className="cc-sidebar-note"><Layers3 size={18} /><p>Zde jsou typy. Konkrétní kusy do mapové trasy vložíme v navazující funkci.</p></div>
+      <div className="cc-sidebar-note"><Layers3 size={18} /><p>Zde upravujete typy. Konkrétní prvky vložíte do vybrané mapové trasy v panelu Osazení.</p></div>
     </aside><section className="cc-detail" aria-label="Detail typu" aria-busy={catalog.busy}>
       {catalog.error && <div className="cc-error" role="alert"><span>{catalog.error}</span><button type="button" className="cc-button" disabled={catalog.busy || catalog.loading} onClick={catalog.reload}>Načíst znovu</button></div>}
       {catalog.notice && <div className="cc-success" role="status"><Check size={16} />{catalog.notice}</div>}

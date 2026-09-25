@@ -19,7 +19,7 @@ public static class RouteInstallationEndpoints
             var route = routes.FirstOrDefault(item => item.Id == routeId);
             if (route is null) return Results.NotFound(new { error = "Trasa neexistuje." });
             if (request.ContinueFromItemId is null && request.CatalogId is null)
-                return Results.BadRequest(new { error = "Vyberte typ z katalogu nebo návazný kus." });
+                return Results.BadRequest(new { error = "Vyberte typ z katalogu nebo navazující prvek." });
             var duct = request.ContinueFromItemId is null
                 ? (await ductStore.ListAsync()).FirstOrDefault(item => item.Id == request.CatalogId) : null;
             var cable = request.ContinueFromItemId is null && duct is null

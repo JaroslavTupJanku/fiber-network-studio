@@ -26,7 +26,7 @@ export function useRouteInstallations(routeId: string | null) {
         if (ductTypes.status === 'fulfilled') setDucts(ductTypes.value)
         if (cableTypes.status === 'fulfilled') setCables(cableTypes.value)
         const failed = [installed, ductTypes, cableTypes].filter(result => result.status === 'rejected')
-        setError(failed.length ? 'Některá data se nepodařilo načíst. Zkuste obnovení; uložené kusy se nezměnily.' : '')
+        setError(failed.length ? 'Některá data se nepodařilo načíst. Zkuste obnovení; uložené prvky se nezměnily.' : '')
       })
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Data se nepodařilo načíst.')

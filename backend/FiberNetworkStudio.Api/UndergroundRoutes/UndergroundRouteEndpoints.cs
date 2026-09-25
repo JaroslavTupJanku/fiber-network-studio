@@ -30,7 +30,7 @@ public static class UndergroundRouteEndpoints
             var existing = (await store.ListAsync()).FirstOrDefault(route => route.Id == id);
             if (existing is not null && await installations.HasItemsAsync(id)
                 && (existing.StartPointId != request.StartPointId || existing.EndPointId != request.EndPointId))
-                return Results.Conflict(new { error = "Trasa obsahuje instalované kusy. Koncové body nelze změnit, dokud osazení neodeberete." });
+                return Results.Conflict(new { error = "Trasa obsahuje instalované prvky. Koncové body nelze změnit, dokud osazení neodeberete." });
             var route = await store.UpdateAsync(id, ToRoute(id, request));
             return route is null ? Results.NotFound() : Results.Ok(route);
         });
@@ -38,7 +38,7 @@ public static class UndergroundRouteEndpoints
         app.MapDelete("/api/underground-routes/{id:guid}", async (Guid id, UndergroundRouteStore store,
             RouteInstallationStore installations) =>
             await installations.HasItemsAsync(id)
-                ? Results.Conflict(new { error = "Nejdřív odeberte instalované kusy v trase." })
+                ? Results.Conflict(new { error = "Nejdřív odeberte instalované prvky v trase." })
                 : await store.DeleteAsync(id) ? Results.NoContent() : Results.NotFound());
     }
 
