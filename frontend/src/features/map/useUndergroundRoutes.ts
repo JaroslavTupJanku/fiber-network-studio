@@ -179,6 +179,6 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   const visibleRoutes = useMemo(() => routes.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs')), [routes])
 
   return { routes, visibleRoutes, draft, drawing, loading, loadError, error, saving, preview,
-    setDraft, setLoading, setReloadVersion, cancel, cancelDrawing, startDrawing, selectRoute, startEditing,
+    setRoutes, setDraft, setLoading, setReloadVersion, cancel, cancelDrawing, startDrawing, selectRoute, startEditing,
     addPoint, setEndpoint, addWaypoint, moveWaypoint, removeWaypoint, undo, resetGeometry, finish, save, remove }
 }

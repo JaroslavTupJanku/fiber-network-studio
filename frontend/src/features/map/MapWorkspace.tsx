@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
+import { Cable, CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
+import { OpticalSpliceEditor } from './OpticalSpliceEditor'
 import { installationSummary } from './routeInstallations'
 import { useRouteInstallations } from './useRouteInstallations'
 import { useMapWorkspace } from './useMapWorkspace'
@@ -13,6 +14,7 @@ const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : '
 
 export function MapWorkspace({ active }: { active: boolean }) {
   const [panelOpen, setPanelOpen] = useState(true)
+  const [spliceOpen, setSpliceOpen] = useState(false)
   const [routeTab, setRouteTab] = useState<'installations' | 'route'>('installations')
   const detailsPanelRef = useRef<HTMLElement>(null)
   const lastRouteId = useRef<string | null>(null)
@@ -52,6 +54,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
     ? routeLengthMeters(routeCoordinates(routeDraft, points)) : null
   const pointName = (id: string | null) => points.find(point => point.id === id)?.name ?? 'Vyberte na mapě'
   const endpointPoints = points.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs'))
+  const attachedRoutes = editor?.id ? route.routes.filter(item => item.startPointId === editor.id || item.endPointId === editor.id) : []
   const togglePanel = () => {
     setPanelOpen(value => !value)
     setListHoveredPointId(null)
@@ -249,12 +252,19 @@ export function MapWorkspace({ active }: { active: boolean }) {
               <span>{editor.latitude.toFixed(6)}°, {editor.longitude.toFixed(6)}°</span>
               <button type="button" className="icon-button" onClick={() => copyCoordinates(editor)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button>
             </div>
-            <p className="point-placement-hint">{editor.id ? 'Přetažením nebo kliknutím na nové místo se poloha uloží hned. Tlačítko Uložit slouží ke změně názvu.' : 'Polohu doladíte přetažením značky na mapě.'}</p>
+            <p className="point-placement-hint">{editor.id ? 'Přetažením nebo kliknutím na nové místo se poloha uloží hned. Přilehlý průběh trasy se plynule přizpůsobí. Tlačítko Uložit slouží ke změně názvu.' : 'Polohu doladíte přetažením značky na mapě.'}</p>
+            {editor.id && editor.kind === 'chamber' && <button type="button" className="move-button" onClick={() => setSpliceOpen(true)}>
+              <Cable size={16} aria-hidden="true" /> Otevřít optickou spojku
+            </button>}
             <button type="button" className={moving ? 'move-button active' : 'move-button'} onClick={() => {
               setMoving((value) => !value)
               setActiveTool(null)
             }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Klikněte na nové místo' : 'Změnit polohu kliknutím'}</button>
             {actionError && <p className="form-error" role="alert">{actionError}</p>}
+            {attachedRoutes.length > 0 && <div className="point-dependencies"><strong>Navazující trasy ({attachedRoutes.length})</strong>
+              <p>Před smazáním objektu odstraňte nebo přepojte tyto trasy a jejich osazení.</p>
+              {attachedRoutes.map(item => <button type="button" key={item.id} onClick={() => selectSavedRoute(item.id)}>{item.name} →</button>)}
+            </div>}
             <div className="form-actions">
               <button className="primary-button" type="submit" disabled={saving || !editor.name.trim()}><Save size={16} aria-hidden="true" /> {saving ? 'Ukládání…' : 'Uložit'}</button>
               {editor.id && <button className="danger-button" type="button" disabled={saving} onClick={removePoint} title="Smazat objekt"><Trash2 size={16} aria-hidden="true" /> Smazat</button>}
@@ -304,6 +314,9 @@ export function MapWorkspace({ active }: { active: boolean }) {
           </div>
         )}
       </aside>
+      {spliceOpen && editor?.id && editor.kind === 'chamber' && <OpticalSpliceEditor key={editor.id}
+        pointId={editor.id} pointName={editor.name} routes={route.routes}
+        installations={installations.documents} onClose={() => setSpliceOpen(false)} />}
     </main>
   )
 }

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
-import { routeCoordinates, routeLengthMeters, undoRouteStep } from '../frontend/src/features/map/undergroundRoutes.ts'
+import { routeCoordinates, routeLengthMeters, undoRouteStep, waypointsAfterPointMove } from '../frontend/src/features/map/undergroundRoutes.ts'
 
 test('route geometry follows its endpoint objects and measures only map geometry', () => {
   const points = [
@@ -19,6 +19,21 @@ test('route geometry follows its endpoint objects and measures only map geometry
   assert.equal(Math.round(routeLengthMeters(routeCoordinates(route, [{ ...points[0], longitude: 14.0005 }, points[1]]))), 36)
   assert.deepEqual(undoRouteStep({ ...route, waypoints: [{ latitude: 50, longitude: 14.0005 }] }).endPointId, null)
   assert.deepEqual(routeCoordinates({ ...route, endPointId: 'missing' }, points), [])
+})
+
+test('moving an endpoint bends its existing route smoothly without adding a vertex', () => {
+  const points = [
+    { id: 'a', latitude: 50, longitude: 14 },
+    { id: 'b', latitude: 50, longitude: 14.002 },
+  ]
+  const route = { id: 'route', startPointId: 'a', endPointId: 'b',
+    waypoints: [{ latitude: 50, longitude: 14.001 }] }
+  const shifted = waypointsAfterPointMove(route, points, 'a', { latitude: 50, longitude: 14.0002 })
+  assert.equal(shifted.length, 1)
+  assert.ok(Math.abs(shifted[0].longitude - 14.0011) < 1e-8)
+  assert.deepEqual(waypointsAfterPointMove(route, points, 'other', { latitude: 0, longitude: 0 }), route.waypoints)
+  assert.deepEqual(waypointsAfterPointMove({ ...route, waypoints: [] }, points, 'a',
+    { latitude: 50, longitude: 14.0002 }), [])
 })
 
 test('route API validates endpoints and vertices, persists edits, and protects connected points', { timeout: 40000 }, async () => {

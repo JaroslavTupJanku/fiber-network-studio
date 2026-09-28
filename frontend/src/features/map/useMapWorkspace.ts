@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { findParcelAt, type Parcel } from './parcels'
 import { useUndergroundRoutes } from './useUndergroundRoutes'
+import { saveUndergroundRoute, waypointsAfterPointMove } from './undergroundRoutes'
 import {
   createNetworkPoint,
   deleteNetworkPoint,
@@ -59,27 +60,47 @@ export function useMapWorkspace() {
 
   const relocatePoint = useCallback(async (id: string, location: Coordinates) => {
     const point = points.find(item => item.id === id)
-    if (!point) return
+    if (!point || saving) return
+    const changedRoutes = route.routes.filter(item => item.startPointId === id || item.endPointId === id)
+      .filter(item => item.waypoints.length > 0)
+      .map(original => ({ original, changed: { ...original,
+        waypoints: waypointsAfterPointMove(original, points, id, location) } }))
     route.cancel()
     clearParcel()
     setEditor(current => current?.id === id ? { ...current, ...location } : { ...point, ...location })
+    setPoints(current => current.map(item => item.id === id ? { ...item, ...location } : item))
+    route.setRoutes(current => current.map(item => changedRoutes.find(entry => entry.original.id === item.id)?.changed ?? item))
     setSelectedLocation(null)
     setActiveTool(null)
     setMoving(false)
     setActionError('')
     setSaving(true)
+    const changedOnServer: typeof changedRoutes = []
     try {
+      for (const entry of changedRoutes) {
+        await saveUndergroundRoute(entry.changed)
+        changedOnServer.push(entry)
+      }
       const saved = await updateNetworkPoint({ ...point, ...location })
       setPoints(current => current.map(item => item.id === id ? saved : item))
     } catch {
+      let rollbackFailed = false
+      for (const entry of changedOnServer.reverse()) {
+        try { await saveUndergroundRoute(entry.original) }
+        catch { rollbackFailed = true }
+      }
       setEditor(current => current?.id === id
         ? { ...current, latitude: point.latitude, longitude: point.longitude } : current)
-      setPoints(current => current.slice())
-      setActionError('Přesun se nepodařilo uložit. Zkuste to znovu.')
+      setPoints(current => current.map(item => item.id === id ? point : item))
+      route.setRoutes(current => current.map(item => changedRoutes.find(entry => entry.original.id === item.id)?.original ?? item))
+      if (rollbackFailed) route.setReloadVersion(value => value + 1)
+      setActionError(rollbackFailed
+        ? 'Přesun se nepodařilo dokončit. Obnovte trasy a zkontrolujte jejich průběh.'
+        : 'Přesun se nepodařilo uložit. Původní poloha i průběh tras byly obnoveny.')
     } finally {
       setSaving(false)
     }
-  }, [points, route, clearParcel])
+  }, [points, route, clearParcel, saving])
 
   const handleToolChange = useCallback((kind: NetworkPointKind | null) => {
     setActiveTool(kind)
@@ -219,8 +240,8 @@ export function useMapWorkspace() {
       setPoints((current) => current.filter((point) => point.id !== editor.id))
       setEditor(null)
       setMoving(false)
-    } catch {
-      setActionError('Objekt se nepodařilo smazat. Zkontrolujte API.')
+    } catch (reason) {
+      setActionError(reason instanceof Error ? reason.message : 'Objekt se nepodařilo smazat.')
     } finally {
       setSaving(false)
     }

@@ -111,6 +111,43 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .point-list-text strong { overflow: hidden; color: #233e36; font-size: 13px; font-weight: 600; text-overflow: ellipsis; white-space: nowrap; }
 .point-list-text small { color: #73847e; font-size: 11px; }
 .point-form { display: grid; gap: 10px; }
+.point-dependencies { display: grid; gap: 7px; padding: 12px; border: 1px solid #d8e5df; border-radius: 8px; background: #f5f9f7; font-size: 12px; }
+.point-dependencies p { margin: 0; color: #5e7368; line-height: 1.5; }
+.point-dependencies button { width: 100%; padding: 8px 10px; border: 1px solid #d5e3dc; border-radius: 6px; background: #fff; color: #1d6559; text-align: left; cursor: pointer; }
+.point-dependencies button:hover { background: #eaf5ef; }
+.splice-editor-dialog { width: min(980px, calc(100vw - 24px)); max-width: none; max-height: calc(100dvh - 24px); padding: 0; overflow: hidden; border: 1px solid #b9cec4; border-radius: 15px; background: #fff; color: #29473c; box-shadow: 0 28px 80px rgb(12 37 31 / 35%); }
+.splice-editor-dialog::backdrop { background: rgb(10 32 27 / 61%); }
+.splice-editor-header { display: flex; align-items: center; gap: 14px; padding: 20px 25px; border-bottom: 1px solid #dce8e1; background: #f4f9f6; }
+.splice-editor-header h2 { margin: 2px 0 0; font-size: 22px; }
+.splice-editor-header small { color: #688277; }
+.splice-editor-header .icon-button { margin-left: auto; }
+.splice-editor-emblem { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 12px; background: #d9eee4; color: #176759; }
+.splice-editor-body { max-height: calc(100dvh - 180px); overflow: auto; padding: 23px 26px; }
+.splice-editor-body h3 { margin: 0 0 13px; font-size: 15px; }
+.splice-editor-body label { display: grid; gap: 6px; color: #3c6254; font-size: 12px; font-weight: 600; }
+.splice-editor-body input, .splice-editor-body select { min-width: 0; min-height: 36px; padding: 7px 9px; border: 1px solid #bdd0c5; border-radius: 6px; background: #fff; color: #25483d; font: inherit; font-size: 13px; }
+.splice-editor-intro { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(220px, 1.1fr); align-items: center; gap: 22px; }
+.splice-editor-intro p, .splice-reserves p { margin: 0; color: #668076; font-size: 12px; line-height: 1.5; }
+.splice-editor-stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 19px 0; }
+.splice-editor-stats span { padding: 8px 12px; border: 1px solid #d7e6dd; border-radius: 7px; background: #f5faf7; font-size: 12px; }
+.splice-editor-stats strong { margin-right: 4px; color: #176759; font-size: 15px; }
+.splice-connection-form, .splice-connections, .splice-reserves { margin-top: 16px; padding: 19px; border: 1px solid #dbe7df; border-radius: 10px; }
+.splice-connection-form { background: #f6faf7; }
+.splice-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.splice-fiber-picker { display: grid; gap: 9px; padding: 14px; border: 1px solid #d9e7df; border-radius: 8px; background: #fff; }
+.splice-fiber-picker > strong { font-size: 13px; }
+.splice-add-row { display: flex; align-items: end; justify-content: space-between; gap: 12px; margin-top: 13px; }
+.splice-add-row label { min-width: 180px; }
+.splice-connections ul { display: grid; gap: 7px; max-height: 240px; overflow: auto; margin: 0; padding: 0; list-style: none; }
+.splice-connections li { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; border: 1px solid #dce8e2; border-radius: 7px; }
+.splice-connections li small { display: block; margin-top: 4px; color: #627b70; line-height: 1.55; }
+.splice-empty { padding: 14px; border-radius: 7px; background: #f3f8f5; color: #648174; font-size: 12px; line-height: 1.5; }
+.splice-reserves > div { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 11px; margin-top: 12px; }
+.splice-reserves label span { display: flex; align-items: center; gap: 6px; }
+.splice-reserves input { width: 90px; }
+.splice-editor-footer { display: flex; justify-content: space-between; gap: 12px; padding: 15px 24px; border-top: 1px solid #dce8e1; background: #fbfdfb; }
+.splice-editor-footer > div { display: flex; gap: 8px; }
+@media (max-width: 650px) { .splice-editor-intro, .splice-pickers { grid-template-columns: 1fr; } .splice-editor-body { padding: 15px; } .splice-editor-footer { flex-wrap: wrap; } }
 .point-form label { color: #526a61; font-size: 12px; font-weight: 600; }
 .point-form input { width: 100%; min-height: 36px; padding: 7px 9px; border: 1px solid #bfcfca; border-radius: 4px; font: inherit; font-size: 13px; }
 .point-form input:focus, .search-field:focus-within { border-color: #26766b; outline: 2px solid #d7eee5; }

@@ -1,5 +1,6 @@
 using FiberNetworkStudio.Api.CableCatalog;
 using FiberNetworkStudio.Api.DuctCatalog;
+using FiberNetworkStudio.Api.OpticalSplices;
 using FiberNetworkStudio.Api.UndergroundRoutes;
 
 namespace FiberNetworkStudio.Api.RouteInstallations;
@@ -13,11 +14,24 @@ public static class RouteInstallationEndpoints
 
         group.MapPost("/{routeId:guid}/items", async (Guid routeId, AddInstalledItemRequest request,
             RouteInstallationStore store, UndergroundRouteStore routeStore,
-            DuctCatalogStore ductStore, CableCatalogStore cableStore) =>
+            DuctCatalogStore ductStore, CableCatalogStore cableStore, OpticalSpliceStore splices) =>
         {
             var routes = await routeStore.ListAsync();
             var route = routes.FirstOrDefault(item => item.Id == routeId);
             if (route is null) return Results.NotFound(new { error = "Trasa neexistuje." });
+            if (request.ContinueFromItemId is Guid sourceId)
+            {
+                var source = (await store.ListAsync()).SelectMany(document => document.Items)
+                    .FirstOrDefault(item => item.Id == sourceId);
+                var sourceRoute = routes.FirstOrDefault(item => item.Id == source?.RouteId);
+                if (sourceRoute is not null)
+                {
+                    var shared = new[] { route.StartPointId, route.EndPointId }
+                        .Where(pointId => pointId == sourceRoute.StartPointId || pointId == sourceRoute.EndPointId);
+                    if (await splices.ConnectsItemAtAnyAsync(sourceId, shared))
+                        return Results.Conflict(new { error = "Kabel je v tomto bodě ukončený ve spojce. Nejdřív odeberte jeho spoje." });
+                }
+            }
             if (request.ContinueFromItemId is null && request.CatalogId is null)
                 return Results.BadRequest(new { error = "Vyberte typ z katalogu nebo navazující prvek." });
             var duct = request.ContinueFromItemId is null
@@ -36,8 +50,25 @@ public static class RouteInstallationEndpoints
             ToResult(await store.MoveAsync(routeId, itemId, request)));
 
         group.MapDelete("/{routeId:guid}/items/{itemId:guid}", async (Guid routeId, Guid itemId,
-            int version, RouteInstallationStore store, UndergroundRouteStore routeStore) =>
-            ToResult(await store.RemoveAsync(routeId, itemId, version, await routeStore.ListAsync())));
+            int version, RouteInstallationStore store, UndergroundRouteStore routeStore,
+            OpticalSpliceStore splices) =>
+        {
+            var items = (await store.ListAsync()).FirstOrDefault(document => document.RouteId == routeId)?.Items;
+            if (items is not null)
+            {
+                var removed = new HashSet<Guid> { itemId };
+                while (true)
+                {
+                    var count = removed.Count;
+                    foreach (var item in items.Where(item => item.ParentId is Guid parent && removed.Contains(parent)))
+                        removed.Add(item.Id);
+                    if (removed.Count == count) break;
+                }
+                if (await splices.ReferencesAnyAsync(removed))
+                    return Results.Conflict(new { error = "Kabel je připojený ve spojce. Nejprve odeberte propojení a rezervu ve spojce." });
+            }
+            return ToResult(await store.RemoveAsync(routeId, itemId, version, await routeStore.ListAsync()));
+        });
     }
 
     private static IResult ToResult(InstallationResult result) => result.Status switch

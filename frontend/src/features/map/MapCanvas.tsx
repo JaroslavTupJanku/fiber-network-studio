@@ -14,7 +14,7 @@ import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollec
   ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
   ROUTE_VERTEX_SOURCE_ID, ROUTE_VERTEX_LAYER_ID } from './mapLayers'
 import { crossedDragThreshold, mapCursor, resolveMapClick } from './interactions'
-import { routeCoordinates, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
+import { routeCoordinates, waypointsAfterPointMove, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
 
 type MapCanvasProps = {
   points: NetworkPoint[]
@@ -251,10 +251,12 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
       dragPreviewRef.current = { id, location }
       const { displayedPoints, routes, installations, routeDraft } = geometryRef.current
       const previewPoints = withPointPosition(displayedPoints, id, location)
+      const previewRoutes = routes.map(route => ({ ...route,
+        waypoints: waypointsAfterPointMove(route, displayedPoints, id, location) }))
       pointData.current = pointCollection(previewPoints, null, null)
       map.getSource<GeoJSONSource>(POINT_SOURCE_ID)?.setData(pointData.current)
       map.getSource<GeoJSONSource>(ROUTE_SOURCE_ID)?.setData(routeCollection(
-        routes.filter(route => route.id !== routeDraft?.id), previewPoints, installations))
+        previewRoutes.filter(route => route.id !== routeDraft?.id), previewPoints, installations))
       map.getSource<GeoJSONSource>(ROUTE_DRAFT_SOURCE_ID)?.setData(routeDraftCollection(routeDraft, previewPoints, null))
     }
     const handlePointMouseMove = (event: MouseEvent) => {
@@ -434,8 +436,11 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
     if (!map || readyMapRef.current !== map) return
     const renderedPoints = dragPreviewRef.current
       ? withPointPosition(displayedPoints, dragPreviewRef.current.id, dragPreviewRef.current.location) : displayedPoints
+    const renderedRoutes = dragPreviewRef.current ? routes.map(route => ({ ...route,
+      waypoints: waypointsAfterPointMove(route, displayedPoints, dragPreviewRef.current!.id,
+        dragPreviewRef.current!.location) })) : routes
     map.getSource<GeoJSONSource>(ROUTE_SOURCE_ID)?.setData(routeCollection(
-      routes.filter(route => route.id !== routeDraft?.id), renderedPoints, installations))
+      renderedRoutes.filter(route => route.id !== routeDraft?.id), renderedPoints, installations))
   }, [routes, displayedPoints, installations, routeDraft?.id, mapGeneration])
 
   useEffect(() => {

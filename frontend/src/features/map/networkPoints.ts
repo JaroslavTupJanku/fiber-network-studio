@@ -17,7 +17,10 @@ export type NetworkPointInput = Coordinates & {
 }
 
 async function expectOk(response: Response) {
-  if (!response.ok) throw new Error(`API returned ${response.status}`)
+  if (!response.ok) {
+    const problem = await response.json().catch(() => null)
+    throw new Error(problem?.error ?? `Objekt se nepodařilo načíst nebo uložit (${response.status}).`)
+  }
   return response
 }
 
