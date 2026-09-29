@@ -407,6 +407,12 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-editor-dialog .installation-selection-actions button { justify-content: center; min-height: 34px; font-size: 11px; }
 .installation-selection-actions .installation-remove-button { grid-column: 1 / -1; justify-self: start; min-width: 130px; margin-top: 5px; border-color: #edd0ca; color: #9a4439; }
 .installation-selection-actions .installation-remove-button:hover:not(:disabled) { background: #fff2ef; }
+.installation-length { display: grid; gap: 9px; margin-top: 12px; padding: 13px; border: 1px solid #d5e5da; border-radius: 8px; background: #f6faf7; }
+.installation-length label { display: grid; gap: 7px; color: #355e4d; font-size: 12px; font-weight: 650; }
+.installation-length label span { display: flex; align-items: center; gap: 7px; }
+.installation-length input { width: min(100%, 150px); min-height: 35px; padding: 6px 8px; border: 1px solid #bed3c5; border-radius: 5px; background: #fff; color: #254b3b; font: inherit; }
+.installation-length .move-button { justify-self: start; }
+.installation-length p { margin: 0; color: #627d6e; font-size: 11px; line-height: 1.5; }
 .installation-editor-dialog .installation-tree { max-height: 55vh; overflow: auto; padding: 15px; border: 1px solid #d7e4dc; border-radius: 10px; background: #f5f8f6; }
 .installation-list-view { display: grid; gap: 9px; }
 .installation-route-target { display: flex; align-items: center; gap: 9px; min-height: 42px; padding: 9px 13px; border: 1px dashed #b6cfc0; border-radius: 8px; background: #f4faf6; color: #436d59; font-size: 11px; font-weight: 650; }

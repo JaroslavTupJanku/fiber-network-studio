@@ -6,7 +6,8 @@ using FiberNetworkStudio.Api.UndergroundRoutes;
 namespace FiberNetworkStudio.Api.RouteInstallations;
 
 public sealed record InstalledItem(Guid Id, Guid RouteId, Guid? ParentId, int? SlotIndex,
-    string Label, Guid CatalogId, Guid RunId, DuctType? Duct, CableSpecification? Cable);
+    string Label, Guid CatalogId, Guid RunId, DuctType? Duct, CableSpecification? Cable,
+    double? ActualLengthMeters = null);
 
 public sealed record RouteInstallationDocument(Guid RouteId, int Version, List<InstalledItem> Items);
 
@@ -16,6 +17,7 @@ public sealed record GenerateMicroductsRequest(Guid CatalogId, int Version);
 public sealed record SplitInstalledRunRequest(Guid ItemId, int Version);
 
 public sealed record RenameInstalledItemRequest(string? Label, int Version);
+public sealed record SetInstalledCableLengthRequest(double? ActualLengthMeters, int Version);
 public sealed record MoveInstalledItemRequest(Guid? ParentId, int? SlotIndex, int Version);
 
 public sealed record InstallationResult(int Status, RouteInstallationDocument? Document, string? Error)
@@ -226,6 +228,31 @@ public sealed class RouteInstallationStore(string path)
             if (current.Items.All(item => item.Id != itemId)) return InstallationResult.Fail(404, "Instalovaný prvek neexistuje.");
             var updated = current with { Version = current.Version + 1,
                 Items = current.Items.Select(item => item.Id == itemId ? item with { Label = request.Label.Trim() } : item).ToList() };
+            documents[documents.IndexOf(current)] = updated;
+            await WriteAsync(documents);
+            return InstallationResult.Ok(updated);
+        }
+        finally { gate.Release(); }
+    }
+
+    public async Task<InstallationResult> SetCableLengthAsync(Guid routeId, Guid itemId,
+        SetInstalledCableLengthRequest request)
+    {
+        await gate.WaitAsync();
+        try
+        {
+            var documents = await ReadAsync();
+            var current = documents.Find(document => document.RouteId == routeId);
+            if (current is null) return InstallationResult.Fail(404, "Osazení trasy neexistuje.");
+            if (current.Version != request.Version)
+                return InstallationResult.Fail(409, "Osazení mezitím změnil jiný uživatel. Načtěte trasu znovu.");
+            var cable = current.Items.Find(item => item.Id == itemId && item.Cable is not null);
+            if (cable is null) return InstallationResult.Fail(404, "Instalovaný kabel neexistuje.");
+            if (request.ActualLengthMeters is double length && (!double.IsFinite(length) || length <= 0 || length > 1000000))
+                return InstallationResult.Fail(400, "Skutečná délka kabelu musí být kladná a nejvýše 1 000 000 m.");
+            var updated = current with { Version = current.Version + 1,
+                Items = current.Items.Select(item => item.Id == itemId
+                    ? item with { ActualLengthMeters = request.ActualLengthMeters } : item).ToList() };
             documents[documents.IndexOf(current)] = updated;
             await WriteAsync(documents);
             return InstallationResult.Ok(updated);

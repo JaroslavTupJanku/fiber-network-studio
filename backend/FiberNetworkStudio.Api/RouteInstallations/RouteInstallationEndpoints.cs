@@ -49,6 +49,10 @@ public static class RouteInstallationEndpoints
             RenameInstalledItemRequest request, RouteInstallationStore store) =>
             ToResult(await store.RenameAsync(routeId, itemId, request)));
 
+        group.MapPut("/{routeId:guid}/items/{itemId:guid}/length", async (Guid routeId, Guid itemId,
+            SetInstalledCableLengthRequest request, RouteInstallationStore store) =>
+            ToResult(await store.SetCableLengthAsync(routeId, itemId, request)));
+
         group.MapPost("/{routeId:guid}/items/{itemId:guid}/generate-microducts", async (Guid routeId,
             Guid itemId, GenerateMicroductsRequest request, RouteInstallationStore store,
             DuctCatalogStore ductStore) =>

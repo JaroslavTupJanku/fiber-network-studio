@@ -5,6 +5,7 @@ import { listDucts } from '../duct-catalog/api'
 import type { DuctType } from '../duct-catalog/model'
 import { addInstalledItem, emptyInstallation, generateAssemblyMicroducts, listRouteInstallations, moveInstalledItem, removeInstalledItem,
   renameInstalledItem, type InstallationAdd, type InstallationMove, type RouteInstallationDocument } from './routeInstallations'
+import { setInstalledCableLength } from './routeInstallations'
 
 export function useRouteInstallations(routeId: string | null) {
   const [documents, setDocuments] = useState<RouteInstallationDocument[]>([])
@@ -58,11 +59,13 @@ export function useRouteInstallations(routeId: string | null) {
     ? mutate(() => generateAssemblyMicroducts(routeId, assemblyId, catalogId, document.version)) : Promise.resolve(false)
   const rename = (id: string, label: string) => routeId
     ? mutate(() => renameInstalledItem(routeId, id, label, document.version)) : Promise.resolve(false)
+  const setCableLength = (id: string, actualLengthMeters: number | null) => routeId
+    ? mutate(() => setInstalledCableLength(routeId, id, actualLengthMeters, document.version)) : Promise.resolve(false)
   const move = (id: string, input: Omit<InstallationMove, 'version'>) => routeId
     ? mutate(() => moveInstalledItem(routeId, id, { ...input, version: document.version })) : Promise.resolve(false)
   const remove = (id: string) => routeId
     ? mutate(() => removeInstalledItem(routeId, id, document.version)) : Promise.resolve(false)
 
   return { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh, replaceDocuments,
-    add, generateMicroducts, rename, move, remove }
+    add, generateMicroducts, rename, setCableLength, move, remove }
 }

@@ -232,7 +232,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
                 <li key={index}>{step.label}</li>)}</ol>}
               {path.routeIds.length > 0 && <p>{path.routeIds.length} úseků je zvýrazněno na mapě.</p>}
               {dirty && <p>Jde o náhled neuložených změn. Před přenosem cestu uložte.</p>}
-              {path.steps.some(step => step.routeId) && <button type="button" className="move-button" disabled={dirty}
+              {path.status === 'connected' && path.steps.some(step => step.routeId) && <button type="button" className="move-button" disabled={dirty}
                 onClick={() => onBudget(path)}>Přenést do kalkulačky</button>}</div>}
           </>}
         </>}

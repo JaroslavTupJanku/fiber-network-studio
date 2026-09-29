@@ -8,10 +8,10 @@ export function scenarioFromOpticalPath(path: OpticalPath,
   const sections = path.steps.filter(step => step.kind === 'cable' && step.routeId && step.itemId)
     .map(step => {
       const item = byId.get(step.itemId!)
-      return { ...newSection(), name: step.label, lengthM: '',
+      return { ...newSection(), name: step.label, lengthM: item?.actualLengthMeters?.toString() ?? '',
         loss1310: item?.cable?.attenuation1310DbPerKm?.toString() ?? '',
         loss1550: item?.cable?.attenuation1550DbPerKm?.toString() ?? '',
-        source: item?.cable ? `${item.cable.name} · parametry kabelu; délku doplňte podle instalace` : '' }
+        source: item?.cable ? `${item.cable.name} · ${item.actualLengthMeters ? 'délka z evidence instalace' : 'délku doplňte podle instalace'}` : '' }
     })
   const elements = path.steps.filter(step => step.kind !== 'cable').map(step => ({ ...newElement(),
     kind: step.kind === 'splice' ? 'splice' as const : step.kind === 'connector' ? 'connection' as const : 'other' as const,

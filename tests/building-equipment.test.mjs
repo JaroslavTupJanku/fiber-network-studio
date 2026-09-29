@@ -30,7 +30,7 @@ test('trace follows ports, cable segments and splice without inventing optical l
     { id: 'r2', name: 'B–C', startPointId: b, endPointId: c }]
   const cable = { name: 'Kabel 12F', attenuation1310DbPerKm: 0.35,
     attenuation1550DbPerKm: 0.22, tubes: [{ name: 'Tuba 1', fibers: [{ name: 'Vlákno 1' }] }] }
-  const items = [{ id: 'i1', routeId: 'r1', runId: 'run1', label: 'Kabel A', cable },
+  const items = [{ id: 'i1', routeId: 'r1', runId: 'run1', label: 'Kabel A', cable, actualLengthMeters: 125.5 },
     { id: 'i2', routeId: 'r2', runId: 'run2', label: 'Kabel C', cable }]
   const installations = [{ routeId: 'r1', items: [items[0]] }, { routeId: 'r2', items: [items[1]] }]
   const end = itemId => ({ itemId, tubeIndex: 0, fiberIndex: 0 })
@@ -51,7 +51,8 @@ test('trace follows ports, cable segments and splice without inventing optical l
   assert.deepEqual(traceOpticalPath('odfa', equipment, routes, installations, splices).routeIds, ['r1', 'r2'])
   const scenario = scenarioFromOpticalPath(path, installations)
   assert.equal(scenario.sections.length, 2)
-  assert.equal(scenario.sections[0].lengthM, '')
+  assert.equal(scenario.sections[0].lengthM, '125.5')
+  assert.equal(scenario.sections[1].lengthM, '')
   assert.equal(scenario.sections[0].loss1310, '0.35')
   assert.ok(scenario.elements.every(element => element.loss1310 === ''))
   assert.equal(traceOpticalPath('olta', equipment, routes, installations, []).status, 'open')
@@ -101,6 +102,15 @@ test('equipment API checks physical hierarchy, fiber termination and concurrency
     installed = await (await request(`/route-installations/${route.id}/items`, 'POST',
       { catalogId: cable.id, parentId: installed.items[0].id, slotIndex: null, version: installed.version })).json()
     const item = installed.items.at(-1)
+    const lengthEndpoint = `/route-installations/${route.id}/items/${item.id}/length`
+    assert.equal((await request(lengthEndpoint, 'PUT', { actualLengthMeters: 0, version: installed.version })).status, 400)
+    installed = await (await request(lengthEndpoint, 'PUT',
+      { actualLengthMeters: 125.5, version: installed.version })).json()
+    assert.equal(installed.items.at(-1).actualLengthMeters, 125.5)
+    assert.equal((await request(lengthEndpoint, 'PUT', { actualLengthMeters: 2, version: 0 })).status, 409)
+    installed = await (await request(lengthEndpoint, 'PUT',
+      { actualLengthMeters: null, version: installed.version })).json()
+    assert.equal(installed.items.at(-1).actualLengthMeters, null)
     const rackId = crypto.randomUUID(), shelfId = crypto.randomUUID(), cardId = crypto.randomUUID()
     const odfId = crypto.randomUUID(), oltId = crypto.randomUUID()
     const document = { version: 0, racks: [{ id: rackId, name: 'Stojan 1' }],
