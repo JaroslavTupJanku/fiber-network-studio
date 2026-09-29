@@ -161,7 +161,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   route: UndergroundRoute; routes: UndergroundRoute[]; editable: boolean;
   installations: ReturnType<typeof useRouteInstallations>
 }) {
-  const { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh, add, rename, move, remove } = installations
+  const { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh,
+    add, generateMicroducts, rename, move, remove } = installations
   const [savedMessage, setSavedMessage] = useState('')
   useEffect(() => {
     if (!savedMessage) return
@@ -185,6 +186,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null)
   const [selectionEditing, setSelectionEditing] = useState(false)
   const [selectionLabel, setSelectionLabel] = useState('')
+  const [generateOpen, setGenerateOpen] = useState(false)
+  const [generateCatalogId, setGenerateCatalogId] = useState('')
   const [editorOpen, setEditorOpen] = useState(false)
   const [quickAddOpen, setQuickAddOpen] = useState(false)
   const [quickParentId, setQuickParentId] = useState('')
@@ -194,6 +197,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const [quickError, setQuickError] = useState('')
   const sectionRef = useRef<HTMLElement>(null)
   const formRef = useRef<HTMLFormElement>(null)
+  const generateRef = useRef<HTMLDivElement>(null)
   const dialogRef = useRef<HTMLDialogElement>(null)
   const removeDialogRef = useRef<HTMLDialogElement>(null)
   useEffect(() => {
@@ -249,6 +253,14 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const pendingRemoval = document.items.find(item => item.id === pendingRemovalId) ?? null
   const pendingChildCount = pendingRemoval ? nestedItemCount(pendingRemoval, document.items) : 0
   const selectedHasRoom = selectedItem !== null && hasAvailablePlacement(selectedItem, document.items)
+  const openMicroductSlots = selectedItem?.duct?.kind === 'assembly'
+    ? selectedItem.duct.slots.map((slot, index) => ({ slot, index }))
+      .filter(({ slot, index }) => slot.kind === 'microduct'
+        && !document.items.some(item => item.parentId === selectedItem.id && item.slotIndex === index))
+    : []
+  const generateTypes = ducts.filter(duct => duct.kind === 'microduct'
+    && openMicroductSlots.every(({ slot, index }) => installationFit({ duct, cable: null }, selectedItem, index) !== 'too-small'
+      && ((!duct.manufacturer && !duct.model) || slot.color.toLowerCase() === duct.color.toLowerCase())))
   const summary = installationSummary(document)
   const storedQuickParent = document.items.find(item => item.id === quickParentId) ?? null
   const quickParent = storedQuickParent && hasAvailablePlacement(storedQuickParent, document.items) ? storedQuickParent : null
@@ -263,6 +275,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     setSelectionLabel(item.label)
     setSelectionEditing(false)
     setMovePickerOpen(false)
+    setGenerateOpen(false)
+    setGenerateCatalogId('')
   }
   const openContents = (item: InstalledItem | null) => {
     setFocusedParentId(item?.id ?? null)
@@ -324,6 +338,17 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     setAddOpen(true)
     setEditorOpen(true)
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+  }
+  const fillMicroductSlots = async () => {
+    if (!selectedItem || !generateCatalogId || openMicroductSlots.length === 0) return
+    setSavedMessage('')
+    const count = openMicroductSlots.length
+    const success = await generateMicroducts(selectedItem.id, generateCatalogId)
+    if (success) {
+      setSavedMessage(`V sestavě vyplněno ${count} ${count === 1 ? 'místo' : count < 5 ? 'místa' : 'míst'}.`)
+      setGenerateOpen(false)
+      setGenerateCatalogId('')
+    }
   }
   const submit = async (event: FormEvent) => {
     event.preventDefault()
@@ -465,6 +490,12 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
               <Layers3 size={14} /> Otevřít obsah</button>}
             {selectedHasRoom && <button type="button" onClick={() => addInside(selectedItem.id)} disabled={!editable || busy}>
               <Plus size={14} /> Vložit dovnitř</button>}
+            {openMicroductSlots.length > 0 && <button type="button" onClick={() => {
+              setGenerateOpen(value => !value)
+              if (!generateOpen) requestAnimationFrame(() => generateRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+            }}
+              disabled={!editable || busy} aria-expanded={generateOpen}>
+              <Layers3 size={14} /> Vyplnit sestavu</button>}
             <button type="button" onClick={() => { setSelectionLabel(selectedItem.label); setSelectionEditing(true) }}
               disabled={!editable || busy}><Pencil size={14} /> Přejmenovat</button>
             <button type="button" onClick={() => setMovePickerOpen(current => !current)}
@@ -472,6 +503,26 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
               aria-expanded={movePickerOpen}><MoveRight size={14} /> Přesunout…</button>
             <button type="button" className="installation-remove-button" onClick={() => setPendingRemovalId(selectedItem.id)}
               disabled={!editable || busy}><Trash2 size={14} /> Odebrat…</button>
+          </div>}
+          {generateOpen && openMicroductSlots.length > 0 && <div className="installation-generate-panel" ref={generateRef}>
+            <strong>Vyplnit {openMicroductSlots.length} volných pozic</strong>
+            <p>Každá pozice vytvoří samostatnou mikrotrubičku. U obecného typu se převezme barva pozice; výrobkový typ musí barvě odpovídat.</p>
+            <label>Typ mikrotrubičky
+              <select value={generateCatalogId} onChange={event => setGenerateCatalogId(event.target.value)}
+                disabled={busy || !editable}>
+                <option value="">Vyberte typ z katalogu</option>
+                {generateTypes.map(duct => <option key={duct.id} value={duct.id}>{duct.name}</option>)}
+              </select>
+            </label>
+            <div className="installation-generate-preview" aria-label="Volné pozice">
+              {openMicroductSlots.slice(0, 6).map(({ slot, index }) => <span key={index}>
+                <i style={{ background: slot.color }} aria-hidden="true" /> {index + 1}. {slot.name}
+              </span>)}
+              {openMicroductSlots.length > 6 && <span>+ dalších {openMicroductSlots.length - 6}</span>}
+            </div>
+            {generateTypes.length === 0 && <p>Žádný katalogový typ se do všech volných pozic podle známých rozměrů nevejde.</p>}
+            <button type="button" className="primary-button" onClick={() => void fillMicroductSlots()}
+              disabled={!generateCatalogId || busy || !editable}>Vytvořit mikrotrubičky</button>
           </div>}
           {movePickerOpen && <div className="installation-move-panel" aria-label="Cíle přesunu">
             <strong>Vyberte nové místo</strong>

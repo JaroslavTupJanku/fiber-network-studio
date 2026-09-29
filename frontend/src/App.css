@@ -156,7 +156,16 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .splice-editor-stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 19px 0; }
 .splice-editor-stats span { padding: 8px 12px; border: 1px solid #d7e6dd; border-radius: 7px; background: #f5faf7; font-size: 12px; }
 .splice-editor-stats strong { margin-right: 4px; color: #176759; font-size: 15px; }
-.splice-connection-form, .splice-connections, .splice-reserves { margin-top: 16px; padding: 19px; border: 1px solid #dbe7df; border-radius: 10px; }
+.splice-connection-form, .splice-connections, .splice-reserves, .splice-through-runs { margin-top: 16px; padding: 19px; border: 1px solid #dbe7df; border-radius: 10px; }
+.splice-through-runs { background: #f8fafc; }
+.splice-through-runs > p { margin: -5px 0 13px; color: #607b71; font-size: 12px; line-height: 1.5; }
+.splice-through-list { display: grid; gap: 8px; }
+.splice-through-item { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; padding: 11px 13px; border: 1px solid #d9e5df; border-radius: 8px; background: #fff; }
+.splice-through-item > div:first-child { display: grid; gap: 4px; min-width: 0; }
+.splice-through-item strong { font-size: 12px; }
+.splice-through-item small { color: #637e72; font-size: 11px; }
+.splice-split-confirm { display: grid; gap: 9px; flex-basis: 100%; padding-top: 8px; border-top: 1px solid #e1ebe4; color: #526e62; font-size: 11px; }
+.splice-split-confirm > div { display: flex; gap: 8px; justify-content: flex-end; }
 .splice-connection-form { background: #f6faf7; }
 .splice-pickers { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .splice-fiber-picker { display: grid; gap: 9px; padding: 14px; border: 1px solid #d9e7df; border-radius: 8px; background: #fff; }
@@ -411,6 +420,15 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-selection-actions button { display: inline-flex; align-items: center; gap: 4px; min-height: 28px; padding: 4px 7px; border: 1px solid #c9dfd2; border-radius: 5px; background: #fff; color: #28574e; font: inherit; font-size: 10px; font-weight: 650; cursor: pointer; }
 .installation-selection-actions button:hover:not(:disabled) { background: #e8f4ec; }
 .installation-selection-actions button:disabled { opacity: .45; cursor: not-allowed; }
+.installation-generate-panel { display: grid; gap: 9px; padding: 12px; border: 1px solid #c7dfd2; border-radius: 8px; background: #fff; box-shadow: 0 6px 20px rgb(23 65 48 / 7%); }
+.installation-generate-panel > strong { color: #214f43; font-size: 12px; }
+.installation-generate-panel p { margin: 0; color: #637e71; font-size: 11px; line-height: 1.45; }
+.installation-generate-panel label { display: grid; gap: 5px; color: #456b5a; font-size: 11px; font-weight: 650; }
+.installation-generate-panel select { width: 100%; min-height: 34px; padding: 6px; border: 1px solid #bdd0c5; border-radius: 5px; background: #fff; color: #29473c; font: inherit; }
+.installation-generate-preview { display: flex; flex-wrap: wrap; gap: 5px; }
+.installation-generate-preview span { display: inline-flex; align-items: center; gap: 5px; padding: 4px 6px; border: 1px solid #deebe3; border-radius: 5px; background: #f5faf7; color: #436659; font-size: 10px; }
+.installation-generate-preview i { width: 9px; height: 9px; border: 1px solid rgb(0 0 0 / 14%); border-radius: 50%; }
+.installation-generate-panel .primary-button { justify-self: start; min-height: 31px; padding: 6px 9px; font-size: 11px; }
 .installation-tree, .installation-tree ul { margin: 0; padding: 0; list-style: none; }
 .installation-tree { display: grid; gap: 7px; }
 .install-tree-item { min-width: 0; padding: 8px; border: 1px solid #e0e9e4; border-radius: 6px; background: #fff; }

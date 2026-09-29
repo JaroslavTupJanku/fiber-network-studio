@@ -56,10 +56,14 @@ test('splice API validates individual fiber ends, reservations, concurrency and 
       }
       const point = async (name, longitude) => json(await request('/network-points', 'POST',
         { kind: 'chamber', name, latitude: 50, longitude }))
-      const [a, b, c] = await Promise.all([point('A', 14), point('B', 14.001), point('C', 14.002)])
+      const [a, b, c, d] = await Promise.all([
+        point('A', 14), point('B', 14.001), point('C', 14.002), point('D', 14.003),
+      ])
       const route = async (name, startPointId, endPointId) => json(await request('/underground-routes', 'POST',
         { name, startPointId, endPointId, waypoints: [] }))
-      const [r1, r2] = await Promise.all([route('A-B', a.id, b.id), route('B-C', b.id, c.id)])
+      const [r1, r2, r3] = await Promise.all([
+        route('A-B', a.id, b.id), route('B-C', b.id, c.id), route('C-D', c.id, d.id),
+      ])
       const ducts = await json(await request('/duct-catalog'))
       const cables = await json(await request('/cable-catalog'))
       const microduct = ducts.find(item => item.kind === 'microduct' && item.innerDiameterMm === 3.5)
@@ -102,7 +106,45 @@ test('splice API validates individual fiber ends, reservations, concurrency and 
       assert.equal((await request(`/network-points/${b.id}`, 'DELETE')).status, 409)
       assert.equal((await request(splicePath, 'DELETE')).status, 204)
       assert.deepEqual(await json(await request('/optical-splices')), [])
-      assert.equal((await request(`/route-installations/${r1.id}/items/${i1.id}?version=${d1.version}`, 'DELETE')).status, 200)
+      const afterRemoval = await json(await request(`/route-installations/${r1.id}/items/${i1.id}?version=${d1.version}`, 'DELETE'))
+      const throughLeft = await json(await request(`/route-installations/${r1.id}/items`, 'POST',
+        { catalogId: cable.id, parentId: d1.items[0].id, slotIndex: null,
+          label: 'Průchozí kabel', version: afterRemoval.version }))
+      const throughRight = await json(await request(`/route-installations/${r2.id}/items`, 'POST',
+        { continueFromItemId: throughLeft.items.at(-1).id, parentId: extraDuct.items.at(-1).id,
+          slotIndex: null, version: extraDuct.version }))
+      const leftCable = throughLeft.items.at(-1)
+      const rightCable = throughRight.items.at(-1)
+      let thirdSection = await json(await request(`/route-installations/${r3.id}/items`, 'POST',
+        { catalogId: microduct.id, parentId: null, slotIndex: null, version: 0 }))
+      thirdSection = await json(await request(`/route-installations/${r3.id}/items`, 'POST',
+        { continueFromItemId: rightCable.id, parentId: thirdSection.items[0].id,
+          slotIndex: null, version: thirdSection.version }))
+      assert.equal(leftCable.runId, rightCable.runId)
+      assert.equal(rightCable.runId, thirdSection.items.at(-1).runId)
+      assert.equal((await request(`${splicePath}/split-cable`, 'POST',
+        { itemId: rightCable.id, version: 0 })).status, 409)
+      assert.equal((await request(`/optical-splices/${a.id}/split-cable`, 'POST',
+        { itemId: rightCable.id, version: throughRight.version })).status, 409)
+      const splitResponse = await request(`${splicePath}/split-cable`, 'POST',
+        { itemId: rightCable.id, version: throughRight.version })
+      assert.equal(splitResponse.status, 200)
+      const splitDocuments = await json(splitResponse)
+      const updatedLeft = splitDocuments.find(item => item.routeId === r1.id)
+      const updatedRight = splitDocuments.find(item => item.routeId === r2.id)
+      const updatedThird = splitDocuments.find(item => item.routeId === r3.id)
+      assert.notEqual(updatedLeft.items.find(item => item.id === leftCable.id).runId,
+        updatedRight.items.find(item => item.id === rightCable.id).runId)
+      assert.equal(updatedRight.items.find(item => item.id === rightCable.id).runId,
+        updatedThird.items.find(item => item.id === thirdSection.items.at(-1).id).runId)
+      assert.deepEqual(spliceCableEnds(b.id, [r1, r2], splitDocuments)
+        .filter(item => [leftCable.id, rightCable.id].includes(item.id)).map(item => item.id),
+      [leftCable.id, rightCable.id])
+      const cutConnection = { id: crypto.randomUUID(),
+        left: { itemId: leftCable.id, tubeIndex: 0, fiberIndex: 0 },
+        right: { itemId: rightCable.id, tubeIndex: 0, fiberIndex: 0 }, kind: 'fusion' }
+      assert.equal((await request(splicePath, 'PUT', { version: 0, name: 'Spojka B',
+        connections: [cutConnection], reserves: [] })).status, 200)
     } finally {
       if (server && server.exitCode === null) { const exited = once(server, 'exit'); server.kill(); await exited }
       await rm(directory, { recursive: true, force: true })

@@ -146,6 +146,9 @@ const json = (value: unknown): RequestInit => ({ headers: { 'Content-Type': 'app
 export const listRouteInstallations = (signal?: AbortSignal) => request<RouteInstallationDocument[]>('', { signal })
 export const addInstalledItem = (routeId: string, input: InstallationAdd) =>
   request<RouteInstallationDocument>(`/${routeId}/items`, { method: 'POST', ...json(input) })
+export const generateAssemblyMicroducts = (routeId: string, itemId: string, catalogId: string, version: number) =>
+  request<RouteInstallationDocument>(`/${routeId}/items/${itemId}/generate-microducts`,
+    { method: 'POST', ...json({ catalogId, version }) })
 export const renameInstalledItem = (routeId: string, id: string, label: string, version: number) =>
   request<RouteInstallationDocument>(`/${routeId}/items/${id}`, { method: 'PUT', ...json({ label, version }) })
 export const moveInstalledItem = (routeId: string, id: string, input: InstallationMove) =>

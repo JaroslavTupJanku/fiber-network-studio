@@ -3,7 +3,7 @@ import { listCables } from '../cable-catalog/api'
 import type { CableSpecification } from '../cable-catalog/model'
 import { listDucts } from '../duct-catalog/api'
 import type { DuctType } from '../duct-catalog/model'
-import { addInstalledItem, emptyInstallation, listRouteInstallations, moveInstalledItem, removeInstalledItem,
+import { addInstalledItem, emptyInstallation, generateAssemblyMicroducts, listRouteInstallations, moveInstalledItem, removeInstalledItem,
   renameInstalledItem, type InstallationAdd, type InstallationMove, type RouteInstallationDocument } from './routeInstallations'
 
 export function useRouteInstallations(routeId: string | null) {
@@ -38,6 +38,7 @@ export function useRouteInstallations(routeId: string | null) {
   const document = useMemo(() => documents.find(item => item.routeId === routeId) ?? emptyInstallation(routeId ?? ''),
     [documents, routeId])
   const refresh = useCallback(() => { setLoading(true); setReloadVersion(value => value + 1) }, [])
+  const replaceDocuments = (updated: RouteInstallationDocument[]) => { setDocuments(updated); setLoadFailed(false) }
   const mutate = async (operation: () => Promise<RouteInstallationDocument>) => {
     if (busy) return false
     setBusy(true)
@@ -53,6 +54,8 @@ export function useRouteInstallations(routeId: string | null) {
   }
   const add = (input: Omit<InstallationAdd, 'version'>) => routeId
     ? mutate(() => addInstalledItem(routeId, { ...input, version: document.version })) : Promise.resolve(false)
+  const generateMicroducts = (assemblyId: string, catalogId: string) => routeId
+    ? mutate(() => generateAssemblyMicroducts(routeId, assemblyId, catalogId, document.version)) : Promise.resolve(false)
   const rename = (id: string, label: string) => routeId
     ? mutate(() => renameInstalledItem(routeId, id, label, document.version)) : Promise.resolve(false)
   const move = (id: string, input: Omit<InstallationMove, 'version'>) => routeId
@@ -60,5 +63,6 @@ export function useRouteInstallations(routeId: string | null) {
   const remove = (id: string) => routeId
     ? mutate(() => removeInstalledItem(routeId, id, document.version)) : Promise.resolve(false)
 
-  return { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh, add, rename, move, remove }
+  return { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh, replaceDocuments,
+    add, generateMicroducts, rename, move, remove }
 }

@@ -45,6 +45,14 @@ public static class RouteInstallationEndpoints
             RenameInstalledItemRequest request, RouteInstallationStore store) =>
             ToResult(await store.RenameAsync(routeId, itemId, request)));
 
+        group.MapPost("/{routeId:guid}/items/{itemId:guid}/generate-microducts", async (Guid routeId,
+            Guid itemId, GenerateMicroductsRequest request, RouteInstallationStore store,
+            DuctCatalogStore ductStore) =>
+        {
+            var microduct = (await ductStore.ListAsync()).FirstOrDefault(item => item.Id == request.CatalogId);
+            return ToResult(await store.GenerateMicroductsAsync(routeId, itemId, request, microduct));
+        });
+
         group.MapPut("/{routeId:guid}/items/{itemId:guid}/placement", async (Guid routeId, Guid itemId,
             MoveInstalledItemRequest request, RouteInstallationStore store) =>
             ToResult(await store.MoveAsync(routeId, itemId, request)));

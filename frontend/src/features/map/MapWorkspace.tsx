@@ -380,7 +380,8 @@ export function MapWorkspace({ active }: { active: boolean }) {
       </aside>
       {spliceOpen && editor?.id && editor.kind === 'chamber' && <OpticalSpliceEditor key={editor.id}
         pointId={editor.id} pointName={editor.name} routes={route.routes}
-        installations={installations.documents} onClose={() => setSpliceOpen(false)}
+        installations={installations.documents} onInstallationsUpdated={installations.replaceDocuments}
+        onClose={() => setSpliceOpen(false)}
         onSaved={document => setSplices(current => [...current.filter(item => item.pointId !== document.pointId), document])}
         onDeleted={pointId => setSplices(current => current.filter(item => item.pointId !== pointId))} />}
     </main>
