@@ -612,4 +612,8 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
   .map-toolbar { top: 10px; left: 10px; max-height: calc(100% - 20px); }
   .point-counts { margin: 12px 0; padding-bottom: 12px; }
 }
+@media (max-width: 480px) {
+  .map-toolbar:not(.collapsed) { width: min(320px, calc(100% - 20px)); max-height: 55%; }
+  .map-toolbar .map-tool, .map-toolbar .map-toolbox-header { min-height: 44px; }
+}
 @media (max-width: 650px) { .app-header { gap: 8px; }.app-brand span { display: none; }.workspace-navigation { overflow-x: auto; }.workspace-navigation button { white-space: nowrap; } }
