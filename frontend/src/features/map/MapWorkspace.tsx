@@ -209,10 +209,13 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
         {selectedSavedRoute && <>
           <div className="route-tab-context">
             <span>{pointName(selectedSavedRoute.startPointId)} → {pointName(selectedSavedRoute.endPointId)}</span>
-            {!route.drawing && <button type="button" className="route-continue-quick" disabled={route.saving}
+            {!route.drawing && <div className="route-context-actions"><button type="button" className="route-continue-quick route-edit-quick"
+              disabled={route.saving} onClick={() => { selectRouteTab('route'); route.startEditing() }}>
+              <RouteIcon size={14} /> Upravit čáru
+            </button><button type="button" className="route-continue-quick" disabled={route.saving}
               onClick={() => beginRouteContinuation(selectedSavedRoute.endPointId)}>
               <RouteIcon size={14} /> Navázat od konce
-            </button>}
+            </button></div>}
           </div>
           <div className="route-detail-tabs" role="tablist" aria-label="Detail podzemní trasy" onKeyDown={handleRouteTabKeyDown}>
             <button type="button" id="route-tab-installations" role="tab" aria-controls="route-panel-installations"
@@ -237,7 +240,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
             {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
               ? routeDraft.endPointId
-                ? 'Oba konce jsou vybrané. Kliknutím do mapy přidáte ohyb do nejbližší části trasy a lomové body můžete přetáhnout. Veďte čáru kolem budov a dalších překážek; pak kreslení dokončete a trasu uložte.'
+                ? 'Oba konce jsou vybrané. Chyťte čáru myší a táhněte ji kolem překážky. Ohyb můžete přidat také kliknutím vedle čáry a následně přetáhnout. Potom kreslení dokončete a trasu uložte.'
                 : routeDraft.startPointId
                 ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další budovu nebo šachtu v mapě; kliknutím mimo objekty přidáte jen ohyb čáry.`
                 : 'Klikněte na výchozí budovu nebo šachtu v mapě. Konec můžete vybrat i v polích níže.'
@@ -283,7 +286,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
                 <button type="button" className="move-button" onClick={route.undo} disabled={!routeDraft.startPointId}><Undo2 size={16} /> Zpět</button>
                 <button type="button" className="move-button" onClick={route.resetGeometry}>Začít znovu</button>
               </div>
-              <p className="route-help">Lomový bod je ohyb čáry, nikoli samostatný objekt sítě. Po výběru konce přidáte další ohyb kliknutím do mapy; přetažením jej doladíte. Budovy jsou zde zatím vedené jako body, jejich skutečný půdorys aplikace neověřuje.</p>
+              <p className="route-help">Táhněte za čáru nebo za již vytvořený lomový bod. Lomový bod je pouze ohyb, nikoli objekt sítě. Budovy jsou zde zatím vedené jako body; jejich skutečný půdorys aplikace neověřuje.</p>
               {routeDraft.waypoints.length > 0 && <div className="route-waypoints"><strong>Lomové body</strong>{routeDraft.waypoints.map((point, index) =>
                 <div key={index}><span>{index + 1}. {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}</span>
                   <button type="button" className="icon-button" onClick={() => route.removeWaypoint(index)} aria-label={`Odebrat lomový bod ${index + 1}`}><X size={14} /></button></div>)}</div>}
@@ -295,7 +298,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
               onKeyDown={event => acceptExampleOnArrowRight(event, name => route.setDraft(current => current ? { ...current, name } : current))}
               title="Šipka doprava převezme šedý příklad"
               placeholder="Např. Šachta S-01 – Dům 12" />
-            {!route.drawing && routeDraft.id && <button type="button" className="move-button" onClick={route.startEditing}><RouteIcon size={16} /> Upravit průběh</button>}
+            {!route.drawing && routeDraft.id && <button type="button" className="move-button" onClick={route.startEditing}><RouteIcon size={16} /> Upravit čáru v mapě</button>}
             {route.error && <p className="form-error" role="alert">{route.error}</p>}
             <div className="form-actions">
               <button className="primary-button" type="submit" disabled={route.drawing || route.saving || !routeDraft.name.trim() || !routeDraft.endPointId}><Save size={16} /> {route.saving ? 'Ukládání…' : 'Uložit'}</button>

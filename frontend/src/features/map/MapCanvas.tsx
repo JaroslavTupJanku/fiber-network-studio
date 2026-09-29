@@ -12,7 +12,7 @@ import type { RouteInstallationDocument } from './routeInstallations'
 import type { OpticalSpliceDocument } from './opticalSplices'
 import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollection, routeVertexCollection,
   POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, HOVERED_POINT_LAYER_ID, ROUTE_ENDPOINT_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID,
-  ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, TRACED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
+  ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, TRACED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID, ROUTE_DRAFT_LAYER_ID,
   ROUTE_VERTEX_SOURCE_ID, ROUTE_VERTEX_LAYER_ID } from './mapLayers'
 import { crossedDragThreshold, mapCursor, resolveMapClick } from './interactions'
 import { closestRouteSegment, routeCoordinates, waypointsAfterPointMove, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
@@ -143,6 +143,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
     let overPoint = false
     let overRoute = false
     let overRouteVertex = false
+    let overDraftLine = false
     let overParcel = false
     let mapHoverPointId: string | null = null
     let mapHoverRouteId: string | null = null
@@ -154,7 +155,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
     let suppressMapClick = false
     const updateCursor = () => {
       if (interactionRef.current.drawingRoute) {
-        canvas.style.cursor = vertexDrag !== null || dragging ? 'grabbing' : overRouteVertex ? 'grab' : overPoint ? 'pointer' : 'crosshair'
+        canvas.style.cursor = vertexDrag !== null || dragging ? 'grabbing' : overRouteVertex || overDraftLine ? 'grab' : overPoint ? 'pointer' : 'crosshair'
         return
       }
       if (pointDrag || dragging) { canvas.style.cursor = 'grabbing'; return }
@@ -246,6 +247,8 @@ export function MapCanvas({ points, routes, installations, splices, installation
       }
       overRouteVertex = drawingRoute && Boolean(map.getLayer(ROUTE_VERTEX_LAYER_ID))
         && map.queryRenderedFeatures(event.point, { layers: [ROUTE_VERTEX_LAYER_ID] }).length > 0
+      overDraftLine = drawingRoute && Boolean(geometryRef.current.routeDraft?.endPointId)
+        && !overPoint && !overRouteVertex && Boolean(featureAt(event.point, ROUTE_DRAFT_LAYER_ID, 9))
       overParcel = !placementActive && !overPoint && Boolean(map.getLayer(PARCEL_FILL_LAYER_ID))
         && map.queryRenderedFeatures(event.point, { layers: [PARCEL_FILL_LAYER_ID] }).length > 0
       if (drawingRoute && vertexDrag === null) setRouteHover({ latitude: event.lngLat.lat, longitude: event.lngLat.lng })
@@ -257,6 +260,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
       overPoint = false
       overRoute = false
       overRouteVertex = false
+      overDraftLine = false
       overParcel = false
       if (mapHoverPointId !== null) {
         mapHoverPointId = null
@@ -317,7 +321,27 @@ export function MapCanvas({ points, routes, installations, splices, installation
       updateCursor()
     }
     const handlePointMouseDown = (event: MapMouseEvent) => {
-      if (interactionRef.current.drawingRoute) return
+      if (interactionRef.current.drawingRoute) {
+        const { routeDraft, displayedPoints } = geometryRef.current
+        if (!routeDraft?.endPointId || featureAt(event.point, POINT_LAYER_ID, 16)
+          || featureAt(event.point, ROUTE_VERTEX_LAYER_ID, 8)
+          || !featureAt(event.point, ROUTE_DRAFT_LAYER_ID, 9)) return
+        const coordinates = routeCoordinates(routeDraft, displayedPoints)
+        if (coordinates.length < 2) return
+        const projected = coordinates.map(point => map.project([point.longitude, point.latitude]))
+        const segmentIndex = closestRouteSegment(projected, event.point)
+        event.preventDefault()
+        map.stop()
+        vertexDragPanEnabled = map.dragPan.isEnabled()
+        if (vertexDragPanEnabled) map.dragPan.disable()
+        vertexDrag = segmentIndex
+        interactionRef.current.onRouteWaypointInsert(segmentIndex,
+          { latitude: event.lngLat.lat, longitude: event.lngLat.lng })
+        window.addEventListener('mousemove', handleVertexMouseMove)
+        window.addEventListener('mouseup', handleVertexMouseUp)
+        updateCursor()
+        return
+      }
       if (interactionRef.current.placementActive && !interactionRef.current.activeTool) return
       const feature = featureAt(event.point, POINT_LAYER_ID, 16)
       const id = feature?.properties?.id
@@ -352,7 +376,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
       updateCursor()
     }
     const handleVertexMouseDown = (event: MapMouseEvent) => {
-      if (!interactionRef.current.drawingRoute) return
+      if (!interactionRef.current.drawingRoute || vertexDrag !== null) return
       const feature = map.queryRenderedFeatures(event.point, { layers: [ROUTE_VERTEX_LAYER_ID] })[0]
       const index = feature?.properties?.index
       if (typeof index !== 'number') return
@@ -652,7 +676,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
         <div className={`placement-guide route-guide${routeError ? ' route-guide-error' : ''}`} role="status">
           <span>{routeError || (routeDraft?.startPointId
             ? routeDraft.endPointId
-              ? `Spojeno: ${routeStartName} → ${routeEndName}. Kliknutím přidejte ohyb kolem překážky, nebo dokončete úsek.`
+              ? `Spojeno: ${routeStartName} → ${routeEndName}. Čáru uchopte a táhněte kolem překážky.`
               : `Začátek: ${routeStartName}. Klikněte na cílovou budovu nebo šachtu.`
             : 'Klikněte na první budovu nebo šachtu.')}</span>
           <button type="button" onClick={onRouteUndo} disabled={!routeDraft?.startPointId}>Zpět</button>

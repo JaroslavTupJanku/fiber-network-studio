@@ -297,6 +297,9 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .route-list-text strong { overflow: hidden; color: #29473c; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .route-list-text small { color: #6c8175; font-size: 11px; }
 .route-tab-context { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 7px; margin: 19px 0 11px; overflow-wrap: anywhere; color: #526a61; font-size: 12px; line-height: 1.4; }
+.route-context-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.route-edit-quick { background: #d9eee6; border-color: #9bcab8; color: #16594b; }
+.route-edit-quick:hover:not(:disabled) { background: #c9e7da; }
 .route-continue-quick { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid #bfd8ce; border-radius: 4px; background: #eff7f3; color: #225f55; font: inherit; font-weight: 650; cursor: pointer; }
 .route-continue-quick:hover:not(:disabled) { background: #e1f1e9; }
 .route-continue-quick:disabled { opacity: .5; cursor: not-allowed; }
