@@ -133,6 +133,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
           routeError={route.error}
           onRouteToolChange={() => { selectRouteTab('route'); handleRouteToolChange() }}
           onRouteSelect={selectSavedRoute}
+          onRouteWaypointInsert={route.insertWaypoint}
           onRouteWaypointMove={route.moveWaypoint}
           onRouteUndo={route.undo}
           onRouteFinish={route.finish}
@@ -236,7 +237,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
             {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
               ? routeDraft.endPointId
-                ? 'Konec úseku je vybraný. Dokončete kreslení, pojmenujte a uložte úsek. Konec případně změníte v poli níže. Po uložení můžete na záložce Osazení navázat chráničky, mikrotrubičky a kabely ze sousedního úseku.'
+                ? 'Oba konce jsou vybrané. Kliknutím do mapy přidáte ohyb do nejbližší části trasy a lomové body můžete přetáhnout. Veďte čáru kolem budov a dalších překážek; pak kreslení dokončete a trasu uložte.'
                 : routeDraft.startPointId
                 ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další budovu nebo šachtu v mapě; kliknutím mimo objekty přidáte jen ohyb čáry.`
                 : 'Klikněte na výchozí budovu nebo šachtu v mapě. Konec můžete vybrat i v polích níže.'
@@ -282,7 +283,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
                 <button type="button" className="move-button" onClick={route.undo} disabled={!routeDraft.startPointId}><Undo2 size={16} /> Zpět</button>
                 <button type="button" className="move-button" onClick={route.resetGeometry}>Začít znovu</button>
               </div>
-              <p className="route-help">Lomový bod je ohyb čáry, nikoli samostatný objekt sítě. Přetáhněte jej v mapě, pokud chcete změnit průběh trasy.</p>
+              <p className="route-help">Lomový bod je ohyb čáry, nikoli samostatný objekt sítě. Po výběru konce přidáte další ohyb kliknutím do mapy; přetažením jej doladíte. Budovy jsou zde zatím vedené jako body, jejich skutečný půdorys aplikace neověřuje.</p>
               {routeDraft.waypoints.length > 0 && <div className="route-waypoints"><strong>Lomové body</strong>{routeDraft.waypoints.map((point, index) =>
                 <div key={index}><span>{index + 1}. {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}</span>
                   <button type="button" className="icon-button" onClick={() => route.removeWaypoint(index)} aria-label={`Odebrat lomový bod ${index + 1}`}><X size={14} /></button></div>)}</div>}

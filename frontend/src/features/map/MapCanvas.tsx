@@ -15,7 +15,7 @@ import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollec
   ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, TRACED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
   ROUTE_VERTEX_SOURCE_ID, ROUTE_VERTEX_LAYER_ID } from './mapLayers'
 import { crossedDragThreshold, mapCursor, resolveMapClick } from './interactions'
-import { routeCoordinates, waypointsAfterPointMove, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
+import { closestRouteSegment, routeCoordinates, waypointsAfterPointMove, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
 
 type MapCanvasProps = {
   points: NetworkPoint[]
@@ -34,6 +34,7 @@ type MapCanvasProps = {
   routeError: string
   onRouteToolChange: () => void
   onRouteSelect: (id: string) => void
+  onRouteWaypointInsert: (segmentIndex: number, location: Coordinates) => void
   onRouteWaypointMove: (index: number, location: Coordinates) => void
   onRouteUndo: () => void
   onRouteFinish: () => void
@@ -63,14 +64,14 @@ const withPointPosition = (points: NetworkPoint[], id: string, location: Coordin
 setWorkerUrl(workerUrl)
 
 export function MapCanvas({ points, routes, installations, splices, installationLoading, selectedRouteId, tracedRouteIds, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, pointFocusRequest, routeDraft, drawingRoute, routeError, onRouteToolChange,
-  onRouteSelect, onRouteWaypointMove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId, onMapPointHoverChange,
+  onRouteSelect, onRouteWaypointInsert, onRouteWaypointMove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId, onMapPointHoverChange,
   selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop,
   onLocationClick, onPointSelect, onPointMove, onDraftMove, onCadastreDisable }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const readyMapRef = useRef<Map | null>(null)
   const interactionRef = useRef({ placementActive, activeTool, drawingRoute, onLocationClick,
-    onPointSelect, onPointMove, onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange })
+    onPointSelect, onPointMove, onRouteSelect, onRouteWaypointInsert, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange })
   const pointData = useRef(pointCollection([], null, null))
   const splicePointIds = useMemo(() => new Set(splices.map(splice => splice.pointId)), [splices])
   const displayedPoints = useMemo(() => selectedPointId && preview
@@ -108,9 +109,9 @@ export function MapCanvas({ points, routes, installations, splices, installation
 
   useEffect(() => {
     interactionRef.current = { placementActive, activeTool, drawingRoute, onLocationClick,
-      onPointSelect, onPointMove, onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange }
+      onPointSelect, onPointMove, onRouteSelect, onRouteWaypointInsert, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange }
   }, [placementActive, activeTool, drawingRoute, onLocationClick, onPointSelect, onPointMove,
-    onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange])
+    onRouteSelect, onRouteWaypointInsert, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange])
 
   useEffect(() => {
     geometryRef.current = { displayedPoints, routes, installations, routeDraft, splicePointIds }
@@ -205,7 +206,16 @@ export function MapCanvas({ points, routes, installations, splices, installation
       const pointId = featureAt(event.point, POINT_LAYER_ID, 16)?.properties?.id
       if (drawingRoute) {
         if (pointId) onPointSelect(String(pointId))
-        else onLocationClick({ latitude: event.lngLat.lat, longitude: event.lngLat.lng }, false)
+        else {
+          const location = { latitude: event.lngLat.lat, longitude: event.lngLat.lng }
+          const { routeDraft, displayedPoints } = geometryRef.current
+          if (routeDraft?.endPointId) {
+            const coordinates = routeCoordinates(routeDraft, displayedPoints)
+            const projected = coordinates.map(point => map.project([point.longitude, point.latitude]))
+            if (projected.length >= 2) interactionRef.current.onRouteWaypointInsert(
+              closestRouteSegment(projected, event.point), location)
+          } else onLocationClick(location, false)
+        }
         return
       }
       if (!placementActive && !pointId) {
@@ -642,7 +652,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
         <div className={`placement-guide route-guide${routeError ? ' route-guide-error' : ''}`} role="status">
           <span>{routeError || (routeDraft?.startPointId
             ? routeDraft.endPointId
-              ? `Spojeno: ${routeStartName} → ${routeEndName}. Dokončete úsek.`
+              ? `Spojeno: ${routeStartName} → ${routeEndName}. Kliknutím přidejte ohyb kolem překážky, nebo dokončete úsek.`
               : `Začátek: ${routeStartName}. Klikněte na cílovou budovu nebo šachtu.`
             : 'Klikněte na první budovu nebo šachtu.')}</span>
           <button type="button" onClick={onRouteUndo} disabled={!routeDraft?.startPointId}>Zpět</button>
