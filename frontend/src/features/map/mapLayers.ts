@@ -7,8 +7,6 @@ export const POINT_SOURCE_ID = 'network-points'
 export const POINT_LAYER_ID = 'network-point-dots'
 export const SELECTED_LAYER_ID = 'network-point-selected'
 export const HOVERED_POINT_LAYER_ID = 'network-point-hovered'
-export const SPLICE_LAYER_ID = 'network-splice-badges'
-export const HOVERED_SPLICE_LAYER_ID = 'network-splice-hovered'
 export const PARCEL_SOURCE_ID = 'selected-parcel'
 export const PARCEL_FILL_LAYER_ID = 'selected-parcel-fill'
 export const ROUTE_SOURCE_ID = 'underground-routes'
@@ -74,41 +72,7 @@ export function pointCollection(points: NetworkPoint[], selectedPointId: string 
   }
 }
 
-function spliceClosureIcon() {
-  const canvas = document.createElement('canvas')
-  canvas.width = 80
-  canvas.height = 48
-  const context = canvas.getContext('2d')!
-  context.scale(2, 2)
-  context.lineCap = 'round'
-  context.beginPath()
-  context.moveTo(2, 12)
-  context.lineTo(38, 12)
-  context.strokeStyle = '#fff'
-  context.lineWidth = 6
-  context.stroke()
-  context.strokeStyle = '#704b92'
-  context.lineWidth = 3
-  context.stroke()
-  context.beginPath()
-  context.roundRect(7, 2, 26, 20, 8)
-  context.fillStyle = '#fff'
-  context.fill()
-  context.beginPath()
-  context.roundRect(9, 4, 22, 16, 6)
-  context.fillStyle = '#704b92'
-  context.fill()
-  context.beginPath()
-  context.moveTo(16, 12)
-  context.lineTo(24, 12)
-  context.strokeStyle = '#fff'
-  context.lineWidth = 2
-  context.stroke()
-  return context.getImageData(0, 0, canvas.width, canvas.height)
-}
-
 export function initializeMapLayers(map: Map) {
-  map.addImage('optical-splice-closure', spliceClosureIcon(), { pixelRatio: 2 })
   map.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: SELECTED_ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
     filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#183c35',
@@ -138,8 +102,8 @@ export function initializeMapLayers(map: Map) {
     paint: {
       'circle-radius': 8,
       'circle-color': ['match', ['get', 'kind'], 'building', '#24796d', 'chamber', '#b8613e', '#64716d'],
-      'circle-stroke-color': '#ffffff',
-      'circle-stroke-width': 2,
+      'circle-stroke-color': ['case', ['get', 'hasSplice'], '#704b92', '#ffffff'],
+      'circle-stroke-width': ['case', ['get', 'hasSplice'], 3, 2],
     },
   })
   map.addLayer({
@@ -166,16 +130,6 @@ export function initializeMapLayers(map: Map) {
       'circle-stroke-width': 4,
     },
   })
-  // The closure is offset from its chamber so both physical entities remain visible.
-  map.addLayer({ id: HOVERED_SPLICE_LAYER_ID, type: 'circle', source: POINT_SOURCE_ID,
-    filter: ['all', ['==', ['get', 'hasSplice'], true], ['==', ['get', 'id'], '']],
-    paint: { 'circle-radius': 19, 'circle-color': 'rgba(240, 179, 68, 0.24)',
-      'circle-stroke-color': '#f0b344', 'circle-stroke-width': 3,
-      'circle-translate': [15, -15], 'circle-translate-anchor': 'viewport' } })
-  map.addLayer({ id: SPLICE_LAYER_ID, type: 'symbol', source: POINT_SOURCE_ID,
-    filter: ['==', ['get', 'hasSplice'], true],
-    layout: { 'icon-image': 'optical-splice-closure', 'icon-offset': [15, -15],
-      'icon-allow-overlap': true, 'icon-ignore-placement': true } })
   map.addLayer({
     id: 'network-point-labels',
     type: 'symbol',

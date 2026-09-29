@@ -121,7 +121,6 @@ export function MapWorkspace({ active }: { active: boolean }) {
           onToolDrop={(kind, location) => { setPanelOpen(true); handleToolDrop(kind, location) }}
           onLocationClick={(location, lookupParcel) => { setPanelOpen(true); handleLocationClick(location, lookupParcel) }}
           onPointSelect={id => { setPanelOpen(true); handlePointSelect(id) }}
-          onSpliceSelect={id => { setPanelOpen(true); handlePointSelect(id); setSpliceOpen(true) }}
           onPointMove={(id, location) => { setPanelOpen(true); void relocatePoint(id, location) }}
           onDraftMove={moveDraft}
           onCadastreDisable={clearParcel}
