@@ -12,6 +12,8 @@ import { routeCoordinates, routeLengthMeters } from './undergroundRoutes'
 import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
 
 const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : 'Šachta'
+const countLabel = (count: number, one: string, few: string, many: string) =>
+  `${count} ${count === 1 ? one : count >= 2 && count <= 4 ? few : many}`
 
 export function MapWorkspace({ active }: { active: boolean }) {
   const [panelOpen, setPanelOpen] = useState(true)
@@ -65,6 +67,12 @@ export function MapWorkspace({ active }: { active: boolean }) {
   const endpointPoints = points.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs'))
   const attachedRoutes = editor?.id ? route.routes.filter(item => item.startPointId === editor.id || item.endPointId === editor.id) : []
   const selectedSplice = editor?.id ? splices.find(item => item.pointId === editor.id) : null
+  const fusionCount = selectedSplice?.connections.filter(item => item.kind === 'fusion').length ?? 0
+  const connectorCount = selectedSplice?.connections.filter(item => item.kind === 'connector').length ?? 0
+  const spliceConnectionsLabel = [
+    fusionCount ? countLabel(fusionCount, 'svar', 'svary', 'svarů') : null,
+    connectorCount ? countLabel(connectorCount, 'konektorové spojení', 'konektorová spojení', 'konektorových spojení') : null,
+  ].filter(Boolean).join(' · ') || 'Zatím bez propojených vláken'
   const togglePanel = () => {
     setPanelOpen(value => !value)
     setListHoveredPointId(null)
@@ -264,20 +272,26 @@ export function MapWorkspace({ active }: { active: boolean }) {
               <button type="button" className="icon-button" onClick={() => copyCoordinates(editor)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button>
             </div>
             <p className="point-placement-hint">{editor.id ? 'Přetažením nebo kliknutím na nové místo se poloha uloží hned. Přilehlý průběh trasy se plynule přizpůsobí. Tlačítko Uložit slouží ke změně názvu.' : 'Polohu doladíte přetažením značky na mapě.'}</p>
-            {editor.kind === 'chamber' && <div className="chamber-splice-card">
-              <strong>Co je v šachtě?</strong>
-              <p>Šachta je přístupný podzemní prostor. Kabel jí může jen procházet; optická spojka je samostatné pouzdro uložené uvnitř.</p>
-              {editor.id && (selectedSplice
-                ? <p className="chamber-splice-present"><Cable size={16} aria-hidden="true" /> <span><b>{selectedSplice.name}</b><small>{selectedSplice.connections.filter(item => item.kind === 'fusion').length} svarů · {selectedSplice.connections.filter(item => item.kind === 'connector').length} konektorových spojení</small></span></p>
-                : <p>{splicesLoadError ? 'Údaje o spojkách se nenačetly.' : 'V této šachtě zatím není evidovaná optická spojka.'}</p>)}
-              {editor.id && <button type="button" className="move-button" onClick={() => setSpliceOpen(true)}>
-                <Cable size={16} aria-hidden="true" /> {selectedSplice ? 'Otevřít spojku a svary' : 'Přidat optickou spojku'}
-              </button>}
-            </div>}
             <button type="button" className={moving ? 'move-button active' : 'move-button'} onClick={() => {
               setMoving((value) => !value)
               setActiveTool(null)
             }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Klikněte na nové místo' : 'Změnit polohu kliknutím'}</button>
+            {editor.id && editor.kind === 'chamber' && <section className="chamber-splice-card" aria-labelledby="chamber-splice-heading">
+              <div className="chamber-splice-heading">
+                <span className="chamber-splice-icon"><Cable size={17} aria-hidden="true" /></span>
+                <div><h2 id="chamber-splice-heading">Optická spojka</h2>
+                  <p>{selectedSplice?.name ?? (splicesLoadError ? 'Údaje se nenačetly' : 'V šachtě zatím není evidována')}</p></div>
+                {selectedSplice && <p className="chamber-splice-count">{spliceConnectionsLabel}</p>}
+              </div>
+              <div className="chamber-splice-actions">
+                <button type="button" className="move-button" onClick={() => setSpliceOpen(true)}>
+                  {selectedSplice ? 'Otevřít spojku a svary' : splicesLoadError ? 'Zkusit otevřít spojku' : 'Přidat spojku'}
+                </button>
+                <details className="chamber-splice-help"><summary>Co je spojka v šachtě?</summary>
+                  <p>Šachta je přístupný podzemní prostor. Kabel jí může jen procházet; spojka je samostatné pouzdro pro propojení vláken.</p>
+                </details>
+              </div>
+            </section>}
             {actionError && <p className="form-error" role="alert">{actionError}</p>}
             {attachedRoutes.length > 0 && <div className="point-dependencies"><strong>Navazující trasy ({attachedRoutes.length})</strong>
               <p>Před smazáním objektu odstraňte nebo přepojte tyto trasy a jejich osazení.</p>

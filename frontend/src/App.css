@@ -46,13 +46,17 @@
 .route-key.ducts { border-color: #26766b; }
 .route-key.cables { border-color: #2d6f9f; }
 .route-key.unknown { border-color: #74817d; }
-.chamber-splice-card { display: grid; gap: 8px; padding: 13px; border: 1px solid #d8d0e6; border-radius: 9px; background: #faf8fd; }
-.chamber-splice-card > strong { color: #513572; font-size: 13px; }
-.chamber-splice-card p { margin: 0; color: #5d6570; font-size: 12px; line-height: 1.5; }
-.chamber-splice-card .move-button { justify-self: start; }
-.chamber-splice-present { display: flex; align-items: center; gap: 9px; padding: 9px; border-radius: 7px; background: #eee7f5; color: #513572 !important; }
-.chamber-splice-present span { display: grid; gap: 2px; }
-.chamber-splice-present small { font-size: 11px; }
+.chamber-splice-card { display: grid; gap: 10px; padding: 14px; border: 1px solid #d8d0e6; border-radius: 9px; background: #faf8fd; }
+.chamber-splice-heading { display: flex; align-items: center; gap: 10px; }
+.chamber-splice-heading > div { min-width: 0; flex: 1; }
+.chamber-splice-heading h2 { margin: 0 0 3px; color: #513572; font-size: 14px; }
+.chamber-splice-heading p { margin: 0; color: #5d6570; font-size: 12px; }
+.chamber-splice-icon { display: grid; flex: none; width: 34px; height: 34px; place-items: center; border-radius: 8px; background: #eee7f5; color: #704b92; }
+.chamber-splice-heading .chamber-splice-count { flex: none; max-width: 45%; margin-left: auto; padding: 5px 8px; border-radius: 5px; background: #eee7f5; color: #513572; font-size: 11px; font-weight: 650; }
+.chamber-splice-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.chamber-splice-help { color: #60756d; font-size: 11px; line-height: 1.5; }
+.chamber-splice-help summary { width: max-content; cursor: pointer; }
+.chamber-splice-help p { margin: 7px 0 0; }
 .maplibregl-control-container { font-family: inherit; }
 .map-toolbar { position: absolute; top: 12px; left: 12px; z-index: 1; width: 236px; max-height: calc(100% - 24px); overflow-y: auto; border: 1px solid #bfcfca; border-radius: 8px; background: #fff; box-shadow: 0 3px 12px rgb(20 45 38 / 15%); }
 .map-toolbar.collapsed { width: 183px; }
