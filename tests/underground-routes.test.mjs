@@ -7,7 +7,8 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
-import { routeCoordinates, routeLengthMeters, undoRouteStep, waypointsAfterPointMove } from '../frontend/src/features/map/undergroundRoutes.ts'
+import { closestRouteSegment, routeCoordinates, routeLengthMeters, undoRouteStep,
+  waypointsAfterPointMove } from '../frontend/src/features/map/undergroundRoutes.ts'
 
 test('route geometry follows its endpoint objects and measures only map geometry', () => {
   const points = [
@@ -34,6 +35,18 @@ test('moving an endpoint bends its existing route smoothly without adding a vert
   assert.deepEqual(waypointsAfterPointMove(route, points, 'other', { latitude: 0, longitude: 0 }), route.waypoints)
   assert.deepEqual(waypointsAfterPointMove({ ...route, waypoints: [] }, points, 'a',
     { latitude: 50, longitude: 14.0002 }), [])
+})
+
+test('a new bend is inserted in the nearest leg of an already connected route', () => {
+  const line = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }]
+  assert.equal(closestRouteSegment(line, { x: 30, y: 40 }), 0)
+  assert.equal(closestRouteSegment(line, { x: 140, y: 70 }), 1)
+  assert.equal(closestRouteSegment(line, { x: 100, y: 0 }), 0)
+  const completed = { startPointId: 'a', endPointId: 'b', waypoints: [
+    { latitude: 1, longitude: 1 }, { latitude: 2, longitude: 2 },
+  ] }
+  assert.deepEqual(undoRouteStep(completed, 0).waypoints, [completed.waypoints[1]])
+  assert.equal(undoRouteStep(completed).endPointId, null)
 })
 
 test('route API validates endpoints and vertices, persists edits, and protects connected points', { timeout: 40000 }, async () => {

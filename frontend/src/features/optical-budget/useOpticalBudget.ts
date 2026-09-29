@@ -36,11 +36,12 @@ export function useOpticalBudget() {
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
     return () => controller.abort()
   }, [revision])
-  const replace = (next: Scenario, action: 'new' | 'demo' | 'import') => {
+  const replace = (next: Scenario, action: 'new' | 'demo' | 'import' | 'map') => {
     const messages = {
       new: 'Vymazat současné zadání cesty a začít nový výpočet?',
       demo: 'Nahradit současné zadání cesty ilustračním příkladem?',
       import: 'Nahradit současné zadání cesty výpočtem ze souboru?',
+      map: 'Nahradit současné zadání optickou cestou z mapy?',
     }
     const message = storageEnabled ? messages[action] : `${messages[action]} Původní uložená data, která se nepodařilo načíst, budou přepsána.`
     if ((hasScenarioContent(scenario) || !storageEnabled) && !window.confirm(message)) return

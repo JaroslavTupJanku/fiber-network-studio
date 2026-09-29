@@ -13,8 +13,10 @@ export const PARCEL_FILL_LAYER_ID = 'selected-parcel-fill'
 export const ROUTE_SOURCE_ID = 'underground-routes'
 export const ROUTE_LAYER_ID = 'underground-route-lines'
 export const SELECTED_ROUTE_LAYER_ID = 'underground-route-selected'
+export const TRACED_ROUTE_LAYER_ID = 'optical-path-routes'
 export const HOVERED_ROUTE_LAYER_ID = 'underground-route-hovered'
 export const ROUTE_DRAFT_SOURCE_ID = 'underground-route-draft'
+export const ROUTE_DRAFT_LAYER_ID = 'underground-route-draft-line'
 export const ROUTE_VERTEX_SOURCE_ID = 'underground-route-vertices'
 export const ROUTE_VERTEX_LAYER_ID = 'underground-route-vertex-dots'
 
@@ -85,8 +87,11 @@ export function initializeMapLayers(map: Map) {
     paint: { 'line-color': ['match', ['get', 'installationStatus'],
       'cables', '#2d6f9f', 'ducts', '#26766b', 'unknown', '#74817d', '#b8613e'],
     'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 12, 3, 15, 5, 18, 6], 'line-opacity': 0.95 } })
+  map.addLayer({ id: TRACED_ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
+    filter: ['in', ['get', 'id'], ['literal', []]], paint: { 'line-color': '#8d35aa',
+      'line-width': ['interpolate', ['linear'], ['zoom'], 9, 4, 12, 7, 15, 10, 18, 12], 'line-opacity': 0.95 } })
   map.addSource(ROUTE_DRAFT_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
-  map.addLayer({ id: 'underground-route-draft-line', type: 'line', source: ROUTE_DRAFT_SOURCE_ID,
+  map.addLayer({ id: ROUTE_DRAFT_LAYER_ID, type: 'line', source: ROUTE_DRAFT_SOURCE_ID,
     paint: { 'line-color': '#de8a39',
       'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 12, 3, 15, 4, 18, 5], 'line-dasharray': [2, 1.5] } })
   map.addSource(ROUTE_VERTEX_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
@@ -180,6 +185,6 @@ export function initializeMapLayers(map: Map) {
   map.moveLayer(SELECTED_ROUTE_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer(ROUTE_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer(HOVERED_ROUTE_LAYER_ID, POINT_LAYER_ID)
-  map.moveLayer('underground-route-draft-line', POINT_LAYER_ID)
+  map.moveLayer(ROUTE_DRAFT_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer(ROUTE_VERTEX_LAYER_ID, POINT_LAYER_ID)
 }

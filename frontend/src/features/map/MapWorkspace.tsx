@@ -3,6 +3,11 @@ import { Cable, CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, Pane
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
+import { BuildingEquipmentEditor } from './BuildingEquipmentEditor'
+import { listBuildingEquipment, type BuildingEquipmentDocument } from './buildingEquipment'
+import type { OpticalPath } from './traceOpticalPath'
+import type { Scenario } from '../optical-budget/model'
+import { scenarioFromOpticalPath } from './pathScenario'
 import { ChamberConduitPanel } from './ChamberConduitPanel'
 import { listOpticalSplices, type OpticalSpliceDocument } from './opticalSplices'
 import { installationSummary } from './routeInstallations'
@@ -16,9 +21,13 @@ const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : '
 const countLabel = (count: number, one: string, few: string, many: string) =>
   `${count} ${count === 1 ? one : count >= 2 && count <= 4 ? few : many}`
 
-export function MapWorkspace({ active }: { active: boolean }) {
+export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpenBudget: (scenario: Scenario) => void }) {
   const [panelOpen, setPanelOpen] = useState(true)
   const [spliceOpen, setSpliceOpen] = useState(false)
+  const [equipmentOpen, setEquipmentOpen] = useState(false)
+  const [equipment, setEquipment] = useState<BuildingEquipmentDocument[]>([])
+  const [tracedPath, setTracedPath] = useState<OpticalPath | null>(null)
+  useEffect(() => { void listBuildingEquipment().then(setEquipment).catch(() => {}) }, [])
   const [splices, setSplices] = useState<OpticalSpliceDocument[]>([])
   const [splicesLoadError, setSplicesLoadError] = useState(false)
   useEffect(() => {
@@ -69,6 +78,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
   const endpointPoints = points.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs'))
   const attachedRoutes = editor?.id ? route.routes.filter(item => item.startPointId === editor.id || item.endPointId === editor.id) : []
   const selectedSplice = editor?.id ? splices.find(item => item.pointId === editor.id) : null
+  const selectedEquipment = editor?.id ? equipment.find(item => item.pointId === editor.id) : null
   const fusionCount = selectedSplice?.connections.filter(item => item.kind === 'fusion').length ?? 0
   const connectorCount = selectedSplice?.connections.filter(item => item.kind === 'connector').length ?? 0
   const spliceConnectionsLabel = [
@@ -113,6 +123,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
           splices={splices}
           installationLoading={installations.loading}
           selectedRouteId={routeDraft?.id ?? null}
+          tracedRouteIds={tracedPath?.routeIds ?? []}
           hoveredRouteId={mapHoveredRouteId ?? listHoveredRouteId}
           onMapRouteHoverChange={setMapHoveredRouteId}
           routeFocusRequest={routeFocusRequest}
@@ -122,6 +133,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
           routeError={route.error}
           onRouteToolChange={() => { selectRouteTab('route'); handleRouteToolChange() }}
           onRouteSelect={selectSavedRoute}
+          onRouteWaypointInsert={route.insertWaypoint}
           onRouteWaypointMove={route.moveWaypoint}
           onRouteUndo={route.undo}
           onRouteFinish={route.finish}
@@ -197,10 +209,13 @@ export function MapWorkspace({ active }: { active: boolean }) {
         {selectedSavedRoute && <>
           <div className="route-tab-context">
             <span>{pointName(selectedSavedRoute.startPointId)} → {pointName(selectedSavedRoute.endPointId)}</span>
-            {!route.drawing && <button type="button" className="route-continue-quick" disabled={route.saving}
+            {!route.drawing && <div className="route-context-actions"><button type="button" className="route-continue-quick route-edit-quick"
+              disabled={route.saving} onClick={() => { selectRouteTab('route'); route.startEditing() }}>
+              <RouteIcon size={14} /> Upravit průběh trasy
+            </button><button type="button" className="route-continue-quick" disabled={route.saving}
               onClick={() => beginRouteContinuation(selectedSavedRoute.endPointId)}>
               <RouteIcon size={14} /> Navázat od konce
-            </button>}
+            </button></div>}
           </div>
           <div className="route-detail-tabs" role="tablist" aria-label="Detail podzemní trasy" onKeyDown={handleRouteTabKeyDown}>
             <button type="button" id="route-tab-installations" role="tab" aria-controls="route-panel-installations"
@@ -225,12 +240,12 @@ export function MapWorkspace({ active }: { active: boolean }) {
             {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
               ? routeDraft.endPointId
-                ? 'Konec úseku je vybraný. Dokončete kreslení, pojmenujte a uložte úsek. Konec případně změníte v poli níže. Po uložení můžete na záložce Osazení navázat chráničky, mikrotrubičky a kabely ze sousedního úseku.'
+                ? 'Oba konce jsou vybrané. Klikněte přímo na úsek trasy pro nový lomový bod, nebo úsek uchopte a táhněte kolem překážky. Kliknutí mimo trasu ji nezmění. Potom úpravu dokončete a uložte.'
                 : routeDraft.startPointId
-                ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další budovu nebo šachtu v mapě; kliknutím mimo objekty přidáte jen ohyb čáry.`
+                ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další budovu nebo šachtu v mapě; kliknutím mimo objekty přidáte lomový bod.`
                 : 'Klikněte na výchozí budovu nebo šachtu v mapě. Konec můžete vybrat i v polích níže.'
               : routeDraft.id
-                ? 'Čára v mapě ukazuje průběh podzemního vedení mezi dvěma body. Chráničky a kabely najdete na záložce Osazení; svary patří do spojky v šachtě.'
+                ? 'Trasa v mapě ukazuje průběh podzemního vedení mezi dvěma body. Chráničky a kabely najdete na záložce Osazení; svary patří do spojky v šachtě.'
                 : 'Trasa spojuje dva body sítě. Nejdřív ji uložte, potom do ní můžete vložit chráničky a kabely.'}</p>
             {route.drawing ? <div className="route-endpoint-fields">
               <label htmlFor="route-start">Začátek trasy
@@ -271,7 +286,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
                 <button type="button" className="move-button" onClick={route.undo} disabled={!routeDraft.startPointId}><Undo2 size={16} /> Zpět</button>
                 <button type="button" className="move-button" onClick={route.resetGeometry}>Začít znovu</button>
               </div>
-              <p className="route-help">Lomový bod je ohyb čáry, nikoli samostatný objekt sítě. Přetáhněte jej v mapě, pokud chcete změnit průběh trasy.</p>
+              <p className="route-help">Klikněte nebo táhněte přímo za úsek trasy. Lomový bod můžete později znovu přetáhnout; mění jen průběh trasy, není samostatným objektem sítě. Budovy jsou zde zatím vedené jako body; jejich skutečný půdorys aplikace neověřuje.</p>
               {routeDraft.waypoints.length > 0 && <div className="route-waypoints"><strong>Lomové body</strong>{routeDraft.waypoints.map((point, index) =>
                 <div key={index}><span>{index + 1}. {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}</span>
                   <button type="button" className="icon-button" onClick={() => route.removeWaypoint(index)} aria-label={`Odebrat lomový bod ${index + 1}`}><X size={14} /></button></div>)}</div>}
@@ -283,7 +298,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
               onKeyDown={event => acceptExampleOnArrowRight(event, name => route.setDraft(current => current ? { ...current, name } : current))}
               title="Šipka doprava převezme šedý příklad"
               placeholder="Např. Šachta S-01 – Dům 12" />
-            {!route.drawing && routeDraft.id && <button type="button" className="move-button" onClick={route.startEditing}><RouteIcon size={16} /> Upravit průběh</button>}
+            {!route.drawing && routeDraft.id && <button type="button" className="move-button" onClick={route.startEditing}><RouteIcon size={16} /> Upravit průběh trasy</button>}
             {route.error && <p className="form-error" role="alert">{route.error}</p>}
             <div className="form-actions">
               <button className="primary-button" type="submit" disabled={route.drawing || route.saving || !routeDraft.name.trim() || !routeDraft.endPointId}><Save size={16} /> {route.saving ? 'Ukládání…' : 'Uložit'}</button>
@@ -312,6 +327,15 @@ export function MapWorkspace({ active }: { active: boolean }) {
             {editor.id && editor.kind === 'chamber' && <ChamberConduitPanel key={editor.id}
               pointId={editor.id} routes={route.routes} documents={installations.documents}
               onUpdated={installations.replaceDocuments} onOpenRoute={selectSavedRoute} />}
+            {editor.id && editor.kind === 'building' && <section className="chamber-splice-card" aria-labelledby="building-equipment-heading">
+              <div className="chamber-splice-heading"><span className="chamber-splice-icon"><Cable size={17} aria-hidden="true" /></span>
+                <div><h2 id="building-equipment-heading">Optické vybavení</h2><p>{selectedEquipment
+                  ? `${countLabel(selectedEquipment.racks.length, 'stojan', 'stojany', 'stojanů')} · ${countLabel(selectedEquipment.ports.length, 'port', 'porty', 'portů')}`
+                  : 'V budově zatím není evidováno'}</p></div></div>
+              <div className="chamber-splice-actions"><button type="button" className="move-button" onClick={() => setEquipmentOpen(true)}>
+                {selectedEquipment ? 'Otevřít vybavení' : 'Přidat stojan, ODF a OLT'}</button>
+                {tracedPath && <button type="button" className="move-button" onClick={() => setTracedPath(null)}>Skrýt zvýraznění cesty</button>}</div>
+            </section>}
             {editor.id && editor.kind === 'chamber' && <section className="chamber-splice-card" aria-labelledby="chamber-splice-heading">
               <div className="chamber-splice-heading">
                 <span className="chamber-splice-icon"><Cable size={17} aria-hidden="true" /></span>
@@ -388,6 +412,13 @@ export function MapWorkspace({ active }: { active: boolean }) {
         onClose={() => setSpliceOpen(false)}
         onSaved={document => setSplices(current => [...current.filter(item => item.pointId !== document.pointId), document])}
         onDeleted={pointId => setSplices(current => current.filter(item => item.pointId !== pointId))} />}
+      {equipmentOpen && editor?.id && editor.kind === 'building' && <BuildingEquipmentEditor key={editor.id}
+        pointId={editor.id} pointName={editor.name} routes={route.routes} installations={installations.documents}
+        onClose={() => setEquipmentOpen(false)}
+        onSaved={document => setEquipment(current => [...current.filter(item => item.pointId !== document.pointId),
+          ...(document.racks.length ? [document] : [])])}
+        onTrace={path => setTracedPath(path)}
+        onBudget={path => { onOpenBudget(scenarioFromOpticalPath(path, installations.documents)); setEquipmentOpen(false) }} />}
     </main>
   )
 }

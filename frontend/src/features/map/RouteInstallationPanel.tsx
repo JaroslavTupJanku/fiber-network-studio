@@ -162,7 +162,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   installations: ReturnType<typeof useRouteInstallations>
 }) {
   const { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh,
-    add, generateMicroducts, rename, move, remove } = installations
+    add, generateMicroducts, rename, setCableLength, move, remove } = installations
   const [savedMessage, setSavedMessage] = useState('')
   useEffect(() => {
     if (!savedMessage) return
@@ -186,6 +186,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const [pendingRemovalId, setPendingRemovalId] = useState<string | null>(null)
   const [selectionEditing, setSelectionEditing] = useState(false)
   const [selectionLabel, setSelectionLabel] = useState('')
+  const [lengthInput, setLengthInput] = useState('')
+  const [lengthError, setLengthError] = useState('')
   const [generateOpen, setGenerateOpen] = useState(false)
   const [generateCatalogId, setGenerateCatalogId] = useState('')
   const [editorOpen, setEditorOpen] = useState(false)
@@ -273,10 +275,26 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const selectItem = (item: InstalledItem) => {
     setSelectedItemId(item.id)
     setSelectionLabel(item.label)
+    setLengthInput(item.actualLengthMeters?.toString() ?? '')
+    setLengthError('')
     setSelectionEditing(false)
     setMovePickerOpen(false)
     setGenerateOpen(false)
     setGenerateCatalogId('')
+  }
+  const saveCableLength = async (item: InstalledItem) => {
+    const text = lengthInput.trim().replace(',', '.')
+    const length = text === '' ? null : Number(text)
+    if (text !== '' && (!/^(?:\d+(?:\.\d*)?|\.\d+)$/.test(text)
+      || length === null || !Number.isFinite(length) || length <= 0 || length > 1000000)) {
+      setLengthError('Zadejte kladnou délku v metrech, nebo nechte pole prázdné.')
+      return
+    }
+    if (await setCableLength(item.id, length)) {
+      setLengthInput(length?.toString() ?? '')
+      setLengthError('')
+      setSavedMessage(length === null ? 'Délka kabelu odebrána.' : 'Skutečná délka kabelu uložena.')
+    }
   }
   const openContents = (item: InstalledItem | null) => {
     setFocusedParentId(item?.id ?? null)
@@ -504,6 +522,14 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
             <button type="button" className="installation-remove-button" onClick={() => setPendingRemovalId(selectedItem.id)}
               disabled={!editable || busy}><Trash2 size={14} /> Odebrat…</button>
           </div>}
+          {selectedItem.cable && <form className="installation-length" onSubmit={event => {
+            event.preventDefault(); void saveCableLength(selectedItem)
+          }}><label>Skutečná délka kabelu v tomto úseku
+            <span><input inputMode="decimal" value={lengthInput} placeholder="Zatím neznámá"
+              aria-invalid={!!lengthError} onChange={event => { setLengthInput(event.target.value); setLengthError('') }} /> m</span>
+          </label><button type="submit" className="move-button" disabled={!editable || busy}>Uložit délku</button>
+            <p>Délka instalovaného kabelu včetně rezerv. Mapa ukazuje jen přibližnou délku trasy.</p>
+            {lengthError && <p className="form-error" role="alert">{lengthError}</p>}</form>}
           {generateOpen && openMicroductSlots.length > 0 && <div className="installation-generate-panel" ref={generateRef}>
             <strong>Vyplnit {openMicroductSlots.length} volných pozic</strong>
             <p>Každá pozice vytvoří samostatnou mikrotrubičku. U obecného typu se převezme barva pozice; výrobkový typ musí barvě odpovídat.</p>

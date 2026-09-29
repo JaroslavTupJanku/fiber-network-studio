@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import type { Coordinates, NetworkPoint } from './networkPoints'
 import { deleteUndergroundRoute, listUndergroundRoutes, saveUndergroundRoute,
   undoRouteStep, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
@@ -16,6 +16,7 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [reloadVersion, setReloadVersion] = useState(0)
+  const insertedWaypoints = useRef<number[]>([])
 
   useEffect(() => {
     const controller = new AbortController()
@@ -29,6 +30,7 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   }, [reloadVersion])
 
   const cancel = useCallback(() => {
+    insertedWaypoints.current = []
     setDraft(null)
     setDrawing(false)
     setContinuationSourceId(null)
@@ -36,6 +38,7 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   }, [])
 
   const cancelDrawing = useCallback(() => {
+    insertedWaypoints.current = []
     setDrawing(false)
     setDraft(current => {
       const saved = routes.find(route => route.id === (current?.id ?? continuationSourceId))
@@ -46,6 +49,7 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   }, [routes, continuationSourceId])
 
   const startDrawing = () => {
+    insertedWaypoints.current = []
     setDraft({ name: '', startPointId: null, endPointId: null, waypoints: [] })
     setDrawing(true)
     setContinuationSourceId(null)
@@ -53,6 +57,7 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   }
 
   const selectRoute = (id: string) => {
+    insertedWaypoints.current = []
     const route = routes.find(item => item.id === id)
     if (!route) return
     setDraft(copyRoute(route))
@@ -63,6 +68,7 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
 
   const startEditing = () => {
     if (!draft) return
+    insertedWaypoints.current = []
     setDrawing(true)
     setError('')
   }
@@ -77,6 +83,7 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
       setError('Nejdřív uložte změny této trasy, potom z ní můžete navázat.')
       return false
     }
+    insertedWaypoints.current = []
     setDraft({ name: '', startPointId: pointId, endPointId: null, waypoints: [] })
     setDrawing(true)
     setContinuationSourceId(saved.id)
@@ -110,6 +117,7 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
       setError('Začátek a konec musí být různé objekty.')
       return
     }
+    insertedWaypoints.current = []
     setDraft(current => current ? { ...current, [endpoint]: id } : current)
     setError('')
   }
@@ -121,6 +129,17 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
     setError('')
   }
 
+  const insertWaypoint = (segmentIndex: number, location: Coordinates) => {
+    if (!drawing || !draft?.startPointId || !draft.endPointId
+      || segmentIndex < 0 || segmentIndex > draft.waypoints.length) return
+    insertedWaypoints.current.push(segmentIndex)
+    setDraft(current => current && segmentIndex >= 0 && segmentIndex <= current.waypoints.length
+      ? { ...current, waypoints: [
+        ...current.waypoints.slice(0, segmentIndex), location, ...current.waypoints.slice(segmentIndex),
+      ] } : current)
+    setError('')
+  }
+
   const moveWaypoint = (index: number, location: Coordinates) => {
     if (!drawing) return
     setDraft(current => current && current.waypoints[index]
@@ -129,17 +148,20 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   }
 
   const removeWaypoint = (index: number) => {
+    insertedWaypoints.current = []
     setDraft(current => current
       ? { ...current, waypoints: current.waypoints.filter((_, position) => position !== index) }
       : current)
   }
 
   const undo = () => {
-    setDraft(current => current ? undoRouteStep(current) : current)
+    const insertedIndex = insertedWaypoints.current.pop()
+    setDraft(current => current ? undoRouteStep(current, insertedIndex) : current)
     setError('')
   }
 
   const resetGeometry = () => {
+    insertedWaypoints.current = []
     setDraft(current => current
       ? { ...current, startPointId: null, endPointId: null, waypoints: [] }
       : current)
@@ -157,6 +179,7 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
       return
     }
     setDrawing(false)
+    insertedWaypoints.current = []
     setError('')
   }
 
@@ -216,5 +239,5 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
 
   return { routes, visibleRoutes, draft, drawing, loading, loadError, error, saving, preview,
     setRoutes, setDraft, setLoading, setReloadVersion, cancel, cancelDrawing, startDrawing, selectRoute, startEditing, continueFrom,
-    addPoint, setEndpoint, addWaypoint, moveWaypoint, removeWaypoint, undo, resetGeometry, finish, save, remove }
+    addPoint, setEndpoint, addWaypoint, insertWaypoint, moveWaypoint, removeWaypoint, undo, resetGeometry, finish, save, remove }
 }

@@ -1,7 +1,7 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Calculator, Download, FlaskConical, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { BudgetResult } from './BudgetResult'
-import { changeLimit, demoScenario, emptyLosses, kinds, limitFor, lossKeyFor, newElement, newScenario, newSection, number, type Element, type Section } from './model'
+import { changeLimit, demoScenario, emptyLosses, kinds, limitFor, lossKeyFor, newElement, newScenario, newSection, number, type Element, type Section, type Scenario } from './model'
 import { TechnologySettings } from './TechnologySettings'
 import { EquipmentProfiles } from './EquipmentProfiles'
 import { parseScenario } from './storage'
@@ -14,12 +14,21 @@ function NumberField({ label, value, onChange, unit }: { label: string; value: s
     aria-label={label} aria-invalid={value !== '' && number(value) === null} onChange={event => onChange(event.target.value)} /><span>{unit}</span></span></label>
 }
 
-export function OpticalBudgetPage() {
+export function OpticalBudgetPage({ incoming, onIncomingHandled }: {
+  incoming: { id: string; scenario: Scenario } | null; onIncomingHandled: () => void
+}) {
   const state = useOpticalBudget()
   const { scenario, setScenario } = state
   const [importError, setImportError] = useState('')
   const [advanced, setAdvanced] = useState(false)
   const fileInput = useRef<HTMLInputElement>(null)
+  const handledIncomingId = useRef<string | null>(null)
+  useEffect(() => {
+    if (!incoming || incoming.id === handledIncomingId.current) return
+    handledIncomingId.current = incoming.id
+    state.replace(incoming.scenario, 'map')
+    onIncomingHandled()
+  }, [incoming, onIncomingHandled, state])
   const patchSection = (id: string, patch: Partial<Section>) => setScenario(previous => ({ ...previous, sections: previous.sections.map(row => row.id === id ? { ...row, ...patch } : row) }))
   const patchElement = (id: string, patch: Partial<Element>) => setScenario(previous => ({ ...previous, elements: previous.elements.map(row => row.id === id ? { ...row, ...patch } : row) }))
   const lossKey = lossKeyFor(scenario.wavelength)
@@ -28,7 +37,7 @@ export function OpticalBudgetPage() {
   }
   return <main className="optical-budget" aria-label="Optické ztráty">
     <header className="ob-heading"><div><span className="ob-eyebrow">NÁVRH OPTICKÉ CESTY</span><h1><Calculator size={27} /> Optické ztráty</h1>
-      <p>Ručně sestavte celou cestu signálu z kabelových úseků a spojů. Výběr cesty z mapy zatím není připojený.</p></div>
+      <p>Sestavte cestu ručně nebo přeneste sledovanou optickou cestu z mapy. Délky instalovaných kabelů a ztráty spojů doplňte podle měření a technických listů.</p></div>
       <div className="ob-actions"><button onClick={() => state.replace(demoScenario(), 'demo')}><FlaskConical size={16} /> Ukázka</button>
         <button onClick={() => state.replace(newScenario(), 'new')}><Plus size={16} /> Nový výpočet</button>
         <details className="ob-more"><summary>Další možnosti</summary><div className="ob-more-panel">

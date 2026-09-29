@@ -12,6 +12,7 @@ export type InstalledItem = {
   runId: string
   duct: DuctType | null
   cable: CableSpecification | null
+  actualLengthMeters?: number | null
 }
 
 export type RouteInstallationDocument = { routeId: string; version: number; items: InstalledItem[] }
@@ -154,6 +155,8 @@ export const splitConduitAtChamber = (pointId: string, itemId: string, version: 
     { method: 'POST', ...json({ itemId, version }) })
 export const renameInstalledItem = (routeId: string, id: string, label: string, version: number) =>
   request<RouteInstallationDocument>(`/${routeId}/items/${id}`, { method: 'PUT', ...json({ label, version }) })
+export const setInstalledCableLength = (routeId: string, id: string, actualLengthMeters: number | null, version: number) =>
+  request<RouteInstallationDocument>(`/${routeId}/items/${id}/length`, { method: 'PUT', ...json({ actualLengthMeters, version }) })
 export const moveInstalledItem = (routeId: string, id: string, input: InstallationMove) =>
   request<RouteInstallationDocument>(`/${routeId}/items/${id}/placement`, { method: 'PUT', ...json(input) })
 export const removeInstalledItem = (routeId: string, id: string, version: number) =>

@@ -1,0 +1,144 @@
+import assert from 'node:assert/strict'
+import { spawn } from 'node:child_process'
+import { once } from 'node:events'
+import { mkdtemp, rm } from 'node:fs/promises'
+import { createServer } from 'node:net'
+import { tmpdir } from 'node:os'
+import { join, resolve } from 'node:path'
+import { setTimeout as delay } from 'node:timers/promises'
+import { test } from 'node:test'
+import { traceOpticalPath } from '../frontend/src/features/map/traceOpticalPath.ts'
+import { scenarioFromOpticalPath } from '../frontend/src/features/map/pathScenario.ts'
+import { countCzech, portLocation } from '../frontend/src/features/map/equipmentPresentation.ts'
+
+test('port choices identify their rack, shelf, card and position', () => {
+  const document = { racks: [{ id: 'r1', name: 'Stojan A' }, { id: 'r2', name: 'Stojan B' }],
+    shelves: [{ id: 's1', rackId: 'r1', kind: 'odf', name: 'Police 1' },
+      { id: 's2', rackId: 'r2', kind: 'olt', name: 'Police 1' }],
+    cards: [{ id: 'c2', shelfId: 's2', name: 'Karta 1' }] }
+  assert.equal(portLocation(document, { parentId: 's1', position: 1, label: 'Port 1' }),
+    'Stojan A / ODF Police 1 / Port 1 (pozice 1)')
+  assert.equal(portLocation(document, { parentId: 'c2', position: 1, label: 'Port 1' }),
+    'Stojan B / OLT Police 1 / Karta 1 / Port 1 (pozice 1)')
+  assert.equal(countCzech(1, 'stojan', 'stojany', 'stojanů'), '1 stojan')
+  assert.equal(countCzech(3, 'port', 'porty', 'portů'), '3 porty')
+})
+
+test('trace follows ports, cable segments and splice without inventing optical losses', () => {
+  const a = 'a', b = 'b', c = 'c'
+  const routes = [{ id: 'r1', name: 'A–B', startPointId: a, endPointId: b },
+    { id: 'r2', name: 'B–C', startPointId: b, endPointId: c }]
+  const cable = { name: 'Kabel 12F', attenuation1310DbPerKm: 0.35,
+    attenuation1550DbPerKm: 0.22, tubes: [{ name: 'Tuba 1', fibers: [{ name: 'Vlákno 1' }] }] }
+  const items = [{ id: 'i1', routeId: 'r1', runId: 'run1', label: 'Kabel A', cable, actualLengthMeters: 125.5 },
+    { id: 'i2', routeId: 'r2', runId: 'run2', label: 'Kabel C', cable }]
+  const installations = [{ routeId: 'r1', items: [items[0]] }, { routeId: 'r2', items: [items[1]] }]
+  const end = itemId => ({ itemId, tubeIndex: 0, fiberIndex: 0 })
+  const equipment = [
+    { pointId: a, shelves: [{ id: 'sa', kind: 'odf' }], ports: [
+      { id: 'odfa', parentId: 'sa', label: 'ODF A', fiber: end('i1'), patchPortId: 'olta' },
+      { id: 'olta', parentId: 'carda', label: 'OLT A', fiber: null, patchPortId: 'odfa' }] },
+    { pointId: c, shelves: [{ id: 'sc', kind: 'odf' }], ports: [
+      { id: 'odfc', parentId: 'sc', label: 'ODF C', fiber: end('i2'), patchPortId: null }] },
+  ]
+  const splices = [{ pointId: b, name: 'Spojka B', connections: [
+    { id: 'splice', left: end('i1'), right: end('i2'), kind: 'fusion' }] }]
+  const path = traceOpticalPath('olta', equipment, routes, installations, splices)
+  assert.equal(path.status, 'connected')
+  assert.equal(path.endPortId, 'odfc')
+  assert.deepEqual(path.routeIds, ['r1', 'r2'])
+  assert.equal(path.steps.filter(step => step.kind === 'splice').length, 1)
+  assert.deepEqual(traceOpticalPath('odfa', equipment, routes, installations, splices).routeIds, ['r1', 'r2'])
+  const scenario = scenarioFromOpticalPath(path, installations)
+  assert.equal(scenario.sections.length, 2)
+  assert.equal(scenario.sections[0].lengthM, '125.5')
+  assert.equal(scenario.sections[1].lengthM, '')
+  assert.equal(scenario.sections[0].loss1310, '0.35')
+  assert.ok(scenario.elements.every(element => element.loss1310 === ''))
+  assert.equal(traceOpticalPath('olta', equipment, routes, installations, []).status, 'open')
+})
+
+test('equipment API checks physical hierarchy, fiber termination and concurrency', { timeout: 50000 }, async () => {
+  const directory = await mkdtemp(join(tmpdir(), 'fiber-equipment-test-'))
+  const socket = createServer()
+  socket.listen(0, '127.0.0.1')
+  await once(socket, 'listening')
+  const port = socket.address().port
+  await new Promise(done => socket.close(done))
+  const url = `http://127.0.0.1:${port}`
+  let server
+  let logs = ''
+  const request = (path, method = 'GET', body) => fetch(`${url}/api${path}`, {
+    method, ...(body === undefined ? {} : { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
+  })
+  try {
+    server = spawn('dotnet', [process.env.FNS_API_DLL
+      ?? resolve('backend/FiberNetworkStudio.Api/bin/Debug/net10.0/FiberNetworkStudio.Api.dll')], {
+      windowsHide: true,
+      env: { ...process.env, ASPNETCORE_URLS: url,
+        NetworkPoints__Path: join(directory, 'points.json'), UndergroundRoutes__Path: join(directory, 'routes.json'),
+        RouteInstallations__Path: join(directory, 'installed.json'), OpticalSplices__Path: join(directory, 'splices.json'),
+        BuildingEquipment__Path: join(directory, 'equipment.json'),
+        CableCatalog__Path: join(directory, 'cables.json'), DuctCatalog__Path: join(directory, 'ducts.json') },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    })
+    server.stdout.on('data', chunk => { logs += chunk })
+    server.stderr.on('data', chunk => { logs += chunk })
+    for (let attempt = 0; attempt < 100; attempt++) {
+      try { if ((await fetch(`${url}/api/health`)).ok) break } catch { /* starting */ }
+      if (server.exitCode !== null) throw new Error(logs)
+      await delay(100)
+    }
+    const a = await (await request('/network-points', 'POST',
+      { kind: 'building', name: 'Ústředna', latitude: 50, longitude: 14 })).json()
+    const b = await (await request('/network-points', 'POST',
+      { kind: 'chamber', name: 'Šachta', latitude: 50, longitude: 14.001 })).json()
+    const route = await (await request('/underground-routes', 'POST',
+      { name: 'Ústředna–šachta', startPointId: a.id, endPointId: b.id, waypoints: [] })).json()
+    const duct = (await (await request('/duct-catalog')).json()).find(item => item.kind === 'microduct')
+    const cable = (await (await request('/cable-catalog')).json())[0]
+    let installed = await (await request(`/route-installations/${route.id}/items`, 'POST',
+      { catalogId: duct.id, parentId: null, slotIndex: null, version: 0 })).json()
+    installed = await (await request(`/route-installations/${route.id}/items`, 'POST',
+      { catalogId: cable.id, parentId: installed.items[0].id, slotIndex: null, version: installed.version })).json()
+    const item = installed.items.at(-1)
+    const lengthEndpoint = `/route-installations/${route.id}/items/${item.id}/length`
+    assert.equal((await request(lengthEndpoint, 'PUT', { actualLengthMeters: 0, version: installed.version })).status, 400)
+    installed = await (await request(lengthEndpoint, 'PUT',
+      { actualLengthMeters: 125.5, version: installed.version })).json()
+    assert.equal(installed.items.at(-1).actualLengthMeters, 125.5)
+    assert.equal((await request(lengthEndpoint, 'PUT', { actualLengthMeters: 2, version: 0 })).status, 409)
+    installed = await (await request(lengthEndpoint, 'PUT',
+      { actualLengthMeters: null, version: installed.version })).json()
+    assert.equal(installed.items.at(-1).actualLengthMeters, null)
+    const rackId = crypto.randomUUID(), shelfId = crypto.randomUUID(), cardId = crypto.randomUUID()
+    const odfId = crypto.randomUUID(), oltId = crypto.randomUUID()
+    const document = { version: 0, racks: [{ id: rackId, name: 'Stojan 1' }],
+      shelves: [{ id: shelfId, rackId, kind: 'odf', name: 'ODF 1' },
+        { id: crypto.randomUUID(), rackId, kind: 'olt', name: 'OLT 1' }], cards: [], ports: [] }
+    document.cards = [{ id: cardId, shelfId: document.shelves[1].id, name: 'Karta 1' }]
+    document.ports = [
+      { id: odfId, parentId: shelfId, position: 1, label: 'ODF 1/1',
+        fiber: { itemId: item.id, tubeIndex: 0, fiberIndex: 0 }, patchPortId: oltId },
+      { id: oltId, parentId: cardId, position: 1, label: 'OLT 1/1', fiber: null, patchPortId: odfId },
+    ]
+    const endpoint = `/building-equipment/${a.id}`
+    assert.equal((await request(`/building-equipment/${b.id}`, 'PUT', document)).status, 404)
+    assert.equal((await request(endpoint, 'PUT', { ...document,
+      ports: document.ports.map(item => ({ ...item, fiber: { itemId: crypto.randomUUID(), tubeIndex: 0, fiberIndex: 0 } })) })).status, 400)
+    const savedResponse = await request(endpoint, 'PUT', document)
+    assert.equal(savedResponse.status, 200)
+    const saved = await savedResponse.json()
+    assert.equal(saved.version, 1)
+    assert.equal((await request(endpoint, 'PUT', document)).status, 409)
+    assert.equal((await request(`/route-installations/${route.id}/items/${item.id}?version=${installed.version}`, 'DELETE')).status, 409)
+    assert.equal((await request(`/network-points/${a.id}`, 'DELETE')).status, 409)
+    assert.equal((await request(endpoint, 'PUT', { ...saved, ports: [{ ...saved.ports[0], patchPortId: null }, saved.ports[1] ] })).status, 400)
+    assert.equal((await request(endpoint, 'PUT', { ...saved, racks: [], shelves: [], cards: [], ports: [] })).status, 200)
+    assert.equal((await (await request(endpoint)).json()).version, 0)
+  } finally {
+    server?.kill()
+    if (server) await once(server, 'exit').catch(() => {})
+    await rm(directory, { recursive: true, force: true })
+  }
+})

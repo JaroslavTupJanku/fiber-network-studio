@@ -38,6 +38,23 @@ export function routeLengthMeters(coordinates: Coordinates[]): number {
   return length
 }
 
+export function closestRouteSegment(points: { x: number; y: number }[], target: { x: number; y: number }): number {
+  let closest = 0
+  let distance = Infinity
+  for (let index = 0; index < points.length - 1; index += 1) {
+    const start = points[index]
+    const end = points[index + 1]
+    const dx = end.x - start.x
+    const dy = end.y - start.y
+    const fraction = dx || dy
+      ? Math.max(0, Math.min(1, ((target.x - start.x) * dx + (target.y - start.y) * dy) / (dx * dx + dy * dy)))
+      : 0
+    const squared = (target.x - start.x - fraction * dx) ** 2 + (target.y - start.y - fraction * dy) ** 2
+    if (squared < distance) { distance = squared; closest = index }
+  }
+  return closest
+}
+
 // Deform the mapped line smoothly when one of its endpoint objects is moved.
 // Existing waypoints keep their order and count; points nearer the moved end travel farther.
 export function waypointsAfterPointMove(route: UndergroundRoute, points: NetworkPoint[],
@@ -61,7 +78,9 @@ export function waypointsAfterPointMove(route: UndergroundRoute, points: Network
   })
 }
 
-export function undoRouteStep(draft: RouteDraft): RouteDraft {
+export function undoRouteStep(draft: RouteDraft, insertedWaypointIndex?: number): RouteDraft {
+  if (insertedWaypointIndex !== undefined && draft.waypoints[insertedWaypointIndex])
+    return { ...draft, waypoints: draft.waypoints.filter((_, index) => index !== insertedWaypointIndex) }
   if (draft.endPointId) return { ...draft, endPointId: null }
   if (draft.waypoints.length) return { ...draft, waypoints: draft.waypoints.slice(0, -1) }
   return { ...draft, startPointId: null }

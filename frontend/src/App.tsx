@@ -4,6 +4,7 @@ import { CableCatalogPage } from './features/cable-catalog/CableCatalogPage'
 import { DuctCatalogPage } from './features/duct-catalog/DuctCatalogPage'
 import { MapWorkspace } from './features/map/MapWorkspace'
 import { OpticalBudgetPage } from './features/optical-budget/OpticalBudgetPage'
+import type { Scenario } from './features/optical-budget/model'
 import './App.css'
 
 function App() {
@@ -11,6 +12,7 @@ function App() {
   const [catalogOpened, setCatalogOpened] = useState(false)
   const [ductsOpened, setDuctsOpened] = useState(false)
   const [budgetOpened, setBudgetOpened] = useState(false)
+  const [incomingBudget, setIncomingBudget] = useState<{ id: string; scenario: Scenario } | null>(null)
 
   return (
     <div className="app-shell">
@@ -24,10 +26,14 @@ function App() {
         </nav>
       </header>
 
-      <MapWorkspace active={section === 'map'} />
+      <MapWorkspace active={section === 'map'} onOpenBudget={scenario => {
+        setIncomingBudget({ id: crypto.randomUUID(), scenario })
+        setBudgetOpened(true); setSection('budget')
+      }} />
       {catalogOpened && <div className="catalog-view" hidden={section !== 'catalog'}><CableCatalogPage /></div>}
       {ductsOpened && <div className="catalog-view" hidden={section !== 'ducts'}><DuctCatalogPage active={section === 'ducts'} /></div>}
-      {budgetOpened && <div className="budget-view" hidden={section !== 'budget'}><OpticalBudgetPage /></div>}
+      {budgetOpened && <div className="budget-view" hidden={section !== 'budget'}><OpticalBudgetPage
+        incoming={incomingBudget} onIncomingHandled={() => setIncomingBudget(null)} /></div>}
     </div>
   )
 }

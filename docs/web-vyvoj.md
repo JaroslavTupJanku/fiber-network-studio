@@ -1,5 +1,7 @@
 # Webový vývoj: krátké poznámky
 
+**ODF** je optický rozvaděč, kde se vlákno kabelu ukončí na konkrétním portu. **OLT** je aktivní zařízení v ústředně; jeho karta má vlastní porty. V aplikaci jsou stojan, police, karta a port konkrétní vybavení budovy, zatímco katalogový profil popisuje parametry typu zařízení pro výpočet. **Propojka** spojuje ODF a OLT port. Sledování cesty skládá vazby portů, kabelových vláken a svarů; při chybějící vazbě ukáže otevřený konec. Mapa zvýrazní dotčené úseky, jednotlivé porty zůstávají uvnitř detailu budovy. Skutečná délka instalovaného kabelu je samostatný volitelný údaj každého úseku, takže přenos do kalkulačky nemusí odhadovat délku z mapy.
+
 ## Jak o našem projektu mluvit
 
 > Stavíme webovou aplikaci pro návrh optických sítí. React v prohlížeči zobrazuje mapu, katalogy a kalkulačku. Backend v ASP.NET Core přijímá požadavky, kontroluje data a ukládá katalogy kabelů a chrániček i mapové objekty. Frontend s backendem komunikují přes API. Zatím je to prototyp; část dat ukládá server do JSON souborů a rozpracovaný výpočet zůstává v prohlížeči.
@@ -43,7 +45,7 @@ V editoru osazení se přetažením ve stromu mění nadřazený prvek kabelu ne
 
 **Rozpracovaná poloha** je změna bodu viditelná ve frontendu. Při tažení se překreslí bod v mapové vrstvě GeoJSON, ale backend dostane nové souřadnice až po kliknutí na **Uložit**.
 
-**Podzemní trasa** propojuje dva uložené mapové body a mezi nimi může mít seřazené lomové body. Při kreslení a úpravách vidí uživatel náhled; server dostane změnu až po **Uložit**. Krajní body uchováváme jejich identitou, takže se čára přizpůsobí přesunu budovy či šachty. Přibližná délka vychází z mapové čáry, ne z evidence skutečně uloženého kabelu. Backend kontroluje koncové body a souřadnice a ukládá trasy do samostatného JSON souboru. Jde o další příklad stejného rozdělení na komponentu, stavový hook, model, API a backendové úložiště.
+**Podzemní trasa** propojuje dva uložené mapové body a mezi nimi může mít seřazené lomové body. Po výběru obou konců jen kliknutí nebo uchopení přímo na trase vloží lomový bod do geometricky nejbližšího segmentu; výpočet probíhá v obrazových souřadnicích mapy. Uložená trasa nabízí přímou akci **Upravit průběh trasy**, která otevře režim kreslení. Při kreslení a úpravách vidí uživatel náhled; server dostane změnu až po **Uložit**. Krajní body uchováváme jejich identitou, takže se průběh trasy přizpůsobí přesunu budovy či šachty. Přibližná délka vychází z mapy, ne z evidence skutečně uloženého kabelu. Backend kontroluje koncové body a souřadnice a ukládá trasy do samostatného JSON souboru. Budovy jsou body bez půdorysu, průchod stavbou tedy systém nemůže ověřit. Jde o další příklad stejného rozdělení na komponentu, stavový hook, model, API a backendové úložiště.
 
 **Optické ztráty** jsou úbytek signálu na kabelu, spojích a rozbočovačích. V aplikaci se
 počítají pro jednu zadanou cestu. **dB** je jednotka ztráty; **dBm** vyjadřuje výkon signálu
