@@ -47,9 +47,10 @@ function FiberPicker({ label, cables, value, onChange, occupied, cableLabel }: {
   </div>
 }
 
-export function OpticalSpliceEditor({ pointId, pointName, routes, installations, onClose }: {
+export function OpticalSpliceEditor({ pointId, pointName, routes, installations, onClose, onSaved, onDeleted }: {
   pointId: string; pointName: string; routes: UndergroundRoute[]
   installations: RouteInstallationDocument[]; onClose: () => void
+  onSaved: (document: OpticalSpliceDocument) => void; onDeleted: (pointId: string) => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [document, setDocument] = useState<OpticalSpliceDocument | null>(null)
@@ -113,14 +114,14 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
   const save = async () => {
     if (!document || busy) return
     setBusy(true); setError('')
-    try { setDocument(await saveOpticalSplice(document)); setSaved(true) }
+    try { const savedDocument = await saveOpticalSplice(document); setDocument(savedDocument); onSaved(savedDocument); setSaved(true) }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Spojku se nepodařilo uložit.') }
     finally { setBusy(false) }
   }
   const remove = async () => {
     if (!document || !window.confirm(`Smazat spojku „${document.name || pointName}“ včetně všech evidovaných spojů a rezerv?`)) return
     setBusy(true); setError('')
-    try { await deleteOpticalSplice(pointId); onClose() }
+    try { await deleteOpticalSplice(pointId); onDeleted(pointId); onClose() }
     catch (reason) { setError(reason instanceof Error ? reason.message : 'Spojku se nepodařilo smazat.') }
     finally { setBusy(false) }
   }
@@ -132,10 +133,11 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
     </header>
     <div className="splice-editor-body">
       {loading ? <p>Načítání spojky…</p> : document && <>
+        <div className="splice-location-path" aria-label="Umístění svarů"><span>Mapa: šachta</span><span>Uvnitř: optická spojka</span><span>Uvnitř spojky: svary vláken</span></div>
         <div className="splice-editor-intro"><label>Název spojky<input maxLength={80} value={document.name}
           placeholder={`Např. spojka v ${pointName}`} onChange={event => {
             setDocument({ ...document, name: event.target.value }); setSaved(false)
-          }} /></label><p>Spojte konkrétní vlákna kabelů přivedených do této šachty. Průběžné kabely už navazují mezi úseky.</p></div>
+          }} /></label><p>Spojte konkrétní vlákna kabelů přivedených do této šachty. Tuba je uvnitř kabelu, svar uvnitř spojky. Průběžný kabel bez odbočky už navazuje mezi úseky; odbočení z jeho vláken zatím tento editor neumí.</p></div>
         <div className="splice-editor-stats"><span><strong>{cables.length}</strong> konců kabelů</span>
           <span><strong>{document.connections.length}</strong> spojů</span>
           <span><strong>{cables.reduce((sum, item) => sum + (item.cable?.tubes.reduce((count, tube) => count + tube.fibers.length, 0) ?? 0), 0) - occupied.size}</strong> volných vláken</span></div>

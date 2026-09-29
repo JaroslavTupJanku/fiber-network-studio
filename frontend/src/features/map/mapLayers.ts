@@ -7,6 +7,7 @@ export const POINT_SOURCE_ID = 'network-points'
 export const POINT_LAYER_ID = 'network-point-dots'
 export const SELECTED_LAYER_ID = 'network-point-selected'
 export const HOVERED_POINT_LAYER_ID = 'network-point-hovered'
+export const SPLICE_LAYER_ID = 'network-splice-badges'
 export const PARCEL_SOURCE_ID = 'selected-parcel'
 export const PARCEL_FILL_LAYER_ID = 'selected-parcel-fill'
 export const ROUTE_SOURCE_ID = 'underground-routes'
@@ -57,7 +58,8 @@ export function routeVertexCollection(draft: RouteDraft | null) {
   }
 }
 
-export function pointCollection(points: NetworkPoint[], selectedPointId: string | null, preview: Coordinates | null) {
+export function pointCollection(points: NetworkPoint[], selectedPointId: string | null, preview: Coordinates | null,
+  splicePointIds: ReadonlySet<string> = new Set<string>()) {
   return {
     type: 'FeatureCollection' as const,
     features: points.map((point) => {
@@ -65,7 +67,7 @@ export function pointCollection(points: NetworkPoint[], selectedPointId: string 
       return {
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [location.longitude, location.latitude] },
-        properties: { id: point.id, kind: point.kind, name: point.name },
+        properties: { id: point.id, kind: point.kind, name: point.name, hasSplice: splicePointIds.has(point.id) },
       }
     }),
   }
@@ -129,6 +131,15 @@ export function initializeMapLayers(map: Map) {
       'circle-stroke-width': 4,
     },
   })
+  // The badge is offset from the chamber so both physical entities stay visible.
+  map.addLayer({ id: SPLICE_LAYER_ID, type: 'circle', source: POINT_SOURCE_ID,
+    filter: ['==', ['get', 'hasSplice'], true],
+    paint: { 'circle-radius': 9, 'circle-color': '#704b92', 'circle-stroke-color': '#fff',
+      'circle-stroke-width': 2, 'circle-translate': [15, -15], 'circle-translate-anchor': 'viewport' } })
+  map.addLayer({ id: 'network-splice-badge-centers', type: 'circle', source: POINT_SOURCE_ID,
+    filter: ['==', ['get', 'hasSplice'], true],
+    paint: { 'circle-radius': 2, 'circle-color': '#fff', 'circle-translate': [15, -15],
+      'circle-translate-anchor': 'viewport' } })
   map.addLayer({
     id: 'network-point-labels',
     type: 'symbol',

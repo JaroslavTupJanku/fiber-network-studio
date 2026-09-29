@@ -38,6 +38,10 @@ export async function loadOpticalSplice(pointId: string): Promise<OpticalSpliceD
   return (await expectOk(await fetch(`/api/optical-splices/${pointId}`))).json()
 }
 
+export async function listOpticalSplices(): Promise<OpticalSpliceDocument[]> {
+  return (await expectOk(await fetch('/api/optical-splices'))).json()
+}
+
 export async function saveOpticalSplice(document: OpticalSpliceDocument): Promise<OpticalSpliceDocument> {
   return (await expectOk(await fetch(`/api/optical-splices/${document.pointId}`, {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },

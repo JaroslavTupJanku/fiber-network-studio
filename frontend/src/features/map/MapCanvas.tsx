@@ -9,8 +9,9 @@ import { addOrthophotoLayer, ORTHOPHOTO_SOURCE_ID, removeOrthophotoLayer } from 
 import type { Coordinates, NetworkPoint, NetworkPointKind } from './networkPoints'
 import type { Parcel } from './parcels'
 import type { RouteInstallationDocument } from './routeInstallations'
+import type { OpticalSpliceDocument } from './opticalSplices'
 import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollection, routeVertexCollection,
-  POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, HOVERED_POINT_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID,
+  POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, HOVERED_POINT_LAYER_ID, SPLICE_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID,
   ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
   ROUTE_VERTEX_SOURCE_ID, ROUTE_VERTEX_LAYER_ID } from './mapLayers'
 import { crossedDragThreshold, mapCursor, resolveMapClick } from './interactions'
@@ -20,6 +21,7 @@ type MapCanvasProps = {
   points: NetworkPoint[]
   routes: UndergroundRoute[]
   installations: RouteInstallationDocument[] | null
+  splices: OpticalSpliceDocument[]
   installationLoading: boolean
   selectedRouteId: string | null
   hoveredRouteId: string | null
@@ -45,6 +47,7 @@ type MapCanvasProps = {
   onToolDrop: (kind: NetworkPointKind, location: Coordinates) => void
   onLocationClick: (location: Coordinates, lookupParcel: boolean) => void
   onPointSelect: (id: string) => void
+  onSpliceSelect: (id: string) => void
   onPointMove: (id: string, location: Coordinates) => void
   onDraftMove: (location: Coordinates) => void
   onCadastreDisable: () => void
@@ -57,19 +60,20 @@ const withPointPosition = (points: NetworkPoint[], id: string, location: Coordin
 
 setWorkerUrl(workerUrl)
 
-export function MapCanvas({ points, routes, installations, installationLoading, selectedRouteId, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, routeDraft, drawingRoute, onRouteToolChange,
+export function MapCanvas({ points, routes, installations, splices, installationLoading, selectedRouteId, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, routeDraft, drawingRoute, onRouteToolChange,
   onRouteSelect, onRouteWaypointMove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId, onMapPointHoverChange,
   selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop,
-  onLocationClick, onPointSelect, onPointMove, onDraftMove, onCadastreDisable }: MapCanvasProps) {
+  onLocationClick, onPointSelect, onSpliceSelect, onPointMove, onDraftMove, onCadastreDisable }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const readyMapRef = useRef<Map | null>(null)
   const interactionRef = useRef({ placementActive, activeTool, drawingRoute, onLocationClick,
-    onPointSelect, onPointMove, onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange })
+    onPointSelect, onSpliceSelect, onPointMove, onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange })
   const pointData = useRef(pointCollection([], null, null))
+  const splicePointIds = useMemo(() => new Set(splices.map(splice => splice.pointId)), [splices])
   const displayedPoints = useMemo(() => selectedPointId && preview
     ? withPointPosition(points, selectedPointId, preview) : points, [points, selectedPointId, preview])
-  const geometryRef = useRef({ displayedPoints, routes, installations, routeDraft })
+  const geometryRef = useRef({ displayedPoints, routes, installations, routeDraft, splicePointIds })
   const dragPreviewRef = useRef<{ id: string, location: Coordinates } | null>(null)
   const skipSelectionEase = useRef<string | null>(null)
   const focusedPointId = useRef<string | null>(null)
@@ -96,13 +100,13 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
 
   useEffect(() => {
     interactionRef.current = { placementActive, activeTool, drawingRoute, onLocationClick,
-      onPointSelect, onPointMove, onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange }
+      onPointSelect, onSpliceSelect, onPointMove, onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange }
   }, [placementActive, activeTool, drawingRoute, onLocationClick, onPointSelect, onPointMove,
-    onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange])
+    onSpliceSelect, onRouteSelect, onRouteWaypointMove, onMapPointHoverChange, onMapRouteHoverChange])
 
   useEffect(() => {
-    geometryRef.current = { displayedPoints, routes, installations, routeDraft }
-  }, [displayedPoints, routes, installations, routeDraft])
+    geometryRef.current = { displayedPoints, routes, installations, routeDraft, splicePointIds }
+  }, [displayedPoints, routes, installations, routeDraft, splicePointIds])
 
   useEffect(() => {
     toolDragActive.current = dragPointer !== null
@@ -188,7 +192,9 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
     }
     const handleClick = (event: MapMouseEvent) => {
       if (suppressMapClick) { suppressMapClick = false; return }
-      const { placementActive, drawingRoute, onLocationClick, onPointSelect, onRouteSelect } = interactionRef.current
+      const { placementActive, drawingRoute, onLocationClick, onPointSelect, onSpliceSelect, onRouteSelect } = interactionRef.current
+      const spliceId = !placementActive && !drawingRoute ? featureAt(event.point, SPLICE_LAYER_ID, 0)?.properties?.id : null
+      if (spliceId) { onSpliceSelect(String(spliceId)); return }
       const pointId = featureAt(event.point, POINT_LAYER_ID, 16)?.properties?.id
       if (drawingRoute) {
         if (pointId) onPointSelect(String(pointId))
@@ -206,7 +212,8 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
     }
     const handleMouseMove = (event: MapMouseEvent) => {
       const { placementActive, activeTool, drawingRoute } = interactionRef.current
-      const pointId = featureAt(event.point, POINT_LAYER_ID, 16)?.properties?.id
+      const spliceId = !placementActive && !drawingRoute ? featureAt(event.point, SPLICE_LAYER_ID, 0)?.properties?.id : null
+      const pointId = spliceId ?? featureAt(event.point, POINT_LAYER_ID, 16)?.properties?.id
       overPoint = Boolean(pointId)
       const routeId = !placementActive && !drawingRoute && !overPoint
         ? featureAt(event.point, ROUTE_LAYER_ID, 8)?.properties?.id : null
@@ -249,11 +256,11 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
     }
     const setPointPosition = (id: string, location: Coordinates) => {
       dragPreviewRef.current = { id, location }
-      const { displayedPoints, routes, installations, routeDraft } = geometryRef.current
+      const { displayedPoints, routes, installations, routeDraft, splicePointIds } = geometryRef.current
       const previewPoints = withPointPosition(displayedPoints, id, location)
       const previewRoutes = routes.map(route => ({ ...route,
         waypoints: waypointsAfterPointMove(route, displayedPoints, id, location) }))
-      pointData.current = pointCollection(previewPoints, null, null)
+      pointData.current = pointCollection(previewPoints, null, null, splicePointIds)
       map.getSource<GeoJSONSource>(POINT_SOURCE_ID)?.setData(pointData.current)
       map.getSource<GeoJSONSource>(ROUTE_SOURCE_ID)?.setData(routeCollection(
         previewRoutes.filter(route => route.id !== routeDraft?.id), previewPoints, installations))
@@ -296,6 +303,7 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
     const handlePointMouseDown = (event: MapMouseEvent) => {
       if (interactionRef.current.drawingRoute) return
       if (interactionRef.current.placementActive && !interactionRef.current.activeTool) return
+      if (featureAt(event.point, SPLICE_LAYER_ID, 0)) return
       const feature = featureAt(event.point, POINT_LAYER_ID, 16)
       const id = feature?.properties?.id
       const renderedPoint = pointData.current.features.find((item) => item.properties.id === id)
@@ -427,9 +435,9 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
     if (!map || readyMapRef.current !== map) return
     const renderedPoints = dragPreviewRef.current
       ? withPointPosition(displayedPoints, dragPreviewRef.current.id, dragPreviewRef.current.location) : displayedPoints
-    pointData.current = pointCollection(renderedPoints, null, null)
+    pointData.current = pointCollection(renderedPoints, null, null, splicePointIds)
     map.getSource<GeoJSONSource>(POINT_SOURCE_ID)?.setData(pointData.current)
-  }, [displayedPoints, mapGeneration])
+  }, [displayedPoints, splicePointIds, mapGeneration])
 
   useEffect(() => {
     const map = mapRef.current
@@ -609,13 +617,14 @@ export function MapCanvas({ points, routes, installations, installationLoading, 
           <button type="button" onClick={onRouteCancel}>Zrušit · Esc</button>
         </div>
       )}
-      {routes.length > 0 && !drawingRoute && !placementActive && (
-        <div className="route-map-legend" aria-label="Barvy podzemních tras">
+      {(routes.length > 0 || splices.length > 0) && !drawingRoute && !placementActive && (
+        <div className="route-map-legend" aria-label="Legenda infrastruktury">
           {installations === null ? <span><i className="route-key unknown" /> {installationLoading ? 'Načítání osazení…' : 'Osazení se nenačetlo'}</span> : <>
             <span><i className="route-key empty" /> Bez osazení</span>
             <span><i className="route-key ducts" /> Osazeno bez kabelu</span>
             <span><i className="route-key cables" /> S kabelem</span>
           </>}
+          {splices.length > 0 && <span><i className="splice-key" /> Spojka v šachtě · klikněte pro detail svarů</span>}
         </div>
       )}
       <MapToolbox

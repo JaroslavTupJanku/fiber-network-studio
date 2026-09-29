@@ -7,6 +7,9 @@ public static class OpticalSpliceEndpoints
 {
     public static void MapOpticalSplices(this WebApplication app)
     {
+        app.MapGet("/api/optical-splices", async (OpticalSpliceStore store) =>
+            Results.Ok(await store.ListAsync()));
+
         app.MapGet("/api/optical-splices/{pointId:guid}", async (Guid pointId,
             NetworkPointStore points, OpticalSpliceStore store) =>
             (await points.ListAsync()).Any(point => point.Id == pointId && point.Kind == "chamber")

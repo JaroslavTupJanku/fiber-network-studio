@@ -36,6 +36,14 @@
 .route-key.ducts { border-color: #26766b; }
 .route-key.cables { border-color: #2d6f9f; }
 .route-key.unknown { border-color: #74817d; }
+.splice-key { display: inline-block; width: 12px; height: 12px; border: 2px solid #fff; border-radius: 50%; background: #704b92; box-shadow: 0 0 0 1px #704b92; }
+.chamber-splice-card { display: grid; gap: 8px; padding: 13px; border: 1px solid #d8d0e6; border-radius: 9px; background: #faf8fd; }
+.chamber-splice-card > strong { color: #513572; font-size: 13px; }
+.chamber-splice-card p { margin: 0; color: #5d6570; font-size: 12px; line-height: 1.5; }
+.chamber-splice-card .move-button { justify-self: start; }
+.chamber-splice-present { display: flex; align-items: center; gap: 9px; padding: 9px; border-radius: 7px; background: #eee7f5; color: #513572 !important; }
+.chamber-splice-present span { display: grid; gap: 2px; }
+.chamber-splice-present small { font-size: 11px; }
 .maplibregl-control-container { font-family: inherit; }
 .map-toolbar { position: absolute; top: 12px; left: 12px; z-index: 1; width: 236px; max-height: calc(100% - 24px); overflow-y: auto; border: 1px solid #bfcfca; border-radius: 8px; background: #fff; box-shadow: 0 3px 12px rgb(20 45 38 / 15%); }
 .map-toolbar.collapsed { width: 183px; }
@@ -123,6 +131,9 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .splice-editor-header .icon-button { margin-left: auto; }
 .splice-editor-emblem { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 12px; background: #d9eee4; color: #176759; }
 .splice-editor-body { max-height: calc(100dvh - 180px); overflow: auto; padding: 23px 26px; }
+.splice-location-path { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; color: #56436b; font-size: 11px; font-weight: 650; }
+.splice-location-path span { padding: 6px 9px; border-radius: 5px; background: #f0ebf5; }
+.splice-location-path span + span::before { content: '›'; margin-right: 8px; color: #7d6b91; }
 .splice-editor-body h3 { margin: 0 0 13px; font-size: 15px; }
 .splice-editor-body label { display: grid; gap: 6px; color: #3c6254; font-size: 12px; font-weight: 600; }
 .splice-editor-body input, .splice-editor-body select { min-width: 0; min-height: 36px; padding: 7px 9px; border: 1px solid #bdd0c5; border-radius: 6px; background: #fff; color: #25483d; font: inherit; font-size: 13px; }

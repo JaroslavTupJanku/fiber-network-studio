@@ -22,6 +22,13 @@ public sealed class OpticalSpliceStore(string path)
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
     private readonly SemaphoreSlim gate = new(1, 1);
 
+    public async Task<List<OpticalSpliceDocument>> ListAsync()
+    {
+        await gate.WaitAsync();
+        try { return await ReadAsync(); }
+        finally { gate.Release(); }
+    }
+
     public async Task<OpticalSpliceDocument> GetAsync(Guid pointId)
     {
         await gate.WaitAsync();

@@ -11,7 +11,7 @@ type ToolDrag = { kind: NetworkPointKind, pointerId: number, startX: number, sta
 
 const POINT_TOOLS: { kind: NetworkPointKind; label: string; Icon: LucideIcon; hint: string }[] = [
   { kind: 'building', label: 'Budova', Icon: HousePlus, hint: 'Přidat budovu nebo ji přetáhnout na mapu' },
-  { kind: 'chamber', label: 'Šachta', Icon: CircleDot, hint: 'Přidat šachtu nebo ji přetáhnout na mapu' },
+  { kind: 'chamber', label: 'Šachta', Icon: CircleDot, hint: 'Přístupný podzemní prostor; kabel jím může procházet, uvnitř může být spojka' },
 ]
 
 type MapToolboxProps = {

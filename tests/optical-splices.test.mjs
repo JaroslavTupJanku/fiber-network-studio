@@ -78,6 +78,7 @@ test('splice API validates individual fiber ends, reservations, concurrency and 
       const left = { itemId: i1.id, tubeIndex: 0, fiberIndex: 0 }
       const right = { itemId: i2.id, tubeIndex: 0, fiberIndex: 0 }
       const splicePath = `/optical-splices/${b.id}`
+      assert.deepEqual(await json(await request('/optical-splices')), [])
       assert.equal((await json(await request(splicePath))).version, 0)
       const connection = { id: crypto.randomUUID(), left, right, kind: 'fusion' }
       let response = await request(splicePath, 'PUT', { version: 0, name: 'Spojka B',
@@ -85,6 +86,7 @@ test('splice API validates individual fiber ends, reservations, concurrency and 
       assert.equal(response.status, 200)
       const saved = await json(response)
       assert.equal(saved.version, 1)
+      assert.deepEqual((await json(await request('/optical-splices'))).map(item => item.pointId), [b.id])
       assert.deepEqual(saved.connections[0].left, left)
       assert.equal((await request(splicePath, 'PUT', { ...saved, version: 0 })).status, 409)
       assert.equal((await request(splicePath, 'PUT', { ...saved, connections: [connection,
@@ -99,6 +101,7 @@ test('splice API validates individual fiber ends, reservations, concurrency and 
       assert.equal((await request(`/route-installations/${r1.id}/items/${i1.id}?version=${d1.version}`, 'DELETE')).status, 409)
       assert.equal((await request(`/network-points/${b.id}`, 'DELETE')).status, 409)
       assert.equal((await request(splicePath, 'DELETE')).status, 204)
+      assert.deepEqual(await json(await request('/optical-splices')), [])
       assert.equal((await request(`/route-installations/${r1.id}/items/${i1.id}?version=${d1.version}`, 'DELETE')).status, 200)
     } finally {
       if (server && server.exitCode === null) { const exited = once(server, 'exit'); server.kill(); await exited }

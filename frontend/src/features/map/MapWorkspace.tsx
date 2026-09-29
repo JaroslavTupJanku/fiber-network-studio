@@ -3,6 +3,7 @@ import { Cable, CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, Pane
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
+import { listOpticalSplices, type OpticalSpliceDocument } from './opticalSplices'
 import { installationSummary } from './routeInstallations'
 import { useRouteInstallations } from './useRouteInstallations'
 import { useMapWorkspace } from './useMapWorkspace'
@@ -15,6 +16,14 @@ const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : '
 export function MapWorkspace({ active }: { active: boolean }) {
   const [panelOpen, setPanelOpen] = useState(true)
   const [spliceOpen, setSpliceOpen] = useState(false)
+  const [splices, setSplices] = useState<OpticalSpliceDocument[]>([])
+  const [splicesLoadError, setSplicesLoadError] = useState(false)
+  useEffect(() => {
+    let live = true
+    listOpticalSplices().then(documents => { if (live) { setSplices(documents); setSplicesLoadError(false) } })
+      .catch(() => { if (live) setSplicesLoadError(true) })
+    return () => { live = false }
+  }, [])
   const [routeTab, setRouteTab] = useState<'installations' | 'route'>('installations')
   const detailsPanelRef = useRef<HTMLElement>(null)
   const lastRouteId = useRef<string | null>(null)
@@ -55,6 +64,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
   const pointName = (id: string | null) => points.find(point => point.id === id)?.name ?? 'Vyberte na mapě'
   const endpointPoints = points.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs'))
   const attachedRoutes = editor?.id ? route.routes.filter(item => item.startPointId === editor.id || item.endPointId === editor.id) : []
+  const selectedSplice = editor?.id ? splices.find(item => item.pointId === editor.id) : null
   const togglePanel = () => {
     setPanelOpen(value => !value)
     setListHoveredPointId(null)
@@ -85,6 +95,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
           points={points}
           routes={route.routes}
           installations={installations.loading || installations.loadFailed ? null : installations.documents}
+          splices={splices}
           installationLoading={installations.loading}
           selectedRouteId={routeDraft?.id ?? null}
           hoveredRouteId={mapHoveredRouteId ?? listHoveredRouteId}
@@ -110,6 +121,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
           onToolDrop={(kind, location) => { setPanelOpen(true); handleToolDrop(kind, location) }}
           onLocationClick={(location, lookupParcel) => { setPanelOpen(true); handleLocationClick(location, lookupParcel) }}
           onPointSelect={id => { setPanelOpen(true); handlePointSelect(id) }}
+          onSpliceSelect={id => { setPanelOpen(true); handlePointSelect(id); setSpliceOpen(true) }}
           onPointMove={(id, location) => { setPanelOpen(true); void relocatePoint(id, location) }}
           onDraftMove={moveDraft}
           onCadastreDisable={clearParcel}
@@ -192,7 +204,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
             <p className="route-help">{route.drawing
               ? 'Začátek a konec vyberte níže nebo kliknutím na objekty v mapě. Tvar trasy upravte klikáním do mapy. Pak stiskněte Dokončit.'
               : routeDraft.id
-                ? 'Trasa spojuje dva body sítě. Její obsah najdete na záložce Osazení.'
+                ? 'Čára v mapě ukazuje průběh podzemního vedení mezi dvěma body. Chráničky a kabely najdete na záložce Osazení; svary patří do spojky v šachtě.'
                 : 'Trasa spojuje dva body sítě. Nejdřív ji uložte, potom do ní můžete vložit chráničky a kabely.'}</p>
             {route.drawing ? <div className="route-endpoint-fields">
               <label htmlFor="route-start">Začátek trasy
@@ -253,9 +265,16 @@ export function MapWorkspace({ active }: { active: boolean }) {
               <button type="button" className="icon-button" onClick={() => copyCoordinates(editor)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button>
             </div>
             <p className="point-placement-hint">{editor.id ? 'Přetažením nebo kliknutím na nové místo se poloha uloží hned. Přilehlý průběh trasy se plynule přizpůsobí. Tlačítko Uložit slouží ke změně názvu.' : 'Polohu doladíte přetažením značky na mapě.'}</p>
-            {editor.id && editor.kind === 'chamber' && <button type="button" className="move-button" onClick={() => setSpliceOpen(true)}>
-              <Cable size={16} aria-hidden="true" /> Otevřít optickou spojku
-            </button>}
+            {editor.kind === 'chamber' && <div className="chamber-splice-card">
+              <strong>Co je v šachtě?</strong>
+              <p>Šachta je přístupný podzemní prostor. Kabel jí může jen procházet; optická spojka je samostatné pouzdro uložené uvnitř.</p>
+              {editor.id && (selectedSplice
+                ? <p className="chamber-splice-present"><Cable size={16} aria-hidden="true" /> <span><b>{selectedSplice.name}</b><small>{selectedSplice.connections.filter(item => item.kind === 'fusion').length} svarů · {selectedSplice.connections.filter(item => item.kind === 'connector').length} konektorových spojení</small></span></p>
+                : <p>{splicesLoadError ? 'Údaje o spojkách se nenačetly.' : 'V této šachtě zatím není evidovaná optická spojka.'}</p>)}
+              {editor.id && <button type="button" className="move-button" onClick={() => setSpliceOpen(true)}>
+                <Cable size={16} aria-hidden="true" /> {selectedSplice ? 'Otevřít spojku a svary' : 'Přidat optickou spojku'}
+              </button>}
+            </div>}
             <button type="button" className={moving ? 'move-button active' : 'move-button'} onClick={() => {
               setMoving((value) => !value)
               setActiveTool(null)
@@ -294,7 +313,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
               <ul>{visiblePoints.map((point) => <li key={point.id}><button type="button" className={mapHoveredPointId === point.id ? 'map-linked-hover' : undefined}
                 onMouseEnter={() => setListHoveredPointId(point.id)} onMouseLeave={() => setListHoveredPointId(null)}
                 onFocus={() => setListHoveredPointId(point.id)} onBlur={() => setListHoveredPointId(null)}
-                onClick={() => { setListHoveredPointId(null); handlePointSelect(point.id) }}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}</small></span></button></li>)}</ul>
+                onClick={() => { setListHoveredPointId(null); handlePointSelect(point.id) }}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}{splices.some(splice => splice.pointId === point.id) ? ' · optická spojka' : ''}</small></span></button></li>)}</ul>
             )}
             {route.visibleRoutes.length > 0 && <div className="route-list"><h2>Podzemní trasy</h2><ul>{route.visibleRoutes.map(item => {
               const summary = installationSummary(installationByRoute.get(item.id))
@@ -316,7 +335,9 @@ export function MapWorkspace({ active }: { active: boolean }) {
       </aside>
       {spliceOpen && editor?.id && editor.kind === 'chamber' && <OpticalSpliceEditor key={editor.id}
         pointId={editor.id} pointName={editor.name} routes={route.routes}
-        installations={installations.documents} onClose={() => setSpliceOpen(false)} />}
+        installations={installations.documents} onClose={() => setSpliceOpen(false)}
+        onSaved={document => setSplices(current => [...current.filter(item => item.pointId !== document.pointId), document])}
+        onDeleted={pointId => setSplices(current => current.filter(item => item.pointId !== pointId))} />}
     </main>
   )
 }
