@@ -676,7 +676,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
         <div className={`placement-guide route-guide${routeError ? ' route-guide-error' : ''}`} role="status">
           <span>{routeError || (routeDraft?.startPointId
             ? routeDraft.endPointId
-              ? `Spojeno: ${routeStartName} → ${routeEndName}. Čáru uchopte a táhněte kolem překážky.`
+              ? `Spojeno: ${routeStartName} → ${routeEndName}. Uchopte úsek trasy a táhněte jej kolem překážky.`
               : `Začátek: ${routeStartName}. Klikněte na cílovou budovu nebo šachtu.`
             : 'Klikněte na první budovu nebo šachtu.')}</span>
           <button type="button" onClick={onRouteUndo} disabled={!routeDraft?.startPointId}>Zpět</button>
@@ -697,7 +697,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
             {splices.length > 0 && <span><i className="point-key chamber with-splice" /> Fialový okraj: v šachtě je spojka</span>}
             {routes.length > 0 && <>
               <strong>Podzemní trasy</strong>
-              <small>Barva čáry říká, co je v dané trase:</small>
+              <small>Barva trasy ukazuje její osazení:</small>
               {routeStatuses.has('unknown') && <span><i className="route-key unknown" /> {installationLoading ? 'Osazení se načítá' : 'Osazení se nenačetlo'}</span>}
               {routeStatuses.has('empty') && <span><i className="route-key empty" /> Zatím bez osazení</span>}
               {routeStatuses.has('ducts') && <span><i className="route-key ducts" /> Chránička či trubička bez kabelu</span>}
