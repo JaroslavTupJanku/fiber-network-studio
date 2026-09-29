@@ -11,7 +11,7 @@ import type { Parcel } from './parcels'
 import type { RouteInstallationDocument } from './routeInstallations'
 import type { OpticalSpliceDocument } from './opticalSplices'
 import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollection, routeVertexCollection,
-  POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, HOVERED_POINT_LAYER_ID, SPLICE_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID,
+  POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, HOVERED_POINT_LAYER_ID, HOVERED_SPLICE_LAYER_ID, SPLICE_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID,
   ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
   ROUTE_VERTEX_SOURCE_ID, ROUTE_VERTEX_LAYER_ID } from './mapLayers'
 import { crossedDragThreshold, mapCursor, resolveMapClick } from './interactions'
@@ -499,6 +499,10 @@ export function MapCanvas({ points, routes, installations, splices, installation
     const map = mapRef.current
     if (map?.getLayer(HOVERED_POINT_LAYER_ID)) {
       map.setFilter(HOVERED_POINT_LAYER_ID, ['==', ['get', 'id'], hoveredPointId ?? ''])
+    }
+    if (map?.getLayer(HOVERED_SPLICE_LAYER_ID)) {
+      map.setFilter(HOVERED_SPLICE_LAYER_ID, ['all', ['==', ['get', 'hasSplice'], true],
+        ['==', ['get', 'id'], hoveredPointId ?? '']])
     }
   }, [hoveredPointId, mapGeneration])
 

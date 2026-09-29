@@ -36,7 +36,10 @@
 .route-key.ducts { border-color: #26766b; }
 .route-key.cables { border-color: #2d6f9f; }
 .route-key.unknown { border-color: #74817d; }
-.splice-key { display: inline-block; width: 12px; height: 12px; border: 2px solid #fff; border-radius: 50%; background: #704b92; box-shadow: 0 0 0 1px #704b92; }
+.splice-key { position: relative; display: inline-block; width: 17px; height: 11px; margin: 0 3px; border: 2px solid #fff; border-radius: 6px; background: #704b92; box-shadow: 0 0 0 1px #704b92; }
+.splice-key::before, .splice-key::after { position: absolute; top: 3px; width: 4px; height: 2px; background: #704b92; content: ''; }
+.splice-key::before { left: -6px; }
+.splice-key::after { right: -6px; }
 .chamber-splice-card { display: grid; gap: 8px; padding: 13px; border: 1px solid #d8d0e6; border-radius: 9px; background: #faf8fd; }
 .chamber-splice-card > strong { color: #513572; font-size: 13px; }
 .chamber-splice-card p { margin: 0; color: #5d6570; font-size: 12px; line-height: 1.5; }
