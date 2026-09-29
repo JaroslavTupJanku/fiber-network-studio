@@ -1,4 +1,5 @@
 export type NetworkPointKind = 'building' | 'chamber'
+export type BuildingType = 'standard' | 'apartment'
 
 export type Coordinates = {
   latitude: number
@@ -9,11 +10,13 @@ export type NetworkPoint = Coordinates & {
   id: string
   kind: NetworkPointKind
   name: string
+  buildingType?: BuildingType | null
 }
 
 export type NetworkPointInput = Coordinates & {
   kind: NetworkPointKind
   name: string
+  buildingType?: BuildingType | null
 }
 
 async function expectOk(response: Response) {
@@ -40,7 +43,8 @@ export async function updateNetworkPoint(point: NetworkPoint): Promise<NetworkPo
   return (await expectOk(await fetch(`/api/network-points/${point.id}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: point.name, latitude: point.latitude, longitude: point.longitude }),
+    body: JSON.stringify({ name: point.name, latitude: point.latitude, longitude: point.longitude,
+      buildingType: point.buildingType }),
   }))).json()
 }
 

@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FiberNetworkStudio.Api.OpticalSplices;
+using FiberNetworkStudio.Api.BuildingDistribution;
 using FiberNetworkStudio.Api.RouteInstallations;
 using FiberNetworkStudio.Api.UndergroundRoutes;
 
@@ -62,7 +63,8 @@ public sealed class BuildingEquipmentStore(string path)
     }
 
     public async Task<EquipmentResult> SaveAsync(Guid pointId, SaveBuildingEquipmentRequest request,
-        IReadOnlyList<UndergroundRoute> routes, IReadOnlyList<RouteInstallationDocument> installations)
+        IReadOnlyList<UndergroundRoute> routes, IReadOnlyList<RouteInstallationDocument> installations,
+        BuildingDistributionDocument distribution)
     {
         await gate.WaitAsync();
         try
@@ -102,7 +104,8 @@ public sealed class BuildingEquipmentStore(string path)
             var cableById = cables.ToDictionary(item => item.Id);
             var throughRuns = cables.GroupBy(item => item.RunId).Where(group => group.Count() > 1)
                 .Select(group => group.Key).ToHashSet();
-            var usedFibers = new HashSet<FiberEnd>();
+            var usedFibers = distribution.Premises.Where(item => item.Fiber is not null)
+                .Select(item => item.Fiber!).ToHashSet();
             foreach (var port in ports)
             {
                 var isOdf = shelfById.TryGetValue(port.ParentId, out var shelf) && shelf.Kind == "odf";

@@ -1,6 +1,7 @@
 using FiberNetworkStudio.Api;
 using FiberNetworkStudio.Api.CableCatalog;
 using FiberNetworkStudio.Api.BuildingEquipment;
+using FiberNetworkStudio.Api.BuildingDistribution;
 using FiberNetworkStudio.Api.DuctCatalog;
 using FiberNetworkStudio.Api.OpticalSplices;
 using FiberNetworkStudio.Api.RouteInstallations;
@@ -25,6 +26,9 @@ builder.Services.AddSingleton(new OpticalSpliceStore(spliceDataPath));
 var equipmentDataPath = builder.Configuration["BuildingEquipment:Path"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "building-equipment.json");
 builder.Services.AddSingleton(new BuildingEquipmentStore(equipmentDataPath));
+var distributionDataPath = builder.Configuration["BuildingDistribution:Path"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "building-distribution.json");
+builder.Services.AddSingleton(new BuildingDistributionStore(distributionDataPath));
 builder.Services.AddHttpClient<ParcelLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
 var app = builder.Build();
 app.MapCableCatalog();
@@ -33,6 +37,7 @@ app.MapUndergroundRoutes();
 app.MapRouteInstallations();
 app.MapOpticalSplices();
 app.MapBuildingEquipment();
+app.MapBuildingDistribution();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/parcels/at", async (double latitude, double longitude, ParcelLookup lookup,
@@ -62,10 +67,13 @@ app.MapPost("/api/network-points", async (CreateNetworkPointRequest request, Net
     var errors = Validate(request.Name, request.Latitude, request.Longitude);
     if (request.Kind is not ("building" or "chamber"))
         errors["kind"] = ["Typ musí být building nebo chamber."];
+    if (request.Kind == "building" && request.BuildingType is not (null or "standard" or "apartment"))
+        errors["buildingType"] = ["Typ budovy musí být standard nebo apartment."];
     if (errors.Count > 0) return Results.ValidationProblem(errors);
 
     var point = new NetworkPoint(Guid.NewGuid(), request.Kind!, request.Name!.Trim(),
-        request.Latitude!.Value, request.Longitude!.Value);
+        request.Latitude!.Value, request.Longitude!.Value,
+        request.Kind == "building" ? request.BuildingType ?? "standard" : null);
     await store.AddAsync(point);
     return Results.Created($"/api/network-points/{point.Id}", point);
 });
@@ -73,21 +81,26 @@ app.MapPost("/api/network-points", async (CreateNetworkPointRequest request, Net
 app.MapPut("/api/network-points/{id:guid}", async (Guid id, UpdateNetworkPointRequest request, NetworkPointStore store) =>
 {
     var errors = Validate(request.Name, request.Latitude, request.Longitude);
+    if (request.BuildingType is not (null or "standard" or "apartment"))
+        errors["buildingType"] = ["Typ budovy musí být standard nebo apartment."];
     if (errors.Count > 0) return Results.ValidationProblem(errors);
 
     var point = await store.UpdateAsync(id, request.Name!.Trim(), request.Latitude!.Value,
-        request.Longitude!.Value);
+        request.Longitude!.Value, request.BuildingType);
     return point is null ? Results.NotFound() : Results.Ok(point);
 });
 
 app.MapDelete("/api/network-points/{id:guid}", async (Guid id, NetworkPointStore store,
-    UndergroundRouteStore routes, OpticalSpliceStore splices, BuildingEquipmentStore equipment) =>
+    UndergroundRouteStore routes, OpticalSpliceStore splices, BuildingEquipmentStore equipment,
+    BuildingDistributionStore distribution) =>
     await routes.ContainsPointAsync(id)
         ? Results.Conflict(new { error = "Bod je koncem podzemní trasy. Nejprve upravte nebo smažte trasu." })
         : await splices.HasSpliceAsync(id)
             ? Results.Conflict(new { error = "V šachtě je optická spojka. Nejprve ji odeberte." })
         : await equipment.HasEquipmentAsync(id)
             ? Results.Conflict(new { error = "V budově je optické vybavení. Nejprve ho odeberte." })
+        : await distribution.HasDistributionAsync(id)
+            ? Results.Conflict(new { error = "V budově jsou domovní rozvody. Nejprve je odeberte." })
         : await store.DeleteAsync(id) ? Results.NoContent() : Results.NotFound());
 
 app.Run();
@@ -104,5 +117,7 @@ static Dictionary<string, string[]> Validate(string? name, double? latitude, dou
     return errors;
 }
 
-public sealed record CreateNetworkPointRequest(string? Kind, string? Name, double? Latitude, double? Longitude);
-public sealed record UpdateNetworkPointRequest(string? Name, double? Latitude, double? Longitude);
+public sealed record CreateNetworkPointRequest(string? Kind, string? Name, double? Latitude, double? Longitude,
+    string? BuildingType);
+public sealed record UpdateNetworkPointRequest(string? Name, double? Latitude, double? Longitude,
+    string? BuildingType);

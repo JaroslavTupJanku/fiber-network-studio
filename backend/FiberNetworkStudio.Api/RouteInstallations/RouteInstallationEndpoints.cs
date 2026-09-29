@@ -1,5 +1,6 @@
 using FiberNetworkStudio.Api.CableCatalog;
 using FiberNetworkStudio.Api.BuildingEquipment;
+using FiberNetworkStudio.Api.BuildingDistribution;
 using FiberNetworkStudio.Api.DuctCatalog;
 using FiberNetworkStudio.Api.OpticalSplices;
 using FiberNetworkStudio.Api.UndergroundRoutes;
@@ -16,7 +17,7 @@ public static class RouteInstallationEndpoints
         group.MapPost("/{routeId:guid}/items", async (Guid routeId, AddInstalledItemRequest request,
             RouteInstallationStore store, UndergroundRouteStore routeStore,
             DuctCatalogStore ductStore, CableCatalogStore cableStore, OpticalSpliceStore splices,
-            BuildingEquipmentStore equipment) =>
+            BuildingEquipmentStore equipment, BuildingDistributionStore distribution) =>
         {
             var routes = await routeStore.ListAsync();
             var route = routes.FirstOrDefault(item => item.Id == routeId);
@@ -34,6 +35,8 @@ public static class RouteInstallationEndpoints
                         return Results.Conflict(new { error = "Kabel je v tomto bodě ukončený ve spojce. Nejdřív odeberte jeho spoje." });
                     if (await equipment.TerminatesItemAtAnyAsync(sourceId, shared))
                         return Results.Conflict(new { error = "Kabel končí na ODF portu. Nejdřív odeberte terminaci." });
+                    if (await distribution.TerminatesItemAtAnyAsync(sourceId, shared))
+                        return Results.Conflict(new { error = "Kabel končí v domovním rozvodu. Nejdřív odeberte jeho přiřazení ke stoupačce." });
                 }
             }
             if (request.ContinueFromItemId is null && request.CatalogId is null)
@@ -83,7 +86,8 @@ public static class RouteInstallationEndpoints
 
         group.MapDelete("/{routeId:guid}/items/{itemId:guid}", async (Guid routeId, Guid itemId,
             int version, RouteInstallationStore store, UndergroundRouteStore routeStore,
-            OpticalSpliceStore splices, BuildingEquipmentStore equipment) =>
+            OpticalSpliceStore splices, BuildingEquipmentStore equipment,
+            BuildingDistributionStore distribution) =>
         {
             var items = (await store.ListAsync()).FirstOrDefault(document => document.RouteId == routeId)?.Items;
             if (items is not null)
@@ -100,6 +104,8 @@ public static class RouteInstallationEndpoints
                     return Results.Conflict(new { error = "Kabel je připojený ve spojce. Nejprve odeberte propojení a rezervu ve spojce." });
                 if (await equipment.ReferencesAnyAsync(removed))
                     return Results.Conflict(new { error = "Vlákno kabelu je ukončené na ODF portu. Nejprve odeberte terminaci." });
+                if (await distribution.ReferencesAnyAsync(removed))
+                    return Results.Conflict(new { error = "Kabel je použitý v domovním rozvodu. Nejprve odeberte jeho přiřazení." });
             }
             return ToResult(await store.RemoveAsync(routeId, itemId, version, await routeStore.ListAsync()));
         });

@@ -2,7 +2,8 @@ using System.Text.Json;
 
 namespace FiberNetworkStudio.Api;
 
-public sealed record NetworkPoint(Guid Id, string Kind, string Name, double Latitude, double Longitude);
+public sealed record NetworkPoint(Guid Id, string Kind, string Name, double Latitude, double Longitude,
+    string? BuildingType = null);
 
 public sealed class NetworkPointStore(string path)
 {
@@ -42,7 +43,8 @@ public sealed class NetworkPointStore(string path)
         }
     }
 
-    public async Task<NetworkPoint?> UpdateAsync(Guid id, string name, double latitude, double longitude)
+    public async Task<NetworkPoint?> UpdateAsync(Guid id, string name, double latitude, double longitude,
+        string? buildingType)
     {
         await gate.WaitAsync();
         try
@@ -51,7 +53,9 @@ public sealed class NetworkPointStore(string path)
             var index = points.FindIndex(point => point.Id == id);
             if (index < 0) return null;
 
-            var updated = points[index] with { Name = name, Latitude = latitude, Longitude = longitude };
+            var updated = points[index] with { Name = name, Latitude = latitude, Longitude = longitude,
+                BuildingType = points[index].Kind == "building"
+                    ? buildingType ?? points[index].BuildingType ?? "standard" : null };
             points[index] = updated;
             await WriteAsync(points);
             return updated;

@@ -1,4 +1,5 @@
 using FiberNetworkStudio.Api.RouteInstallations;
+using FiberNetworkStudio.Api.BuildingDistribution;
 using FiberNetworkStudio.Api.UndergroundRoutes;
 
 namespace FiberNetworkStudio.Api.BuildingEquipment;
@@ -16,12 +17,13 @@ public static class BuildingEquipmentEndpoints
                 : Results.NotFound(new { error = "Budova neexistuje." }));
         app.MapPut("/api/building-equipment/{pointId:guid}", async (Guid pointId,
             SaveBuildingEquipmentRequest request, NetworkPointStore points, BuildingEquipmentStore store,
-            UndergroundRouteStore routes, RouteInstallationStore installations) =>
+            UndergroundRouteStore routes, RouteInstallationStore installations,
+            BuildingDistributionStore distribution) =>
         {
             if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind == "building"))
                 return Results.NotFound(new { error = "Vybavení lze umístit jen do budovy." });
             var result = await store.SaveAsync(pointId, request, await routes.ListAsync(),
-                await installations.ListAsync());
+                await installations.ListAsync(), await distribution.GetAsync(pointId));
             return result.Status switch
             {
                 200 => Results.Ok(result.Document),
