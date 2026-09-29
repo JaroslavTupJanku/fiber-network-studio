@@ -1,5 +1,6 @@
 using FiberNetworkStudio.Api;
 using FiberNetworkStudio.Api.CableCatalog;
+using FiberNetworkStudio.Api.BuildingEquipment;
 using FiberNetworkStudio.Api.DuctCatalog;
 using FiberNetworkStudio.Api.OpticalSplices;
 using FiberNetworkStudio.Api.RouteInstallations;
@@ -21,6 +22,9 @@ builder.Services.AddSingleton(new RouteInstallationStore(installationDataPath));
 var spliceDataPath = builder.Configuration["OpticalSplices:Path"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "optical-splices.json");
 builder.Services.AddSingleton(new OpticalSpliceStore(spliceDataPath));
+var equipmentDataPath = builder.Configuration["BuildingEquipment:Path"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "building-equipment.json");
+builder.Services.AddSingleton(new BuildingEquipmentStore(equipmentDataPath));
 builder.Services.AddHttpClient<ParcelLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
 var app = builder.Build();
 app.MapCableCatalog();
@@ -28,6 +32,7 @@ app.MapDuctCatalog();
 app.MapUndergroundRoutes();
 app.MapRouteInstallations();
 app.MapOpticalSplices();
+app.MapBuildingEquipment();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/parcels/at", async (double latitude, double longitude, ParcelLookup lookup,
@@ -76,11 +81,13 @@ app.MapPut("/api/network-points/{id:guid}", async (Guid id, UpdateNetworkPointRe
 });
 
 app.MapDelete("/api/network-points/{id:guid}", async (Guid id, NetworkPointStore store,
-    UndergroundRouteStore routes, OpticalSpliceStore splices) =>
+    UndergroundRouteStore routes, OpticalSpliceStore splices, BuildingEquipmentStore equipment) =>
     await routes.ContainsPointAsync(id)
         ? Results.Conflict(new { error = "Bod je koncem podzemní trasy. Nejprve upravte nebo smažte trasu." })
         : await splices.HasSpliceAsync(id)
             ? Results.Conflict(new { error = "V šachtě je optická spojka. Nejprve ji odeberte." })
+        : await equipment.HasEquipmentAsync(id)
+            ? Results.Conflict(new { error = "V budově je optické vybavení. Nejprve ho odeberte." })
         : await store.DeleteAsync(id) ? Results.NoContent() : Results.NotFound());
 
 app.Run();

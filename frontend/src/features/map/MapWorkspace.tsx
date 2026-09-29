@@ -3,6 +3,11 @@ import { Cable, CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, Pane
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
+import { BuildingEquipmentEditor } from './BuildingEquipmentEditor'
+import { listBuildingEquipment, type BuildingEquipmentDocument } from './buildingEquipment'
+import type { OpticalPath } from './traceOpticalPath'
+import type { Scenario } from '../optical-budget/model'
+import { scenarioFromOpticalPath } from './pathScenario'
 import { ChamberConduitPanel } from './ChamberConduitPanel'
 import { listOpticalSplices, type OpticalSpliceDocument } from './opticalSplices'
 import { installationSummary } from './routeInstallations'
@@ -16,9 +21,13 @@ const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : '
 const countLabel = (count: number, one: string, few: string, many: string) =>
   `${count} ${count === 1 ? one : count >= 2 && count <= 4 ? few : many}`
 
-export function MapWorkspace({ active }: { active: boolean }) {
+export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpenBudget: (scenario: Scenario) => void }) {
   const [panelOpen, setPanelOpen] = useState(true)
   const [spliceOpen, setSpliceOpen] = useState(false)
+  const [equipmentOpen, setEquipmentOpen] = useState(false)
+  const [equipment, setEquipment] = useState<BuildingEquipmentDocument[]>([])
+  const [tracedPath, setTracedPath] = useState<OpticalPath | null>(null)
+  useEffect(() => { void listBuildingEquipment().then(setEquipment).catch(() => {}) }, [])
   const [splices, setSplices] = useState<OpticalSpliceDocument[]>([])
   const [splicesLoadError, setSplicesLoadError] = useState(false)
   useEffect(() => {
@@ -69,6 +78,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
   const endpointPoints = points.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs'))
   const attachedRoutes = editor?.id ? route.routes.filter(item => item.startPointId === editor.id || item.endPointId === editor.id) : []
   const selectedSplice = editor?.id ? splices.find(item => item.pointId === editor.id) : null
+  const selectedEquipment = editor?.id ? equipment.find(item => item.pointId === editor.id) : null
   const fusionCount = selectedSplice?.connections.filter(item => item.kind === 'fusion').length ?? 0
   const connectorCount = selectedSplice?.connections.filter(item => item.kind === 'connector').length ?? 0
   const spliceConnectionsLabel = [
@@ -113,6 +123,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
           splices={splices}
           installationLoading={installations.loading}
           selectedRouteId={routeDraft?.id ?? null}
+          tracedRouteIds={tracedPath?.routeIds ?? []}
           hoveredRouteId={mapHoveredRouteId ?? listHoveredRouteId}
           onMapRouteHoverChange={setMapHoveredRouteId}
           routeFocusRequest={routeFocusRequest}
@@ -312,6 +323,15 @@ export function MapWorkspace({ active }: { active: boolean }) {
             {editor.id && editor.kind === 'chamber' && <ChamberConduitPanel key={editor.id}
               pointId={editor.id} routes={route.routes} documents={installations.documents}
               onUpdated={installations.replaceDocuments} onOpenRoute={selectSavedRoute} />}
+            {editor.id && editor.kind === 'building' && <section className="chamber-splice-card" aria-labelledby="building-equipment-heading">
+              <div className="chamber-splice-heading"><span className="chamber-splice-icon"><Cable size={17} aria-hidden="true" /></span>
+                <div><h2 id="building-equipment-heading">Optické vybavení</h2><p>{selectedEquipment
+                  ? `${countLabel(selectedEquipment.racks.length, 'stojan', 'stojany', 'stojanů')} · ${countLabel(selectedEquipment.ports.length, 'port', 'porty', 'portů')}`
+                  : 'V budově zatím není evidováno'}</p></div></div>
+              <div className="chamber-splice-actions"><button type="button" className="move-button" onClick={() => setEquipmentOpen(true)}>
+                {selectedEquipment ? 'Otevřít vybavení' : 'Přidat stojan, ODF a OLT'}</button>
+                {tracedPath && <button type="button" className="move-button" onClick={() => setTracedPath(null)}>Skrýt zvýraznění cesty</button>}</div>
+            </section>}
             {editor.id && editor.kind === 'chamber' && <section className="chamber-splice-card" aria-labelledby="chamber-splice-heading">
               <div className="chamber-splice-heading">
                 <span className="chamber-splice-icon"><Cable size={17} aria-hidden="true" /></span>
@@ -388,6 +408,13 @@ export function MapWorkspace({ active }: { active: boolean }) {
         onClose={() => setSpliceOpen(false)}
         onSaved={document => setSplices(current => [...current.filter(item => item.pointId !== document.pointId), document])}
         onDeleted={pointId => setSplices(current => current.filter(item => item.pointId !== pointId))} />}
+      {equipmentOpen && editor?.id && editor.kind === 'building' && <BuildingEquipmentEditor key={editor.id}
+        pointId={editor.id} pointName={editor.name} routes={route.routes} installations={installations.documents}
+        onClose={() => setEquipmentOpen(false)}
+        onSaved={document => setEquipment(current => [...current.filter(item => item.pointId !== document.pointId),
+          ...(document.racks.length ? [document] : [])])}
+        onTrace={path => setTracedPath(path)}
+        onBudget={path => { onOpenBudget(scenarioFromOpticalPath(path, installations.documents)); setEquipmentOpen(false) }} />}
     </main>
   )
 }

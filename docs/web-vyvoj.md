@@ -1,5 +1,7 @@
 # Webový vývoj: krátké poznámky
 
+**ODF** je optický rozvaděč, kde se vlákno kabelu ukončí na konkrétním portu. **OLT** je aktivní zařízení v ústředně; jeho karta má vlastní porty. V aplikaci jsou stojan, police, karta a port konkrétní vybavení budovy, zatímco katalogový profil popisuje parametry typu zařízení pro výpočet. **Propojka** spojuje ODF a OLT port. Sledování cesty skládá vazby portů, kabelových vláken a svarů; při chybějící vazbě ukáže otevřený konec. Mapa zvýrazní dotčené úseky, jednotlivé porty zůstávají uvnitř detailu budovy.
+
 ## Jak o našem projektu mluvit
 
 > Stavíme webovou aplikaci pro návrh optických sítí. React v prohlížeči zobrazuje mapu, katalogy a kalkulačku. Backend v ASP.NET Core přijímá požadavky, kontroluje data a ukládá katalogy kabelů a chrániček i mapové objekty. Frontend s backendem komunikují přes API. Zatím je to prototyp; část dat ukládá server do JSON souborů a rozpracovaný výpočet zůstává v prohlížeči.
