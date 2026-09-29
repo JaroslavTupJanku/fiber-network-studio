@@ -186,7 +186,13 @@ export function MapWorkspace({ active }: { active: boolean }) {
         )}
 
         {selectedSavedRoute && <>
-          <div className="route-tab-context">{pointName(selectedSavedRoute.startPointId)} → {pointName(selectedSavedRoute.endPointId)}</div>
+          <div className="route-tab-context">
+            <span>{pointName(selectedSavedRoute.startPointId)} → {pointName(selectedSavedRoute.endPointId)}</span>
+            {!route.drawing && <button type="button" className="route-continue-quick" disabled={route.saving}
+              onClick={() => { route.continueFrom(selectedSavedRoute.endPointId); selectRouteTab('route') }}>
+              <RouteIcon size={14} /> Navázat od konce
+            </button>}
+          </div>
           <div className="route-detail-tabs" role="tablist" aria-label="Detail podzemní trasy" onKeyDown={handleRouteTabKeyDown}>
             <button type="button" id="route-tab-installations" role="tab" aria-controls="route-panel-installations"
               aria-selected={activeRouteTab === 'installations'} tabIndex={activeRouteTab === 'installations' ? 0 : -1}
@@ -209,7 +215,11 @@ export function MapWorkspace({ active }: { active: boolean }) {
           <form className="point-form route-form" onSubmit={route.save}>
             {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
-              ? 'Začátek a konec vyberte níže nebo kliknutím na objekty v mapě. Tvar trasy upravte klikáním do mapy. Pak stiskněte Dokončit.'
+              ? routeDraft.endPointId
+                ? 'Konec úseku je vybraný. Dokončete kreslení, pojmenujte a uložte úsek. Potom z něj můžete navázat další.'
+                : routeDraft.startPointId
+                ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další budovu nebo šachtu v mapě; kliknutím mimo objekty přidáte jen ohyb čáry.`
+                : 'Klikněte na výchozí budovu nebo šachtu v mapě. Konec můžete vybrat i v polích níže.'
               : routeDraft.id
                 ? 'Čára v mapě ukazuje průběh podzemního vedení mezi dvěma body. Chráničky a kabely najdete na záložce Osazení; svary patří do spojky v šachtě.'
                 : 'Trasa spojuje dva body sítě. Nejdřív ji uložte, potom do ní můžete vložit chráničky a kabely.'}</p>
@@ -231,6 +241,20 @@ export function MapWorkspace({ active }: { active: boolean }) {
             </div> : <div className="route-endpoints">
               <span><strong>Od</strong>{pointName(routeDraft.startPointId)}</span>
               <span><strong>Do</strong>{pointName(routeDraft.endPointId)}</span>
+            </div>}
+            {selectedSavedRoute && !route.drawing && <div className="route-continuation">
+              <strong>Navázat další úsek</strong>
+              <p>Každý úsek spojuje dva objekty. Chcete-li vést trasu přes šachtu dál, začněte nový úsek z jejího bodu.</p>
+              <div className="route-continuation-actions">
+                <button type="button" className="move-button" disabled={route.saving}
+                  onClick={() => { route.continueFrom(selectedSavedRoute.startPointId); selectRouteTab('route') }}>
+                  <RouteIcon size={15} /> Od: {pointName(selectedSavedRoute.startPointId)}
+                </button>
+                <button type="button" className="move-button" disabled={route.saving}
+                  onClick={() => { route.continueFrom(selectedSavedRoute.endPointId); selectRouteTab('route') }}>
+                  <RouteIcon size={15} /> Od: {pointName(selectedSavedRoute.endPointId)}
+                </button>
+              </div>
             </div>}
             {routeLength !== null && <p className="route-length">Přibližná délka z mapy: <strong>{Math.round(routeLength).toLocaleString('cs-CZ')} m</strong><small>Není to délka instalovaného kabelu.</small></p>}
             {route.drawing && <>

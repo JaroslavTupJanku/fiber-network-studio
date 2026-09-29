@@ -204,6 +204,11 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .route-endpoints { display: grid; gap: 6px; padding: 9px; border: 1px solid #d6e4de; border-radius: 5px; background: #f7faf8; font-size: 12px; }
 .route-endpoints span { display: flex; justify-content: space-between; gap: 8px; }
 .route-endpoints strong { color: #60736c; }
+.route-continuation { display: grid; gap: 7px; padding: 11px; border: 1px solid #d6e4de; border-radius: 6px; background: #f7faf8; }
+.route-continuation > strong { color: #28574e; font-size: 12px; }
+.route-continuation p { margin: 0; color: #61776e; font-size: 11px; line-height: 1.5; }
+.route-continuation-actions { display: grid; gap: 6px; }
+.route-continuation-actions button { justify-content: flex-start; width: 100%; text-align: left; }
 .route-length { display: grid; gap: 3px; margin: 0; color: #36524b; font-size: 12px; }
 .route-length strong { color: #a4532d; font-size: 16px; }
 .route-length small { color: #73847e; font-size: 11px; }
@@ -226,7 +231,10 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .route-list-text { display: grid; min-width: 0; gap: 3px; }
 .route-list-text strong { overflow: hidden; color: #29473c; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .route-list-text small { color: #6c8175; font-size: 11px; }
-.route-tab-context { margin: 19px 0 11px; overflow-wrap: anywhere; color: #526a61; font-size: 12px; line-height: 1.4; }
+.route-tab-context { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 7px; margin: 19px 0 11px; overflow-wrap: anywhere; color: #526a61; font-size: 12px; line-height: 1.4; }
+.route-continue-quick { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid #bfd8ce; border-radius: 4px; background: #eff7f3; color: #225f55; font: inherit; font-weight: 650; cursor: pointer; }
+.route-continue-quick:hover:not(:disabled) { background: #e1f1e9; }
+.route-continue-quick:disabled { opacity: .5; cursor: not-allowed; }
 .route-detail-tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border: 1px solid #d8e2df; border-radius: 7px; background: #f5f8f6; }
 .route-detail-tabs button { min-height: 36px; border: 0; border-radius: 4px; background: transparent; color: #526a61; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
 .route-detail-tabs button[aria-selected=true] { background: #fff; color: #225f55; box-shadow: 0 1px 4px rgb(30 65 54 / 13%); }

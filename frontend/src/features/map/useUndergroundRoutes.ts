@@ -10,6 +10,7 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   const [routes, setRoutes] = useState<UndergroundRoute[]>([])
   const [draft, setDraft] = useState<RouteDraft | null>(null)
   const [drawing, setDrawing] = useState(false)
+  const [continuationSourceId, setContinuationSourceId] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [error, setError] = useState('')
@@ -30,21 +31,24 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   const cancel = useCallback(() => {
     setDraft(null)
     setDrawing(false)
+    setContinuationSourceId(null)
     setError('')
   }, [])
 
   const cancelDrawing = useCallback(() => {
     setDrawing(false)
     setDraft(current => {
-      const saved = routes.find(route => route.id === current?.id)
+      const saved = routes.find(route => route.id === (current?.id ?? continuationSourceId))
       return saved ? copyRoute(saved) : null
     })
+    setContinuationSourceId(null)
     setError('')
-  }, [routes])
+  }, [routes, continuationSourceId])
 
   const startDrawing = () => {
     setDraft({ name: '', startPointId: null, endPointId: null, waypoints: [] })
     setDrawing(true)
+    setContinuationSourceId(null)
     setError('')
   }
 
@@ -53,6 +57,7 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
     if (!route) return
     setDraft(copyRoute(route))
     setDrawing(false)
+    setContinuationSourceId(null)
     setError('')
   }
 
@@ -62,12 +67,35 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
     setError('')
   }
 
+  const continueFrom = (pointId: string) => {
+    if (!draft?.id || drawing || saving || !points.some(point => point.id === pointId)) return
+    const saved = routes.find(route => route.id === draft.id)
+    if (!saved || (pointId !== saved.startPointId && pointId !== saved.endPointId)) return
+    if (draft.name !== saved.name || draft.startPointId !== saved.startPointId
+      || draft.endPointId !== saved.endPointId
+      || JSON.stringify(draft.waypoints) !== JSON.stringify(saved.waypoints)) {
+      setError('Nejdřív uložte změny této trasy, potom z ní můžete navázat.')
+      return
+    }
+    setDraft({ name: '', startPointId: pointId, endPointId: null, waypoints: [] })
+    setDrawing(true)
+    setContinuationSourceId(saved.id)
+    setError('')
+  }
+
   const addPoint = (id: string) => {
     if (!drawing) return
+    if (draft?.endPointId) {
+      setError('Tento úsek už má konec. Dokončete a uložte ho; další úsek pak navážete od vybraného objektu.')
+      return
+    }
+    if (draft?.startPointId === id) {
+      setError('Konec trasy musí být jiný objekt než začátek.')
+      return
+    }
     setDraft(current => {
       if (!current) return current
       if (!current.startPointId) return { ...current, startPointId: id }
-      if (current.startPointId === id) return current
       return { ...current, endPointId: id }
     })
     setError('')
@@ -140,6 +168,7 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
         ? current.map(route => route.id === saved.id ? saved : route)
         : [...current, saved])
       setDraft(copyRoute(saved))
+      setContinuationSourceId(null)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Trasu se nepodařilo uložit.')
     } finally {
@@ -179,6 +208,6 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   const visibleRoutes = useMemo(() => routes.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs')), [routes])
 
   return { routes, visibleRoutes, draft, drawing, loading, loadError, error, saving, preview,
-    setRoutes, setDraft, setLoading, setReloadVersion, cancel, cancelDrawing, startDrawing, selectRoute, startEditing,
+    setRoutes, setDraft, setLoading, setReloadVersion, cancel, cancelDrawing, startDrawing, selectRoute, startEditing, continueFrom,
     addPoint, setEndpoint, addWaypoint, moveWaypoint, removeWaypoint, undo, resetGeometry, finish, save, remove }
 }
