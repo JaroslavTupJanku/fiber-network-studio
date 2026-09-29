@@ -168,7 +168,7 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
           <div className="splice-through-list">{throughRuns.map(([runId, items]) => <div className="splice-through-item" key={runId}>
             <div><strong>{items[0].label}</strong><small>{items.map(item => routeNames.get(item.routeId) ?? 'Úsek').join(' · ')}</small></div>
             {splitPendingRunId === runId ? <div className="splice-split-confirm">
-              <span>Vzniknou dva samostatně evidované konce kabelu. Chránička zůstane průchozí.</span>
+              <span>Vzniknou dva samostatně evidované konce kabelu. Chránička se tímto krokem nemění; rozdělit ji můžete v detailu šachty.</span>
               <div><button type="button" className="move-button" onClick={() => setSplitPendingRunId(null)}>Zpět</button>
                 <button type="button" className="primary-button" disabled={busy} onClick={() => void splitCable(items[0])}>
                   {busy ? 'Rozděluji…' : 'Potvrdit rozdělení'}</button></div>

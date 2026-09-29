@@ -13,7 +13,7 @@ public sealed record RouteInstallationDocument(Guid RouteId, int Version, List<I
 public sealed record AddInstalledItemRequest(Guid? CatalogId, Guid? ParentId, int? SlotIndex,
     string? Label, int Version, Guid? ContinueFromItemId);
 public sealed record GenerateMicroductsRequest(Guid CatalogId, int Version);
-public sealed record SplitCableRunRequest(Guid ItemId, int Version);
+public sealed record SplitInstalledRunRequest(Guid ItemId, int Version);
 
 public sealed record RenameInstalledItemRequest(string? Label, int Version);
 public sealed record MoveInstalledItemRequest(Guid? ParentId, int? SlotIndex, int Version);
@@ -143,8 +143,16 @@ public sealed class RouteInstallationStore(string path)
         finally { gate.Release(); }
     }
 
-    public async Task<InstallationResult> SplitCableRunAsync(Guid pointId, SplitCableRunRequest request,
-        IReadOnlyList<UndergroundRoute> routes)
+    public Task<InstallationResult> SplitCableRunAsync(Guid pointId, SplitInstalledRunRequest request,
+        IReadOnlyList<UndergroundRoute> routes) =>
+        SplitRunAsync(pointId, request, routes, item => item.Cable is not null, "Kabel");
+
+    public Task<InstallationResult> SplitConduitRunAsync(Guid pointId, SplitInstalledRunRequest request,
+        IReadOnlyList<UndergroundRoute> routes) =>
+        SplitRunAsync(pointId, request, routes, item => item.Duct?.Kind == "conduit", "Chránička");
+
+    private async Task<InstallationResult> SplitRunAsync(Guid pointId, SplitInstalledRunRequest request,
+        IReadOnlyList<UndergroundRoute> routes, Func<InstalledItem, bool> matchesKind, string itemName)
     {
         await gate.WaitAsync();
         try
@@ -152,18 +160,19 @@ public sealed class RouteInstallationStore(string path)
             var documents = await ReadAsync();
             var source = documents.SelectMany(document => document.Items)
                 .FirstOrDefault(item => item.Id == request.ItemId);
-            if (source?.Cable is null) return InstallationResult.Fail(404, "Průchozí kabel neexistuje.");
+            if (source is null || !matchesKind(source))
+                return InstallationResult.Fail(404, $"Průchozí {itemName.ToLowerInvariant()} neexistuje.");
             var current = documents.Find(document => document.RouteId == source.RouteId)!;
             if (current.Version != request.Version)
                 return InstallationResult.Fail(409, "Osazení mezitím změnil jiný uživatel. Načtěte trasu znovu.");
             var runRouteIds = documents.SelectMany(document => document.Items)
                 .Where(item => item.RunId == source.RunId).Select(item => item.RouteId).ToHashSet();
             if (!FormsSinglePath(runRouteIds, routes))
-                return InstallationResult.Fail(409, "Kabel nemá souvislý průběh, který lze bezpečně rozdělit.");
+                return InstallationResult.Fail(409, $"{itemName} nemá souvislý průběh, který lze bezpečně rozdělit.");
             var runRoutes = routes.Where(route => runRouteIds.Contains(route.Id)).ToArray();
             var incident = runRoutes.Where(route => route.StartPointId == pointId || route.EndPointId == pointId).ToArray();
             if (incident.Length != 2 || !incident.Any(route => route.Id == source.RouteId))
-                return InstallationResult.Fail(409, "V této šachtě musí kabel procházet přesně dvěma úseky.");
+                return InstallationResult.Fail(409, $"V této šachtě musí {itemName.ToLowerInvariant()} procházet přesně dvěma úseky.");
 
             var separated = new HashSet<Guid> { source.RouteId };
             var pending = new Queue<UndergroundRoute>();

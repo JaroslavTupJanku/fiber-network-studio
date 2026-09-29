@@ -3,6 +3,7 @@ import { Cable, CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, Pane
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
+import { ChamberConduitPanel } from './ChamberConduitPanel'
 import { listOpticalSplices, type OpticalSpliceDocument } from './opticalSplices'
 import { installationSummary } from './routeInstallations'
 import { useRouteInstallations } from './useRouteInstallations'
@@ -308,6 +309,9 @@ export function MapWorkspace({ active }: { active: boolean }) {
               setMoving((value) => !value)
               setActiveTool(null)
             }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Klikněte na nové místo' : 'Změnit polohu kliknutím'}</button>
+            {editor.id && editor.kind === 'chamber' && <ChamberConduitPanel key={editor.id}
+              pointId={editor.id} routes={route.routes} documents={installations.documents}
+              onUpdated={installations.replaceDocuments} />}
             {editor.id && editor.kind === 'chamber' && <section className="chamber-splice-card" aria-labelledby="chamber-splice-heading">
               <div className="chamber-splice-heading">
                 <span className="chamber-splice-icon"><Cable size={17} aria-hidden="true" /></span>

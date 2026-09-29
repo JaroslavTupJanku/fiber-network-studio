@@ -33,7 +33,7 @@ public static class OpticalSpliceEndpoints
         });
 
         app.MapPost("/api/optical-splices/{pointId:guid}/split-cable", async (Guid pointId,
-            SplitCableRunRequest request, NetworkPointStore points, UndergroundRouteStore routes,
+            SplitInstalledRunRequest request, NetworkPointStore points, UndergroundRouteStore routes,
             RouteInstallationStore installations) =>
         {
             if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind == "chamber"))

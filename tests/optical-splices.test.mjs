@@ -67,8 +67,9 @@ test('splice API validates individual fiber ends, reservations, concurrency and 
       const ducts = await json(await request('/duct-catalog'))
       const cables = await json(await request('/cable-catalog'))
       const microduct = ducts.find(item => item.kind === 'microduct' && item.innerDiameterMm === 3.5)
+      const conduit = ducts.find(item => item.kind === 'conduit')
       const cable = cables[0]
-      assert.ok(microduct && cable?.tubes[0]?.fibers[1])
+      assert.ok(microduct && conduit && cable?.tubes[0]?.fibers[1])
       const install = async routeId => {
         let result = await json(await request(`/route-installations/${routeId}/items`, 'POST',
           { catalogId: microduct.id, parentId: null, slotIndex: null, version: 0 }))
@@ -145,6 +146,39 @@ test('splice API validates individual fiber ends, reservations, concurrency and 
         right: { itemId: rightCable.id, tubeIndex: 0, fiberIndex: 0 }, kind: 'fusion' }
       assert.equal((await request(splicePath, 'PUT', { version: 0, name: 'Spojka B',
         connections: [cutConnection], reserves: [] })).status, 200)
+
+      let conduitLeft = await json(await request(`/route-installations/${r1.id}/items`, 'POST',
+        { catalogId: conduit.id, parentId: null, slotIndex: null, label: 'CH-01', version: updatedLeft.version }))
+      const leftConduit = conduitLeft.items.at(-1)
+      let conduitRight = await json(await request(`/route-installations/${r2.id}/items`, 'POST',
+        { continueFromItemId: leftConduit.id, parentId: null, slotIndex: null, version: updatedRight.version }))
+      const rightConduit = conduitRight.items.at(-1)
+      conduitLeft = await json(await request(`/route-installations/${r1.id}/items`, 'POST',
+        { catalogId: microduct.id, parentId: leftConduit.id, slotIndex: null, version: conduitLeft.version }))
+      const leftChild = conduitLeft.items.at(-1)
+      conduitRight = await json(await request(`/route-installations/${r2.id}/items`, 'POST',
+        { continueFromItemId: leftChild.id, parentId: rightConduit.id, slotIndex: null,
+          version: conduitRight.version }))
+      const rightChild = conduitRight.items.at(-1)
+      const splitConduitPath = `/route-installations/chambers/${b.id}/split-conduit`
+      assert.equal((await request(splitConduitPath, 'POST',
+        { itemId: leftConduit.id, version: updatedLeft.version })).status, 409)
+      assert.equal((await request(splitConduitPath, 'POST',
+        { itemId: leftCable.id, version: conduitLeft.version })).status, 404)
+      assert.equal((await request(`/route-installations/chambers/${a.id}/split-conduit`, 'POST',
+        { itemId: leftConduit.id, version: conduitLeft.version })).status, 409)
+      const dividedConduits = await json(await request(splitConduitPath, 'POST',
+        { itemId: leftConduit.id, version: conduitLeft.version }))
+      const dividedLeft = dividedConduits.find(item => item.routeId === r1.id)
+      const dividedRight = dividedConduits.find(item => item.routeId === r2.id)
+      assert.notEqual(dividedLeft.items.find(item => item.id === leftConduit.id).runId,
+        dividedRight.items.find(item => item.id === rightConduit.id).runId)
+      assert.equal(dividedLeft.items.find(item => item.id === leftChild.id).runId,
+        dividedRight.items.find(item => item.id === rightChild.id).runId)
+      assert.equal(dividedLeft.items.find(item => item.id === leftChild.id).parentId, leftConduit.id)
+      assert.equal(dividedRight.items.find(item => item.id === rightChild.id).parentId, rightConduit.id)
+      assert.equal(dividedLeft.items.find(item => item.id === leftCable.id).runId,
+        updatedLeft.items.find(item => item.id === leftCable.id).runId)
     } finally {
       if (server && server.exitCode === null) { const exited = once(server, 'exit'); server.kill(); await exited }
       await rm(directory, { recursive: true, force: true })

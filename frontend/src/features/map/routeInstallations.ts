@@ -149,6 +149,9 @@ export const addInstalledItem = (routeId: string, input: InstallationAdd) =>
 export const generateAssemblyMicroducts = (routeId: string, itemId: string, catalogId: string, version: number) =>
   request<RouteInstallationDocument>(`/${routeId}/items/${itemId}/generate-microducts`,
     { method: 'POST', ...json({ catalogId, version }) })
+export const splitConduitAtChamber = (pointId: string, itemId: string, version: number) =>
+  request<RouteInstallationDocument[]>(`/chambers/${pointId}/split-conduit`,
+    { method: 'POST', ...json({ itemId, version }) })
 export const renameInstalledItem = (routeId: string, id: string, label: string, version: number) =>
   request<RouteInstallationDocument>(`/${routeId}/items/${id}`, { method: 'PUT', ...json({ label, version }) })
 export const moveInstalledItem = (routeId: string, id: string, input: InstallationMove) =>
