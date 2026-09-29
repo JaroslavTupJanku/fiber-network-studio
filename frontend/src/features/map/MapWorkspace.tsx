@@ -81,9 +81,11 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
   const selectedEquipment = editor?.id ? equipment.find(item => item.pointId === editor.id) : null
   const fusionCount = selectedSplice?.connections.filter(item => item.kind === 'fusion').length ?? 0
   const connectorCount = selectedSplice?.connections.filter(item => item.kind === 'connector').length ?? 0
+  const splitterCount = selectedSplice?.splitters.length ?? 0
   const spliceConnectionsLabel = [
     fusionCount ? countLabel(fusionCount, 'svar', 'svary', 'svarů') : null,
     connectorCount ? countLabel(connectorCount, 'konektorové spojení', 'konektorová spojení', 'konektorových spojení') : null,
+    splitterCount ? countLabel(splitterCount, 'splitter', 'splittery', 'splitterů') : null,
   ].filter(Boolean).join(' · ') || 'Zatím bez propojených vláken'
   const togglePanel = () => {
     setPanelOpen(value => !value)
@@ -345,7 +347,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
               </div>
               <div className="chamber-splice-actions">
                 <button type="button" className="move-button" onClick={() => setSpliceOpen(true)}>
-                  {selectedSplice ? 'Otevřít spojku a svary' : splicesLoadError ? 'Zkusit otevřít spojku' : 'Přidat spojku'}
+                  {selectedSplice ? 'Otevřít spojku' : splicesLoadError ? 'Zkusit otevřít spojku' : 'Přidat spojku'}
                 </button>
                 <details className="chamber-splice-help"><summary>Co je spojka v šachtě?</summary>
                   <p>Šachta je přístupný podzemní prostor. Kabel jí může jen procházet; spojka je samostatné pouzdro pro propojení vláken.</p>

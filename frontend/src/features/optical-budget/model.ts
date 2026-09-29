@@ -3,7 +3,7 @@ export type Wavelength = typeof wavelengths[number]
 export type Technology = 'manual' | 'gpon' | 'xgspon'
 type Losses = { loss1270: string; loss1310: string; loss1490: string; loss1550: string; loss1577: string }
 export type Section = Losses & { id: string; name: string; lengthM: string; source: string }
-export type Element = Losses & { id: string; kind: 'splice' | 'connection' | 'splitter' | 'other'; name: string; count: string }
+export type Element = Losses & { id: string; kind: 'splice' | 'connection' | 'splitter' | 'other'; name: string; count: string; source?: string }
 export type Scenario = { version: 2; name: string; technology: Technology; wavelength: Wavelength; sections: Section[]; elements: Element[];
   equipment?: { oltId: string; onuId: string; oltModuleId: string; onuModuleId: string };
   limit1310: string; limit1550: string; reserve: string; limit1270: string; limit1490: string; limit1577: string;

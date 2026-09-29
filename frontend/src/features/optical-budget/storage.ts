@@ -23,7 +23,8 @@ export function parseScenario(raw: string): Scenario {
     || (value.equipment !== undefined && (!value.equipment || !['oltId', 'onuId', 'oltModuleId', 'onuModuleId'].every(key => text(value.equipment[key]))))
     || !rows(value.sections) || !rows(value.elements)
     || !value.sections.every((x: Record<string, unknown>) => x && ['id', 'name', 'lengthM', ...lossKeys, 'source'].every(key => text(x[key])))
-    || !value.elements.every((x: Record<string, unknown>) => x && ['id', 'name', 'count', ...lossKeys].every(key => text(x[key])) && ['splice', 'connection', 'splitter', 'other'].includes(String(x.kind)))
+    || !value.elements.every((x: Record<string, unknown>) => x && ['id', 'name', 'count', ...lossKeys].every(key => text(x[key]))
+      && (x.source === undefined || text(x.source)) && ['splice', 'connection', 'splitter', 'other'].includes(String(x.kind)))
     || new Set([...value.sections, ...value.elements].map(x => x.id)).size !== value.sections.length + value.elements.length) {
     throw new Error('Uložený výpočet má neplatný formát.')
   }

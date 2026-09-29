@@ -14,7 +14,13 @@ export function scenarioFromOpticalPath(path: OpticalPath,
         source: item?.cable ? `${item.cable.name} · ${item.actualLengthMeters ? 'délka z evidence instalace' : 'délku doplňte podle instalace'}` : '' }
     })
   const elements = path.steps.filter(step => step.kind !== 'cable').map(step => ({ ...newElement(),
-    kind: step.kind === 'splice' ? 'splice' as const : step.kind === 'connector' ? 'connection' as const : 'other' as const,
-    name: step.label, count: step.kind === 'patch' ? '2' : '1' }))
+    kind: step.kind === 'splice' ? 'splice' as const : step.kind === 'connector' ? 'connection' as const
+      : step.kind === 'splitter' ? 'splitter' as const : 'other' as const,
+    name: step.label, count: step.kind === 'patch' ? '2' : '1', source: step.source ?? '',
+    loss1270: step.losses?.loss1270Db?.toString() ?? '',
+    loss1310: step.losses?.loss1310Db?.toString() ?? '',
+    loss1490: step.losses?.loss1490Db?.toString() ?? '',
+    loss1550: step.losses?.loss1550Db?.toString() ?? '',
+    loss1577: step.losses?.loss1577Db?.toString() ?? '' }))
   return { ...newScenario(), name: 'Cesta z mapy', sections: sections.length ? sections : [newSection()], elements }
 }
