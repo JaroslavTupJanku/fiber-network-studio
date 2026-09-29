@@ -207,16 +207,8 @@ export function MapCanvas({ points, routes, installations, splices, installation
       const pointId = featureAt(event.point, POINT_LAYER_ID, 16)?.properties?.id
       if (drawingRoute) {
         if (pointId) onPointSelect(String(pointId))
-        else {
-          const location = { latitude: event.lngLat.lat, longitude: event.lngLat.lng }
-          const { routeDraft, displayedPoints } = geometryRef.current
-          if (routeDraft?.endPointId) {
-            const coordinates = routeCoordinates(routeDraft, displayedPoints)
-            const projected = coordinates.map(point => map.project([point.longitude, point.latitude]))
-            if (projected.length >= 2) interactionRef.current.onRouteWaypointInsert(
-              closestRouteSegment(projected, event.point), location)
-          } else onLocationClick(location, false)
-        }
+        else if (!geometryRef.current.routeDraft?.endPointId)
+          onLocationClick({ latitude: event.lngLat.lat, longitude: event.lngLat.lng }, false)
         return
       }
       if (!placementActive && !pointId) {

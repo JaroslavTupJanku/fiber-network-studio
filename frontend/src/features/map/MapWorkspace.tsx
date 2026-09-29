@@ -240,7 +240,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
             {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
               ? routeDraft.endPointId
-                ? 'Oba konce jsou vybrané. Uchopte úsek trasy mezi body a táhněte jej kolem překážky. Lomový bod můžete přidat také kliknutím do mapy. Potom úpravu dokončete a uložte.'
+                ? 'Oba konce jsou vybrané. Klikněte přímo na úsek trasy pro nový lomový bod, nebo úsek uchopte a táhněte kolem překážky. Kliknutí mimo trasu ji nezmění. Potom úpravu dokončete a uložte.'
                 : routeDraft.startPointId
                 ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další budovu nebo šachtu v mapě; kliknutím mimo objekty přidáte lomový bod.`
                 : 'Klikněte na výchozí budovu nebo šachtu v mapě. Konec můžete vybrat i v polích níže.'
@@ -286,7 +286,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
                 <button type="button" className="move-button" onClick={route.undo} disabled={!routeDraft.startPointId}><Undo2 size={16} /> Zpět</button>
                 <button type="button" className="move-button" onClick={route.resetGeometry}>Začít znovu</button>
               </div>
-              <p className="route-help">Táhněte za úsek trasy nebo za již vytvořený lomový bod. Lomový bod mění jen průběh trasy, není samostatným objektem sítě. Budovy jsou zde zatím vedené jako body; jejich skutečný půdorys aplikace neověřuje.</p>
+              <p className="route-help">Klikněte nebo táhněte přímo za úsek trasy. Lomový bod můžete později znovu přetáhnout; mění jen průběh trasy, není samostatným objektem sítě. Budovy jsou zde zatím vedené jako body; jejich skutečný půdorys aplikace neověřuje.</p>
               {routeDraft.waypoints.length > 0 && <div className="route-waypoints"><strong>Lomové body</strong>{routeDraft.waypoints.map((point, index) =>
                 <div key={index}><span>{index + 1}. {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}</span>
                   <button type="button" className="icon-button" onClick={() => route.removeWaypoint(index)} aria-label={`Odebrat lomový bod ${index + 1}`}><X size={14} /></button></div>)}</div>}
