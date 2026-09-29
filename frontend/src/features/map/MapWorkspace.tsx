@@ -34,6 +34,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
   const [mapHoveredPointId, setMapHoveredPointId] = useState<string | null>(null)
   const [mapHoveredRouteId, setMapHoveredRouteId] = useState<string | null>(null)
   const [routeFocusRequest, setRouteFocusRequest] = useState<{ id: string, sequence: number } | null>(null)
+  const [pointFocusRequest, setPointFocusRequest] = useState<{ id: string, sequence: number } | null>(null)
   useEffect(() => {
     if (!active) return
     const frame = requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
@@ -87,6 +88,11 @@ export function MapWorkspace({ active }: { active: boolean }) {
     setPanelOpen(true)
     handleRouteSelect(id)
   }
+  const beginRouteContinuation = (pointId: string) => {
+    const started = route.continueFrom(pointId)
+    selectRouteTab('route')
+    if (started) setPointFocusRequest(current => ({ id: pointId, sequence: (current?.sequence ?? 0) + 1 }))
+  }
   const handleRouteTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (route.drawing || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
     event.preventDefault()
@@ -109,8 +115,10 @@ export function MapWorkspace({ active }: { active: boolean }) {
           hoveredRouteId={mapHoveredRouteId ?? listHoveredRouteId}
           onMapRouteHoverChange={setMapHoveredRouteId}
           routeFocusRequest={routeFocusRequest}
+          pointFocusRequest={pointFocusRequest}
           routeDraft={route.preview}
           drawingRoute={route.drawing}
+          routeError={route.error}
           onRouteToolChange={() => { selectRouteTab('route'); handleRouteToolChange() }}
           onRouteSelect={selectSavedRoute}
           onRouteWaypointMove={route.moveWaypoint}
@@ -189,7 +197,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
           <div className="route-tab-context">
             <span>{pointName(selectedSavedRoute.startPointId)} → {pointName(selectedSavedRoute.endPointId)}</span>
             {!route.drawing && <button type="button" className="route-continue-quick" disabled={route.saving}
-              onClick={() => { route.continueFrom(selectedSavedRoute.endPointId); selectRouteTab('route') }}>
+              onClick={() => beginRouteContinuation(selectedSavedRoute.endPointId)}>
               <RouteIcon size={14} /> Navázat od konce
             </button>}
           </div>
@@ -216,7 +224,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
             {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
               ? routeDraft.endPointId
-                ? 'Konec úseku je vybraný. Dokončete kreslení, pojmenujte a uložte úsek. Potom z něj můžete navázat další.'
+                ? 'Konec úseku je vybraný. Dokončete kreslení, pojmenujte a uložte úsek. Konec případně změníte v poli níže; po uložení můžete navázat další úsek.'
                 : routeDraft.startPointId
                 ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další budovu nebo šachtu v mapě; kliknutím mimo objekty přidáte jen ohyb čáry.`
                 : 'Klikněte na výchozí budovu nebo šachtu v mapě. Konec můžete vybrat i v polích níže.'
@@ -247,11 +255,11 @@ export function MapWorkspace({ active }: { active: boolean }) {
               <p>Každý úsek spojuje dva objekty. Chcete-li vést trasu přes šachtu dál, začněte nový úsek z jejího bodu.</p>
               <div className="route-continuation-actions">
                 <button type="button" className="move-button" disabled={route.saving}
-                  onClick={() => { route.continueFrom(selectedSavedRoute.startPointId); selectRouteTab('route') }}>
+                  onClick={() => beginRouteContinuation(selectedSavedRoute.startPointId)}>
                   <RouteIcon size={15} /> Od: {pointName(selectedSavedRoute.startPointId)}
                 </button>
                 <button type="button" className="move-button" disabled={route.saving}
-                  onClick={() => { route.continueFrom(selectedSavedRoute.endPointId); selectRouteTab('route') }}>
+                  onClick={() => beginRouteContinuation(selectedSavedRoute.endPointId)}>
                   <RouteIcon size={15} /> Od: {pointName(selectedSavedRoute.endPointId)}
                 </button>
               </div>

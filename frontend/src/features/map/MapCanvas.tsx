@@ -11,7 +11,7 @@ import type { Parcel } from './parcels'
 import type { RouteInstallationDocument } from './routeInstallations'
 import type { OpticalSpliceDocument } from './opticalSplices'
 import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollection, routeVertexCollection,
-  POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, HOVERED_POINT_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID,
+  POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, HOVERED_POINT_LAYER_ID, ROUTE_ENDPOINT_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID,
   ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
   ROUTE_VERTEX_SOURCE_ID, ROUTE_VERTEX_LAYER_ID } from './mapLayers'
 import { crossedDragThreshold, mapCursor, resolveMapClick } from './interactions'
@@ -27,8 +27,10 @@ type MapCanvasProps = {
   hoveredRouteId: string | null
   onMapRouteHoverChange: (id: string | null) => void
   routeFocusRequest: { id: string, sequence: number } | null
+  pointFocusRequest: { id: string, sequence: number } | null
   routeDraft: RouteDraft | null
   drawingRoute: boolean
+  routeError: string
   onRouteToolChange: () => void
   onRouteSelect: (id: string) => void
   onRouteWaypointMove: (index: number, location: Coordinates) => void
@@ -59,7 +61,7 @@ const withPointPosition = (points: NetworkPoint[], id: string, location: Coordin
 
 setWorkerUrl(workerUrl)
 
-export function MapCanvas({ points, routes, installations, splices, installationLoading, selectedRouteId, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, routeDraft, drawingRoute, onRouteToolChange,
+export function MapCanvas({ points, routes, installations, splices, installationLoading, selectedRouteId, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, pointFocusRequest, routeDraft, drawingRoute, routeError, onRouteToolChange,
   onRouteSelect, onRouteWaypointMove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId, onMapPointHoverChange,
   selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop,
   onLocationClick, onPointSelect, onPointMove, onDraftMove, onCadastreDisable }: MapCanvasProps) {
@@ -77,6 +79,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
   const skipSelectionEase = useRef<string | null>(null)
   const focusedPointId = useRef<string | null>(null)
   const lastRouteFocusSequence = useRef(0)
+  const lastPointFocusSequence = useRef(0)
   const cadastreActive = useRef(false)
   const cadastreFailed = useRef(false)
   const orthophotoActive = useRef(false)
@@ -99,6 +102,8 @@ export function MapCanvas({ points, routes, installations, splices, installation
   const [legendOpen, setLegendOpen] = useState(false)
   const routeStatuses = useMemo(() => new Set(routeCollection(routes, points, installations)
     .features.map(feature => feature.properties.installationStatus)), [routes, points, installations])
+  const routeStartName = points.find(point => point.id === routeDraft?.startPointId)?.name ?? 'neznámý bod'
+  const routeEndName = points.find(point => point.id === routeDraft?.endPointId)?.name ?? 'neznámý bod'
 
   useEffect(() => {
     interactionRef.current = { placementActive, activeTool, drawingRoute, onLocationClick,
@@ -497,6 +502,15 @@ export function MapCanvas({ points, routes, installations, splices, installation
 
   useEffect(() => {
     const map = mapRef.current
+    if (!map?.getLayer(ROUTE_ENDPOINT_LAYER_ID)) return
+    const ids = drawingRoute
+      ? [routeDraft?.startPointId, routeDraft?.endPointId].filter((id): id is string => Boolean(id))
+      : []
+    map.setFilter(ROUTE_ENDPOINT_LAYER_ID, ['in', ['get', 'id'], ['literal', ids]])
+  }, [drawingRoute, routeDraft?.startPointId, routeDraft?.endPointId, mapGeneration])
+
+  useEffect(() => {
+    const map = mapRef.current
     if (map?.getLayer(HOVERED_POINT_LAYER_ID)) {
       map.setFilter(HOVERED_POINT_LAYER_ID, ['==', ['get', 'id'], hoveredPointId ?? ''])
     }
@@ -514,6 +528,16 @@ export function MapCanvas({ points, routes, installations, splices, installation
     lastRouteFocusSequence.current = routeFocusRequest.sequence
     map.fitBounds(bounds, { padding: 72, maxZoom: 15, duration: 350 })
   }, [routeFocusRequest, routes, points, mapGeneration])
+
+  useEffect(() => {
+    const map = mapRef.current
+    if (!pointFocusRequest || !map || readyMapRef.current !== map
+      || lastPointFocusSequence.current === pointFocusRequest.sequence) return
+    const point = points.find(item => item.id === pointFocusRequest.id)
+    if (!point) return
+    lastPointFocusSequence.current = pointFocusRequest.sequence
+    map.easeTo({ center: [point.longitude, point.latitude], duration: 350 })
+  }, [pointFocusRequest, points, mapGeneration])
 
   useEffect(() => {
     if (!selectedPointId) { focusedPointId.current = null; return }
@@ -608,10 +632,12 @@ export function MapCanvas({ points, routes, installations, splices, installation
         </div>
       )}
       {drawingRoute && (
-        <div className="placement-guide route-guide" role="status">
-          <span>{routeDraft?.startPointId
-            ? routeDraft.endPointId ? 'Trasa: upravte lomové body nebo dokončete' : 'Trasa: klikněte na lomové body a koncový objekt'
-            : 'Trasa: klikněte na výchozí budovu nebo šachtu'}</span>
+        <div className={`placement-guide route-guide${routeError ? ' route-guide-error' : ''}`} role="status">
+          <span>{routeError || (routeDraft?.startPointId
+            ? routeDraft.endPointId
+              ? `Spojeno: ${routeStartName} → ${routeEndName}. Dokončete úsek.`
+              : `Začátek: ${routeStartName}. Klikněte na cílovou budovu nebo šachtu.`
+            : 'Klikněte na první budovu nebo šachtu.')}</span>
           <button type="button" onClick={onRouteUndo} disabled={!routeDraft?.startPointId}>Zpět</button>
           <button type="button" onClick={onRouteFinish} disabled={!routeDraft?.endPointId}>Dokončit</button>
           <button type="button" onClick={onRouteCancel}>Zrušit · Esc</button>

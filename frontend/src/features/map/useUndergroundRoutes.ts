@@ -68,19 +68,20 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   }
 
   const continueFrom = (pointId: string) => {
-    if (!draft?.id || drawing || saving || !points.some(point => point.id === pointId)) return
+    if (!draft?.id || drawing || saving || !points.some(point => point.id === pointId)) return false
     const saved = routes.find(route => route.id === draft.id)
-    if (!saved || (pointId !== saved.startPointId && pointId !== saved.endPointId)) return
+    if (!saved || (pointId !== saved.startPointId && pointId !== saved.endPointId)) return false
     if (draft.name !== saved.name || draft.startPointId !== saved.startPointId
       || draft.endPointId !== saved.endPointId
       || JSON.stringify(draft.waypoints) !== JSON.stringify(saved.waypoints)) {
       setError('Nejdřív uložte změny této trasy, potom z ní můžete navázat.')
-      return
+      return false
     }
     setDraft({ name: '', startPointId: pointId, endPointId: null, waypoints: [] })
     setDrawing(true)
     setContinuationSourceId(saved.id)
     setError('')
+    return true
   }
 
   const addPoint = (id: string) => {
@@ -133,11 +134,17 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
       : current)
   }
 
-  const undo = () => setDraft(current => current ? undoRouteStep(current) : current)
+  const undo = () => {
+    setDraft(current => current ? undoRouteStep(current) : current)
+    setError('')
+  }
 
-  const resetGeometry = () => setDraft(current => current
-    ? { ...current, startPointId: null, endPointId: null, waypoints: [] }
-    : current)
+  const resetGeometry = () => {
+    setDraft(current => current
+      ? { ...current, startPointId: null, endPointId: null, waypoints: [] }
+      : current)
+    setError('')
+  }
 
   const finish = () => {
     if (!draft?.startPointId || !draft.endPointId || draft.startPointId === draft.endPointId) {

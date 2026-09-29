@@ -29,6 +29,7 @@
 .placement-guide button:hover { background: #e6f2ee; }
 .placement-guide button:disabled { opacity: .5; cursor: not-allowed; }
 .route-guide { left: 16px; right: auto; flex-wrap: wrap; }
+.route-guide-error { border-color: #e8b4a9; background: #fff5f2; color: #8d3e32; }
 .map-legend { position: absolute; z-index: 2; bottom: 38px; left: 16px; color: #35554a; font-size: 12px; }
 .map-legend-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 10px; border: 1px solid #d8e2df; border-radius: 7px; background: rgb(255 255 255 / 96%); color: #35554a; box-shadow: 0 2px 9px rgb(20 45 38 / 12%); font: inherit; font-weight: 650; cursor: pointer; }
 .map-legend-toggle:hover, .map-legend-toggle[aria-expanded='true'] { background: #f0f7f3; }
