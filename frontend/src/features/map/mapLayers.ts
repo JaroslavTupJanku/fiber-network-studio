@@ -57,7 +57,8 @@ export function routeVertexCollection(draft: RouteDraft | null) {
   }
 }
 
-export function pointCollection(points: NetworkPoint[], selectedPointId: string | null, preview: Coordinates | null) {
+export function pointCollection(points: NetworkPoint[], selectedPointId: string | null, preview: Coordinates | null,
+  splicePointIds: ReadonlySet<string> = new Set<string>()) {
   return {
     type: 'FeatureCollection' as const,
     features: points.map((point) => {
@@ -65,7 +66,7 @@ export function pointCollection(points: NetworkPoint[], selectedPointId: string 
       return {
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [location.longitude, location.latitude] },
-        properties: { id: point.id, kind: point.kind, name: point.name },
+        properties: { id: point.id, kind: point.kind, name: point.name, hasSplice: splicePointIds.has(point.id) },
       }
     }),
   }
@@ -101,8 +102,8 @@ export function initializeMapLayers(map: Map) {
     paint: {
       'circle-radius': 8,
       'circle-color': ['match', ['get', 'kind'], 'building', '#24796d', 'chamber', '#b8613e', '#64716d'],
-      'circle-stroke-color': '#ffffff',
-      'circle-stroke-width': 2,
+      'circle-stroke-color': ['case', ['get', 'hasSplice'], '#704b92', '#ffffff'],
+      'circle-stroke-width': ['case', ['get', 'hasSplice'], 3, 2],
     },
   })
   map.addLayer({

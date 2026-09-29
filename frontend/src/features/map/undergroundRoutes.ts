@@ -38,6 +38,29 @@ export function routeLengthMeters(coordinates: Coordinates[]): number {
   return length
 }
 
+// Deform the mapped line smoothly when one of its endpoint objects is moved.
+// Existing waypoints keep their order and count; points nearer the moved end travel farther.
+export function waypointsAfterPointMove(route: UndergroundRoute, points: NetworkPoint[],
+  pointId: string, next: Coordinates): Coordinates[] {
+  if (route.startPointId !== pointId && route.endPointId !== pointId) return route.waypoints
+  const coordinates = routeCoordinates(route, points)
+  if (coordinates.length !== route.waypoints.length + 2) return route.waypoints
+  const distances = coordinates.slice(1).map((coordinate, index) =>
+    routeLengthMeters([coordinates[index], coordinate]))
+  const total = distances.reduce((sum, distance) => sum + distance, 0)
+  const original = route.startPointId === pointId ? coordinates[0] : coordinates.at(-1)!
+  const latitudeDelta = next.latitude - original.latitude
+  const longitudeDelta = next.longitude - original.longitude
+  let walked = 0
+  return route.waypoints.map((waypoint, index) => {
+    walked += distances[index]
+    const fraction = total > 0 ? walked / total : (index + 1) / (route.waypoints.length + 1)
+    const weight = route.startPointId === pointId ? 1 - fraction : fraction
+    return { latitude: waypoint.latitude + latitudeDelta * weight,
+      longitude: waypoint.longitude + longitudeDelta * weight }
+  })
+}
+
 export function undoRouteStep(draft: RouteDraft): RouteDraft {
   if (draft.endPointId) return { ...draft, endPointId: null }
   if (draft.waypoints.length) return { ...draft, waypoints: draft.waypoints.slice(0, -1) }

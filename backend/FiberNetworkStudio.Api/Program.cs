@@ -1,6 +1,7 @@
 using FiberNetworkStudio.Api;
 using FiberNetworkStudio.Api.CableCatalog;
 using FiberNetworkStudio.Api.DuctCatalog;
+using FiberNetworkStudio.Api.OpticalSplices;
 using FiberNetworkStudio.Api.RouteInstallations;
 using FiberNetworkStudio.Api.UndergroundRoutes;
 using System.Text.Json;
@@ -17,12 +18,16 @@ builder.Services.AddSingleton(new UndergroundRouteStore(routeDataPath));
 var installationDataPath = builder.Configuration["RouteInstallations:Path"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "route-installations.json");
 builder.Services.AddSingleton(new RouteInstallationStore(installationDataPath));
+var spliceDataPath = builder.Configuration["OpticalSplices:Path"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "optical-splices.json");
+builder.Services.AddSingleton(new OpticalSpliceStore(spliceDataPath));
 builder.Services.AddHttpClient<ParcelLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
 var app = builder.Build();
 app.MapCableCatalog();
 app.MapDuctCatalog();
 app.MapUndergroundRoutes();
 app.MapRouteInstallations();
+app.MapOpticalSplices();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/parcels/at", async (double latitude, double longitude, ParcelLookup lookup,
@@ -71,9 +76,11 @@ app.MapPut("/api/network-points/{id:guid}", async (Guid id, UpdateNetworkPointRe
 });
 
 app.MapDelete("/api/network-points/{id:guid}", async (Guid id, NetworkPointStore store,
-    UndergroundRouteStore routes) =>
+    UndergroundRouteStore routes, OpticalSpliceStore splices) =>
     await routes.ContainsPointAsync(id)
         ? Results.Conflict(new { error = "Bod je koncem podzemní trasy. Nejprve upravte nebo smažte trasu." })
+        : await splices.HasSpliceAsync(id)
+            ? Results.Conflict(new { error = "V šachtě je optická spojka. Nejprve ji odeberte." })
         : await store.DeleteAsync(id) ? Results.NoContent() : Results.NotFound());
 
 app.Run();
