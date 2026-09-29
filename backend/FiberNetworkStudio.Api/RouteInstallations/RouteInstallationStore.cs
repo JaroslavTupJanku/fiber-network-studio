@@ -55,6 +55,7 @@ public sealed class RouteInstallationStore(string path)
 
             var runId = Guid.NewGuid();
             var catalogId = request.CatalogId;
+            string? continuationLabel = null;
             if (request.ContinueFromItemId is Guid continuedId)
             {
                 var source = documents.SelectMany(document => document.Items)
@@ -70,11 +71,13 @@ public sealed class RouteInstallationStore(string path)
                 runRoutes.Add(route.Id);
                 if (!FormsSinglePath(runRoutes, routes))
                     return InstallationResult.Fail(409, "Pokračování by vytvořilo odbočku nebo nesouvislou cestu jednoho prvku.");
-                (duct, cable, catalogId, runId) = (source.Duct, source.Cable, source.CatalogId, source.RunId);
+                (duct, cable, catalogId, runId, continuationLabel) =
+                    (source.Duct, source.Cable, source.CatalogId, source.RunId, source.Label);
             }
             if (catalogId is null || (duct is null) == (cable is null))
                 return InstallationResult.Fail(400, "Vyberte existující typ chráničky, mikrotrubičky, sestavy nebo kabelu.");
-            var label = string.IsNullOrWhiteSpace(request.Label) ? duct?.Name ?? cable!.Name : request.Label.Trim();
+            var label = string.IsNullOrWhiteSpace(request.Label)
+                ? continuationLabel ?? duct?.Name ?? cable!.Name : request.Label.Trim();
             if (label.Length is < 1 or > 80) return InstallationResult.Fail(400, "Označení prvku musí mít 1 až 80 znaků.");
             var placementError = ValidatePlacement(current.Items, request.ParentId, request.SlotIndex, duct, cable);
             if (placementError is not null) return InstallationResult.Fail(409, placementError);
@@ -212,7 +215,7 @@ public sealed class RouteInstallationStore(string path)
                 seen.Add(next.Id);
                 queue.Enqueue(next);
             }
-        return seen.Count == selected.Length;
+        return seen.Count == selected.Length && degree.Values.Count(value => value == 1) == 2;
     }
 
     private static string? ValidatePlacement(List<InstalledItem> items, Guid? parentId, int? slotIndex,

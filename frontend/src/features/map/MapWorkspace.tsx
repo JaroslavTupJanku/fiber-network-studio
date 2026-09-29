@@ -224,7 +224,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
             {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
               ? routeDraft.endPointId
-                ? 'Konec úseku je vybraný. Dokončete kreslení, pojmenujte a uložte úsek. Konec případně změníte v poli níže; po uložení můžete navázat další úsek.'
+                ? 'Konec úseku je vybraný. Dokončete kreslení, pojmenujte a uložte úsek. Konec případně změníte v poli níže. Po uložení můžete na záložce Osazení navázat chráničky, mikrotrubičky a kabely ze sousedního úseku.'
                 : routeDraft.startPointId
                 ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další budovu nebo šachtu v mapě; kliknutím mimo objekty přidáte jen ohyb čáry.`
                 : 'Klikněte na výchozí budovu nebo šachtu v mapě. Konec můžete vybrat i v polích níže.'
@@ -252,7 +252,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
             </div>}
             {selectedSavedRoute && !route.drawing && <div className="route-continuation">
               <strong>Navázat další úsek</strong>
-              <p>Každý úsek spojuje dva objekty. Chcete-li vést trasu přes šachtu dál, začněte nový úsek z jejího bodu.</p>
+              <p>Každý úsek spojuje dva objekty. Chcete-li vést trasu přes šachtu dál, začněte nový úsek z jejího bodu. Osazení nového úseku pak navážete zvlášť.</p>
               <div className="route-continuation-actions">
                 <button type="button" className="move-button" disabled={route.saving}
                   onClick={() => beginRouteContinuation(selectedSavedRoute.startPointId)}>

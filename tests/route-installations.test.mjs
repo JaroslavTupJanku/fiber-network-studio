@@ -45,6 +45,21 @@ test('installation preview distinguishes occupied positions and unknown dimensio
     [{ routeId: 'b', items: [cable] }]), [cable])
 })
 
+test('continuation offers only a free end of one physical run', () => {
+  const ab = { id: 'ab', startPointId: 'a', endPointId: 'b' }
+  const bc = { id: 'bc', startPointId: 'b', endPointId: 'c' }
+  const cd = { id: 'cd', startPointId: 'c', endPointId: 'd' }
+  const be = { id: 'be', startPointId: 'b', endPointId: 'e' }
+  const da = { id: 'da', startPointId: 'd', endPointId: 'a' }
+  const de = { id: 'de', startPointId: 'd', endPointId: 'e' }
+  const routes = [ab, bc, cd, be, da, de]
+  const documents = [ab, bc, cd].map(route => ({ routeId: route.id,
+    items: [{ id: route.id, routeId: route.id, runId: 'run', duct: { kind: 'microduct' }, cable: null }] }))
+  assert.deepEqual(installationContinuations(be, routes, documents), [])
+  assert.deepEqual(installationContinuations(da, routes, documents), [])
+  assert.deepEqual(installationContinuations(de, routes, documents).map(item => item.id), ['cd'])
+})
+
 test('route installation API stores physical instances, prevents invalid placement and preserves catalog snapshots',
   { timeout: 50000 }, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'fiber-installations-test-'))
@@ -132,7 +147,7 @@ test('route installation API stores physical instances, prevents invalid placeme
       assert.equal((await add(first.id,
         { catalogId: thickCable.id, parentId: inner.id, slotIndex: null, version: doc.version })).status, 409)
       doc = await body(await add(first.id,
-        { catalogId: cable.id, parentId: inner.id, slotIndex: null, version: doc.version }))
+        { catalogId: cable.id, parentId: inner.id, slotIndex: null, label: 'KABEL-01', version: doc.version }))
       const installedCable = doc.items.at(-1)
       assert.equal((await add(first.id,
         { catalogId: cable.id, parentId: inner.id, slotIndex: null, version: doc.version })).status, 409)
@@ -170,6 +185,7 @@ test('route installation API stores physical instances, prevents invalid placeme
       next = await body(await add(second.id,
         { continueFromItemId: installedCable.id, parentId: secondInner.id, slotIndex: null, version: next.version }))
       assert.equal(next.items.at(-1).runId, installedCable.runId)
+      assert.equal(next.items.at(-1).label, installedCable.label)
       assert.equal(next.items.at(-1).cable.name, installedCable.cable.name)
       const third = await makeRoute('C–D', c.id, d.id)
       const branch = await makeRoute('B–E', b.id, e.id)
@@ -186,6 +202,11 @@ test('route installation API stores physical instances, prevents invalid placeme
         { continueFromItemId: next.items.at(-1).id, parentId: thirdDoc.items.at(-1).id,
           slotIndex: null, version: thirdDoc.version }))
       assert.equal(thirdDoc.items.at(-1).runId, installedCable.runId)
+      const closing = await makeRoute('D-A', d.id, a.id)
+      const closingDoc = await addMicroductContainer(closing.id)
+      assert.equal((await add(closing.id,
+        { continueFromItemId: thirdDoc.items.at(-1).id, parentId: closingDoc.items.at(-1).id,
+          slotIndex: null, version: closingDoc.version })).status, 409)
       assert.equal((await request(`/route-installations/${second.id}/items/${next.items.at(-1).id}?version=${next.version}`,
         'DELETE')).status, 409)
       const branchDoc = await addMicroductContainer(branch.id)

@@ -226,6 +226,8 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     .filter(item => canPlaceItem(parent, document.items, item, selectedSlot)
       && installationFit(item, parent, selectedSlot,
         document.items.filter(other => other.parentId === parent?.id)) !== 'too-small')
+  const rootContinuations = installationContinuations(route, routes, documents)
+    .filter(item => canPlaceItem(null, document.items, item, null))
   const selectedCandidate = sourceMode === 'catalog'
     ? candidates.find(candidate => candidate.key === catalogKey) ?? null
     : continuations.find(item => item.id === continuationId) ?? null
@@ -316,6 +318,13 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     setAddOpen(true)
     requestAnimationFrame(() => formRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
   }
+  const openRootContinuation = () => {
+    chooseParent('')
+    setSourceMode('continuation')
+    setAddOpen(true)
+    setEditorOpen(true)
+    requestAnimationFrame(() => formRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+  }
   const submit = async (event: FormEvent) => {
     event.preventDefault()
     setSavedMessage('')
@@ -388,7 +397,9 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       : 'Prvek uchopte za tečky a pusťte ho na cílový prvek, volnou pozici sestavy nebo vedle ostatních do úseku. Tlačítko Přesunout… je také v detailu na kartě Schéma.'}</p>
     {loading ? <p className="installation-muted">Načítání osazení…</p> : <>
       {error && <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>}
-      {loadFailed ? null : roots.length === 0 ? <p className="installation-empty">Trasa je zatím prázdná. Tlačítkem Přidat prvek vložte první chráničku, mikrotrubičku nebo sestavu.</p>
+      {loadFailed ? null : roots.length === 0 ? <><p className="installation-empty">Trasa je zatím prázdná. Tlačítkem Přidat prvek vložte první chráničku, mikrotrubičku nebo sestavu.</p>
+        {rootContinuations.length > 0 && <button type="button" className="move-button" onClick={openRootContinuation}
+          disabled={!editable || busy}>Navázat osazení ze sousedního úseku</button>}</>
         : <><div className="installation-view-switch" role="group" aria-label="Zobrazení osazení">
           <button type="button" aria-pressed={view === 'diagram'} onClick={() => setView('diagram')}>Schéma</button>
           <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>Seznam prvků</button>
@@ -596,7 +607,9 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       </form>}
       {loading ? <p className="installation-muted">Načítání osazení…</p>
         : error ? <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>
-          : roots.length === 0 ? <p className="installation-empty">Úsek zatím nemá žádné uložené prvky. Přidejte první chráničku nebo mikrotrubičku.</p>
+          : roots.length === 0 ? <><p className="installation-empty">Úsek zatím nemá žádné uložené prvky. Přidejte první chráničku nebo mikrotrubičku.</p>
+              {rootContinuations.length > 0 && <button type="button" className="move-button" onClick={openRootContinuation}
+                disabled={!editable || busy}>Navázat osazení ze sousedního úseku</button>}</>
             : <><div className="installation-preview-list" aria-label="Hlavní prvky v úseku">
               {roots.slice(0, 4).map(root => <button type="button" className="installation-preview-item" key={root.id}
                 onClick={() => { selectItem(root); setFocusedParentId(root.id); setEditorOpen(true) }}>

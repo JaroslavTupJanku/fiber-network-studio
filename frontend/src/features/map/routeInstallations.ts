@@ -46,8 +46,40 @@ export function installationContinuations(route: UndergroundRoute, routes: Under
   const adjacent = new Set(routes.filter(item => item.id !== route.id && shareRouteEndpoint(route, item)).map(item => item.id))
   const usedRuns = new Set(documents.find(item => item.routeId === route.id)?.items.map(item => item.runId) ?? [])
   const seen = new Set<string>()
-  return documents.flatMap(document => document.items).filter(item => {
+  const allItems = documents.flatMap(document => document.items)
+  const runRoutesById = new Map<string, Set<string>>()
+  for (const item of allItems) {
+    if (!runRoutesById.has(item.runId)) runRoutesById.set(item.runId, new Set())
+    runRoutesById.get(item.runId)!.add(item.routeId)
+  }
+  const eligibility = new Map<string, boolean>()
+  const canExtend = (runId: string) => {
+    const runRouteIds = new Set(runRoutesById.get(runId))
+    runRouteIds.add(route.id)
+    const runRoutes = routes.filter(item => runRouteIds.has(item.id))
+    if (runRoutes.length !== runRouteIds.size) return false
+    const degree = new Map<string, number>()
+    for (const item of runRoutes) {
+      degree.set(item.startPointId, (degree.get(item.startPointId) ?? 0) + 1)
+      degree.set(item.endPointId, (degree.get(item.endPointId) ?? 0) + 1)
+    }
+    if ([...degree.values()].some(value => value > 2)
+      || [...degree.values()].filter(value => value === 1).length !== 2) return false
+    const reached = new Set<string>([runRoutes[0].id])
+    const pending = [runRoutes[0]]
+    while (pending.length) {
+      const current = pending.pop()!
+      for (const next of runRoutes) if (!reached.has(next.id) && shareRouteEndpoint(current, next)) {
+        reached.add(next.id)
+        pending.push(next)
+      }
+    }
+    return reached.size === runRoutes.length
+  }
+  return allItems.filter(item => {
     if (!adjacent.has(item.routeId) || usedRuns.has(item.runId) || seen.has(item.runId)) return false
+    if (!eligibility.has(item.runId)) eligibility.set(item.runId, canExtend(item.runId))
+    if (!eligibility.get(item.runId)) return false
     seen.add(item.runId)
     return true
   })
