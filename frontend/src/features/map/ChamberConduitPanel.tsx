@@ -23,8 +23,9 @@ export function ChamberConduitPanel({ pointId, routes, documents, onUpdated }: {
       grouped.set(item.runId, [...(grouped.get(item.runId) ?? []), item])
     }
   }
-  const through = [...grouped.entries()].filter(([, items]) => items.length === 2)
-  if (through.length === 0 && !notice && !error) return null
+  const conduitRuns = [...grouped.entries()].sort((a, b) => b[1].length - a[1].length)
+  const throughCount = conduitRuns.filter(([, items]) => items.length === 2).length
+  if (conduitRuns.length === 0 && !notice && !error) return null
 
   const split = async (item: InstalledItem) => {
     const version = documents.find(document => document.routeId === item.routeId)?.version
@@ -43,25 +44,29 @@ export function ChamberConduitPanel({ pointId, routes, documents, onUpdated }: {
     }
   }
 
-  return <section className="chamber-conduit-card" aria-label="Průchozí chráničky">
+  return <section className="chamber-conduit-card" aria-label="Chráničky v šachtě">
     <div className="chamber-conduit-heading"><Layers3 size={17} aria-hidden="true" />
-      <div><h2>Průchozí chráničky</h2><p>Rozdělení evidence potrubí v této šachtě</p></div>
-      {through.length > 0 && <strong>{through.length}</strong>}
+      <div><h2>Chráničky v šachtě</h2><p>Průchozí i končící v navazujících úsecích</p></div>
+      {conduitRuns.length > 0 && <strong>{conduitRuns.length}</strong>}
     </div>
-    {through.length > 0 && <>
+    {throughCount > 0 &&
       <p className="chamber-conduit-intro">Chránička může šachtou procházet dál. Rozdělte ji jen tehdy, když zde mají být evidovány dvě samostatné části.</p>
-      <div className="chamber-conduit-list">{through.map(([runId, items]) =>
+    }
+    {conduitRuns.length > 0 &&
+      <div className="chamber-conduit-list">{conduitRuns.map(([runId, items]) =>
         <div className="chamber-conduit-item" key={runId}>
           <div><strong>{items[0].label}</strong><small>{items.map(item => names.get(item.routeId) ?? 'Úsek').join(' · ')}</small></div>
-          {pendingRunId === runId ? <div className="chamber-conduit-confirm">
+          {items.length === 2 && pendingRunId === runId ? <div className="chamber-conduit-confirm">
             <span>Obsah chráničky (mikrotrubičky a kabely) se nezmění. Kabel můžete rozdělit zvlášť ve spojce.</span>
             <div><button type="button" className="move-button" onClick={() => setPendingRunId(null)}>Zpět</button>
               <button type="button" className="primary-button" disabled={busy} onClick={() => void split(items[0])}>
                 {busy ? 'Rozděluji…' : 'Potvrdit rozdělení'}</button></div>
-          </div> : <button type="button" className="move-button" disabled={busy}
-            onClick={() => { setPendingRunId(runId); setNotice(''); setError('') }}>Rozdělit chráničku</button>}
+          </div> : items.length === 2
+            ? <button type="button" className="move-button" disabled={busy}
+              onClick={() => { setPendingRunId(runId); setNotice(''); setError('') }}>Rozdělit chráničku</button>
+            : <span className="chamber-conduit-end">Končí v šachtě</span>}
         </div>)}</div>
-    </>}
+    }
     {notice && <p className="chamber-conduit-notice" role="status"><Check size={15} /> {notice}</p>}
     {error && <p className="form-error" role="alert">{error}</p>}
   </section>

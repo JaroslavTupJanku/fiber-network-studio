@@ -69,6 +69,7 @@
 .chamber-conduit-item > div:first-child { display: grid; gap: 3px; min-width: 0; }
 .chamber-conduit-item strong { color: #2a4f59; font-size: 12px; }
 .chamber-conduit-item small { color: #658086; font-size: 11px; }
+.chamber-conduit-end { padding: 5px 7px; border-radius: 5px; background: #edf4f2; color: #3d6d60; font-size: 11px; font-weight: 650; }
 .chamber-conduit-confirm { display: grid; gap: 8px; flex-basis: 100%; padding-top: 8px; border-top: 1px solid #e0e9eb; color: #59747a; font-size: 11px; line-height: 1.4; }
 .chamber-conduit-confirm > div { display: flex; justify-content: flex-end; gap: 7px; }
 .chamber-conduit-notice { display: flex; align-items: center; gap: 7px; margin: 0; color: #256653; font-size: 12px; }
