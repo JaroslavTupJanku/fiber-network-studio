@@ -32,6 +32,22 @@ public static class OpticalSpliceEndpoints
             };
         });
 
+        app.MapPost("/api/optical-splices/{pointId:guid}/split-cable", async (Guid pointId,
+            SplitInstalledRunRequest request, NetworkPointStore points, UndergroundRouteStore routes,
+            RouteInstallationStore installations) =>
+        {
+            if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind == "chamber"))
+                return Results.NotFound(new { error = "Kabel lze rozdělit jen v existující šachtě." });
+            var result = await installations.SplitCableRunAsync(pointId, request, await routes.ListAsync());
+            return result.Status switch
+            {
+                200 => Results.Ok(await installations.ListAsync()),
+                404 => Results.NotFound(new { error = result.Error }),
+                409 => Results.Conflict(new { error = result.Error }),
+                _ => Results.BadRequest(new { error = result.Error })
+            };
+        });
+
         app.MapDelete("/api/optical-splices/{pointId:guid}", async (Guid pointId,
             OpticalSpliceStore store) => await store.DeleteAsync(pointId)
                 ? Results.NoContent() : Results.NotFound());

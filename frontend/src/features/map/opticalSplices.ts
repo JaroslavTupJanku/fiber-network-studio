@@ -52,3 +52,10 @@ export async function saveOpticalSplice(document: OpticalSpliceDocument): Promis
 export async function deleteOpticalSplice(pointId: string): Promise<void> {
   await expectOk(await fetch(`/api/optical-splices/${pointId}`, { method: 'DELETE' }))
 }
+
+export async function splitCableAtChamber(pointId: string, itemId: string, version: number): Promise<RouteInstallationDocument[]> {
+  return (await expectOk(await fetch(`/api/optical-splices/${pointId}/split-cable`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ itemId, version }),
+  }))).json()
+}

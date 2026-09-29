@@ -12,6 +12,8 @@ public sealed record RouteInstallationDocument(Guid RouteId, int Version, List<I
 
 public sealed record AddInstalledItemRequest(Guid? CatalogId, Guid? ParentId, int? SlotIndex,
     string? Label, int Version, Guid? ContinueFromItemId);
+public sealed record GenerateMicroductsRequest(Guid CatalogId, int Version);
+public sealed record SplitInstalledRunRequest(Guid ItemId, int Version);
 
 public sealed record RenameInstalledItemRequest(string? Label, int Version);
 public sealed record MoveInstalledItemRequest(Guid? ParentId, int? SlotIndex, int Version);
@@ -55,6 +57,7 @@ public sealed class RouteInstallationStore(string path)
 
             var runId = Guid.NewGuid();
             var catalogId = request.CatalogId;
+            string? continuationLabel = null;
             if (request.ContinueFromItemId is Guid continuedId)
             {
                 var source = documents.SelectMany(document => document.Items)
@@ -70,11 +73,13 @@ public sealed class RouteInstallationStore(string path)
                 runRoutes.Add(route.Id);
                 if (!FormsSinglePath(runRoutes, routes))
                     return InstallationResult.Fail(409, "Pokračování by vytvořilo odbočku nebo nesouvislou cestu jednoho prvku.");
-                (duct, cable, catalogId, runId) = (source.Duct, source.Cable, source.CatalogId, source.RunId);
+                (duct, cable, catalogId, runId, continuationLabel) =
+                    (source.Duct, source.Cable, source.CatalogId, source.RunId, source.Label);
             }
             if (catalogId is null || (duct is null) == (cable is null))
                 return InstallationResult.Fail(400, "Vyberte existující typ chráničky, mikrotrubičky, sestavy nebo kabelu.");
-            var label = string.IsNullOrWhiteSpace(request.Label) ? duct?.Name ?? cable!.Name : request.Label.Trim();
+            var label = string.IsNullOrWhiteSpace(request.Label)
+                ? continuationLabel ?? duct?.Name ?? cable!.Name : request.Label.Trim();
             if (label.Length is < 1 or > 80) return InstallationResult.Fail(400, "Označení prvku musí mít 1 až 80 znaků.");
             var placementError = ValidatePlacement(current.Items, request.ParentId, request.SlotIndex, duct, cable);
             if (placementError is not null) return InstallationResult.Fail(409, placementError);
@@ -86,6 +91,123 @@ public sealed class RouteInstallationStore(string path)
             documents.Add(updated);
             await WriteAsync(documents);
             return InstallationResult.Ok(updated);
+        }
+        finally { gate.Release(); }
+    }
+
+    public async Task<InstallationResult> GenerateMicroductsAsync(Guid routeId, Guid assemblyId,
+        GenerateMicroductsRequest request, DuctType? microduct)
+    {
+        await gate.WaitAsync();
+        try
+        {
+            var documents = await ReadAsync();
+            var current = documents.Find(document => document.RouteId == routeId);
+            if (current is null) return InstallationResult.Fail(404, "Osazení trasy neexistuje.");
+            if (current.Version != request.Version)
+                return InstallationResult.Fail(409, "Osazení mezitím změnil jiný uživatel. Načtěte trasu znovu.");
+            var assembly = current.Items.Find(item => item.Id == assemblyId);
+            if (assembly?.Duct?.Kind != "assembly")
+                return InstallationResult.Fail(404, "Vybraná sestava neexistuje.");
+            if (microduct?.Kind != "microduct")
+                return InstallationResult.Fail(400, "Vyberte typ mikrotrubičky z katalogu.");
+
+            var items = current.Items.ToList();
+            var generated = 0;
+            for (var index = 0; index < assembly.Duct.Slots.Length; index++)
+            {
+                var slot = assembly.Duct.Slots[index];
+                if (slot.Kind != "microduct" || items.Any(item => item.ParentId == assemblyId && item.SlotIndex == index))
+                    continue;
+                var placementError = ValidatePlacement(items, assemblyId, index, microduct, null);
+                if (placementError is not null)
+                    return InstallationResult.Fail(409, $"Pozice {index + 1}: {placementError}");
+                var productType = !string.IsNullOrWhiteSpace(microduct.Manufacturer)
+                    || !string.IsNullOrWhiteSpace(microduct.Model);
+                if (productType && !string.Equals(slot.Color, microduct.Color, StringComparison.OrdinalIgnoreCase))
+                    return InstallationResult.Fail(409,
+                        $"Pozice {index + 1}: Barva neodpovídá vybranému výrobkovému typu mikrotrubičky.");
+                var label = slot.Name?.StartsWith("Pozice ", StringComparison.OrdinalIgnoreCase) == true
+                    ? $"Mikrotrubička {index + 1}" : slot.Name ?? $"Mikrotrubička {index + 1}";
+                items.Add(new InstalledItem(Guid.NewGuid(), routeId, assemblyId, index, label,
+                    microduct.Id, Guid.NewGuid(), microduct with { Color = productType ? microduct.Color : slot.Color ?? microduct.Color }, null));
+                generated++;
+            }
+            if (generated == 0)
+                return InstallationResult.Fail(409, "Sestava nemá volné pozice pro mikrotrubičky.");
+            var updated = current with { Version = current.Version + 1, Items = items };
+            documents[documents.IndexOf(current)] = updated;
+            await WriteAsync(documents);
+            return InstallationResult.Ok(updated);
+        }
+        finally { gate.Release(); }
+    }
+
+    public Task<InstallationResult> SplitCableRunAsync(Guid pointId, SplitInstalledRunRequest request,
+        IReadOnlyList<UndergroundRoute> routes) =>
+        SplitRunAsync(pointId, request, routes, item => item.Cable is not null, "Kabel");
+
+    public Task<InstallationResult> SplitConduitRunAsync(Guid pointId, SplitInstalledRunRequest request,
+        IReadOnlyList<UndergroundRoute> routes) =>
+        SplitRunAsync(pointId, request, routes, item => item.Duct?.Kind == "conduit", "Chránička");
+
+    private async Task<InstallationResult> SplitRunAsync(Guid pointId, SplitInstalledRunRequest request,
+        IReadOnlyList<UndergroundRoute> routes, Func<InstalledItem, bool> matchesKind, string itemName)
+    {
+        await gate.WaitAsync();
+        try
+        {
+            var documents = await ReadAsync();
+            var source = documents.SelectMany(document => document.Items)
+                .FirstOrDefault(item => item.Id == request.ItemId);
+            if (source is null || !matchesKind(source))
+                return InstallationResult.Fail(404, $"Průchozí {itemName.ToLowerInvariant()} neexistuje.");
+            var current = documents.Find(document => document.RouteId == source.RouteId)!;
+            if (current.Version != request.Version)
+                return InstallationResult.Fail(409, "Osazení mezitím změnil jiný uživatel. Načtěte trasu znovu.");
+            var runRouteIds = documents.SelectMany(document => document.Items)
+                .Where(item => item.RunId == source.RunId).Select(item => item.RouteId).ToHashSet();
+            if (!FormsSinglePath(runRouteIds, routes))
+                return InstallationResult.Fail(409, $"{itemName} nemá souvislý průběh, který lze bezpečně rozdělit.");
+            var runRoutes = routes.Where(route => runRouteIds.Contains(route.Id)).ToArray();
+            var incident = runRoutes.Where(route => route.StartPointId == pointId || route.EndPointId == pointId).ToArray();
+            if (incident.Length != 2 || !incident.Any(route => route.Id == source.RouteId))
+                return InstallationResult.Fail(409, $"V této šachtě musí {itemName.ToLowerInvariant()} procházet přesně dvěma úseky.");
+
+            var separated = new HashSet<Guid> { source.RouteId };
+            var pending = new Queue<UndergroundRoute>();
+            pending.Enqueue(runRoutes.First(route => route.Id == source.RouteId));
+            while (pending.TryDequeue(out var segment))
+            {
+                var accessiblePoints = new[] { segment.StartPointId, segment.EndPointId }
+                    .Where(id => id != pointId).ToHashSet();
+                foreach (var next in runRoutes.Where(route => !separated.Contains(route.Id)
+                    && (accessiblePoints.Contains(route.StartPointId) || accessiblePoints.Contains(route.EndPointId))))
+                {
+                    separated.Add(next.Id);
+                    pending.Enqueue(next);
+                }
+            }
+            if (separated.Count == runRouteIds.Count || !FormsSinglePath(separated, routes)
+                || !FormsSinglePath(runRouteIds.Except(separated).ToHashSet(), routes))
+                return InstallationResult.Fail(409, "Vedení nelze v tomto bodě rozdělit na dvě souvislé části.");
+
+            var newRunId = Guid.NewGuid();
+            for (var index = 0; index < documents.Count; index++)
+            {
+                var document = documents[index];
+                if (!separated.Contains(document.RouteId)) continue;
+                var changed = false;
+                var items = document.Items.Select(item =>
+                {
+                    if (item.RunId != source.RunId) return item;
+                    changed = true;
+                    return item with { RunId = newRunId };
+                }).ToList();
+                if (changed) documents[index] = document with { Version = document.Version + 1, Items = items };
+            }
+            await WriteAsync(documents);
+            return InstallationResult.Ok(documents.First(document => document.RouteId == source.RouteId));
         }
         finally { gate.Release(); }
     }
@@ -212,7 +334,7 @@ public sealed class RouteInstallationStore(string path)
                 seen.Add(next.Id);
                 queue.Enqueue(next);
             }
-        return seen.Count == selected.Length;
+        return seen.Count == selected.Length && degree.Values.Count(value => value == 1) == 2;
     }
 
     private static string? ValidatePlacement(List<InstalledItem> items, Guid? parentId, int? slotIndex,

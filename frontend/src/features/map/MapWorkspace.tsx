@@ -3,6 +3,7 @@ import { Cable, CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, Pane
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
+import { ChamberConduitPanel } from './ChamberConduitPanel'
 import { listOpticalSplices, type OpticalSpliceDocument } from './opticalSplices'
 import { installationSummary } from './routeInstallations'
 import { useRouteInstallations } from './useRouteInstallations'
@@ -34,6 +35,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
   const [mapHoveredPointId, setMapHoveredPointId] = useState<string | null>(null)
   const [mapHoveredRouteId, setMapHoveredRouteId] = useState<string | null>(null)
   const [routeFocusRequest, setRouteFocusRequest] = useState<{ id: string, sequence: number } | null>(null)
+  const [pointFocusRequest, setPointFocusRequest] = useState<{ id: string, sequence: number } | null>(null)
   useEffect(() => {
     if (!active) return
     const frame = requestAnimationFrame(() => window.dispatchEvent(new Event('resize')))
@@ -87,6 +89,11 @@ export function MapWorkspace({ active }: { active: boolean }) {
     setPanelOpen(true)
     handleRouteSelect(id)
   }
+  const beginRouteContinuation = (pointId: string) => {
+    const started = route.continueFrom(pointId)
+    selectRouteTab('route')
+    if (started) setPointFocusRequest(current => ({ id: pointId, sequence: (current?.sequence ?? 0) + 1 }))
+  }
   const handleRouteTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (route.drawing || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
     event.preventDefault()
@@ -109,8 +116,10 @@ export function MapWorkspace({ active }: { active: boolean }) {
           hoveredRouteId={mapHoveredRouteId ?? listHoveredRouteId}
           onMapRouteHoverChange={setMapHoveredRouteId}
           routeFocusRequest={routeFocusRequest}
+          pointFocusRequest={pointFocusRequest}
           routeDraft={route.preview}
           drawingRoute={route.drawing}
+          routeError={route.error}
           onRouteToolChange={() => { selectRouteTab('route'); handleRouteToolChange() }}
           onRouteSelect={selectSavedRoute}
           onRouteWaypointMove={route.moveWaypoint}
@@ -186,7 +195,13 @@ export function MapWorkspace({ active }: { active: boolean }) {
         )}
 
         {selectedSavedRoute && <>
-          <div className="route-tab-context">{pointName(selectedSavedRoute.startPointId)} → {pointName(selectedSavedRoute.endPointId)}</div>
+          <div className="route-tab-context">
+            <span>{pointName(selectedSavedRoute.startPointId)} → {pointName(selectedSavedRoute.endPointId)}</span>
+            {!route.drawing && <button type="button" className="route-continue-quick" disabled={route.saving}
+              onClick={() => beginRouteContinuation(selectedSavedRoute.endPointId)}>
+              <RouteIcon size={14} /> Navázat od konce
+            </button>}
+          </div>
           <div className="route-detail-tabs" role="tablist" aria-label="Detail podzemní trasy" onKeyDown={handleRouteTabKeyDown}>
             <button type="button" id="route-tab-installations" role="tab" aria-controls="route-panel-installations"
               aria-selected={activeRouteTab === 'installations'} tabIndex={activeRouteTab === 'installations' ? 0 : -1}
@@ -209,7 +224,11 @@ export function MapWorkspace({ active }: { active: boolean }) {
           <form className="point-form route-form" onSubmit={route.save}>
             {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
-              ? 'Začátek a konec vyberte níže nebo kliknutím na objekty v mapě. Tvar trasy upravte klikáním do mapy. Pak stiskněte Dokončit.'
+              ? routeDraft.endPointId
+                ? 'Konec úseku je vybraný. Dokončete kreslení, pojmenujte a uložte úsek. Konec případně změníte v poli níže. Po uložení můžete na záložce Osazení navázat chráničky, mikrotrubičky a kabely ze sousedního úseku.'
+                : routeDraft.startPointId
+                ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další budovu nebo šachtu v mapě; kliknutím mimo objekty přidáte jen ohyb čáry.`
+                : 'Klikněte na výchozí budovu nebo šachtu v mapě. Konec můžete vybrat i v polích níže.'
               : routeDraft.id
                 ? 'Čára v mapě ukazuje průběh podzemního vedení mezi dvěma body. Chráničky a kabely najdete na záložce Osazení; svary patří do spojky v šachtě.'
                 : 'Trasa spojuje dva body sítě. Nejdřív ji uložte, potom do ní můžete vložit chráničky a kabely.'}</p>
@@ -231,6 +250,20 @@ export function MapWorkspace({ active }: { active: boolean }) {
             </div> : <div className="route-endpoints">
               <span><strong>Od</strong>{pointName(routeDraft.startPointId)}</span>
               <span><strong>Do</strong>{pointName(routeDraft.endPointId)}</span>
+            </div>}
+            {selectedSavedRoute && !route.drawing && <div className="route-continuation">
+              <strong>Navázat další úsek</strong>
+              <p>Každý úsek spojuje dva objekty. Chcete-li vést trasu přes šachtu dál, začněte nový úsek z jejího bodu. Osazení nového úseku pak navážete zvlášť.</p>
+              <div className="route-continuation-actions">
+                <button type="button" className="move-button" disabled={route.saving}
+                  onClick={() => beginRouteContinuation(selectedSavedRoute.startPointId)}>
+                  <RouteIcon size={15} /> Od: {pointName(selectedSavedRoute.startPointId)}
+                </button>
+                <button type="button" className="move-button" disabled={route.saving}
+                  onClick={() => beginRouteContinuation(selectedSavedRoute.endPointId)}>
+                  <RouteIcon size={15} /> Od: {pointName(selectedSavedRoute.endPointId)}
+                </button>
+              </div>
             </div>}
             {routeLength !== null && <p className="route-length">Přibližná délka z mapy: <strong>{Math.round(routeLength).toLocaleString('cs-CZ')} m</strong><small>Není to délka instalovaného kabelu.</small></p>}
             {route.drawing && <>
@@ -276,6 +309,9 @@ export function MapWorkspace({ active }: { active: boolean }) {
               setMoving((value) => !value)
               setActiveTool(null)
             }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Klikněte na nové místo' : 'Změnit polohu kliknutím'}</button>
+            {editor.id && editor.kind === 'chamber' && <ChamberConduitPanel key={editor.id}
+              pointId={editor.id} routes={route.routes} documents={installations.documents}
+              onUpdated={installations.replaceDocuments} onOpenRoute={selectSavedRoute} />}
             {editor.id && editor.kind === 'chamber' && <section className="chamber-splice-card" aria-labelledby="chamber-splice-heading">
               <div className="chamber-splice-heading">
                 <span className="chamber-splice-icon"><Cable size={17} aria-hidden="true" /></span>
@@ -348,7 +384,8 @@ export function MapWorkspace({ active }: { active: boolean }) {
       </aside>
       {spliceOpen && editor?.id && editor.kind === 'chamber' && <OpticalSpliceEditor key={editor.id}
         pointId={editor.id} pointName={editor.name} routes={route.routes}
-        installations={installations.documents} onClose={() => setSpliceOpen(false)}
+        installations={installations.documents} onInstallationsUpdated={installations.replaceDocuments}
+        onClose={() => setSpliceOpen(false)}
         onSaved={document => setSplices(current => [...current.filter(item => item.pointId !== document.pointId), document])}
         onDeleted={pointId => setSplices(current => current.filter(item => item.pointId !== pointId))} />}
     </main>

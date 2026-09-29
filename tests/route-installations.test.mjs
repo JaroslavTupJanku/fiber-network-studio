@@ -45,6 +45,21 @@ test('installation preview distinguishes occupied positions and unknown dimensio
     [{ routeId: 'b', items: [cable] }]), [cable])
 })
 
+test('continuation offers only a free end of one physical run', () => {
+  const ab = { id: 'ab', startPointId: 'a', endPointId: 'b' }
+  const bc = { id: 'bc', startPointId: 'b', endPointId: 'c' }
+  const cd = { id: 'cd', startPointId: 'c', endPointId: 'd' }
+  const be = { id: 'be', startPointId: 'b', endPointId: 'e' }
+  const da = { id: 'da', startPointId: 'd', endPointId: 'a' }
+  const de = { id: 'de', startPointId: 'd', endPointId: 'e' }
+  const routes = [ab, bc, cd, be, da, de]
+  const documents = [ab, bc, cd].map(route => ({ routeId: route.id,
+    items: [{ id: route.id, routeId: route.id, runId: 'run', duct: { kind: 'microduct' }, cable: null }] }))
+  assert.deepEqual(installationContinuations(be, routes, documents), [])
+  assert.deepEqual(installationContinuations(da, routes, documents), [])
+  assert.deepEqual(installationContinuations(de, routes, documents).map(item => item.id), ['cd'])
+})
+
 test('route installation API stores physical instances, prevents invalid placement and preserves catalog snapshots',
   { timeout: 50000 }, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'fiber-installations-test-'))
@@ -132,7 +147,7 @@ test('route installation API stores physical instances, prevents invalid placeme
       assert.equal((await add(first.id,
         { catalogId: thickCable.id, parentId: inner.id, slotIndex: null, version: doc.version })).status, 409)
       doc = await body(await add(first.id,
-        { catalogId: cable.id, parentId: inner.id, slotIndex: null, version: doc.version }))
+        { catalogId: cable.id, parentId: inner.id, slotIndex: null, label: 'KABEL-01', version: doc.version }))
       const installedCable = doc.items.at(-1)
       assert.equal((await add(first.id,
         { catalogId: cable.id, parentId: inner.id, slotIndex: null, version: doc.version })).status, 409)
@@ -170,6 +185,7 @@ test('route installation API stores physical instances, prevents invalid placeme
       next = await body(await add(second.id,
         { continueFromItemId: installedCable.id, parentId: secondInner.id, slotIndex: null, version: next.version }))
       assert.equal(next.items.at(-1).runId, installedCable.runId)
+      assert.equal(next.items.at(-1).label, installedCable.label)
       assert.equal(next.items.at(-1).cable.name, installedCable.cable.name)
       const third = await makeRoute('C–D', c.id, d.id)
       const branch = await makeRoute('B–E', b.id, e.id)
@@ -186,6 +202,11 @@ test('route installation API stores physical instances, prevents invalid placeme
         { continueFromItemId: next.items.at(-1).id, parentId: thirdDoc.items.at(-1).id,
           slotIndex: null, version: thirdDoc.version }))
       assert.equal(thirdDoc.items.at(-1).runId, installedCable.runId)
+      const closing = await makeRoute('D-A', d.id, a.id)
+      const closingDoc = await addMicroductContainer(closing.id)
+      assert.equal((await add(closing.id,
+        { continueFromItemId: thirdDoc.items.at(-1).id, parentId: closingDoc.items.at(-1).id,
+          slotIndex: null, version: closingDoc.version })).status, 409)
       assert.equal((await request(`/route-installations/${second.id}/items/${next.items.at(-1).id}?version=${next.version}`,
         'DELETE')).status, 409)
       const branchDoc = await addMicroductContainer(branch.id)
@@ -206,6 +227,35 @@ test('route installation API stores physical instances, prevents invalid placeme
       const nested = await body(await add(separate.id,
         { catalogId: microduct.id, parentId: placed.items.at(-1).id, slotIndex: null, version: placed.version }))
 
+      const microductAssembly = await body(await request('/duct-catalog', 'POST', {
+        ...assembly, name: 'Dvě barevné mikrotrubičky', rows: 1, columns: 2, isPreset: false, version: 0,
+        slots: [
+          { name: 'Modrá', kind: 'microduct', color: '#256f9e', outerDiameterMm: null, innerDiameterMm: 8 },
+          { name: 'Červená', kind: 'microduct', color: '#cb493e', outerDiameterMm: null, innerDiameterMm: 8 },
+        ],
+      }))
+      let microductGroup = await body(await add(separate.id,
+        { catalogId: microductAssembly.id, parentId: null, slotIndex: null, version: nested.version }))
+      const groupId = microductGroup.items.at(-1).id
+      const generatePath = `/route-installations/${separate.id}/items/${groupId}/generate-microducts`
+      assert.equal((await request(generatePath, 'POST',
+        { catalogId: microduct.id, version: nested.version })).status, 409)
+      assert.equal((await request(generatePath, 'POST',
+        { catalogId: microduct.id, version: microductGroup.version })).status, 409)
+      assert.equal((await body(await request('/route-installations')))
+        .find(item => item.routeId === separate.id).version, microductGroup.version)
+      const genericMicroduct = ducts.find(item => item.kind === 'microduct' && !item.manufacturer)
+      microductGroup = await body(await request(generatePath, 'POST',
+        { catalogId: genericMicroduct.id, version: microductGroup.version }))
+      const generated = microductGroup.items.filter(item => item.parentId === groupId)
+      assert.equal(generated.length, 2)
+      assert.deepEqual(generated.map(item => item.slotIndex), [0, 1])
+      assert.deepEqual(generated.map(item => item.label), ['Modrá', 'Červená'])
+      assert.deepEqual(generated.map(item => item.duct.color), ['#256f9e', '#cb493e'])
+      assert.equal(new Set(generated.map(item => item.runId)).size, 2)
+      assert.equal((await request(generatePath, 'POST',
+        { catalogId: microduct.id, version: microductGroup.version })).status, 409)
+
       await stop()
       await start()
       const persisted = await body(await request('/route-installations'))
@@ -218,9 +268,9 @@ test('route installation API stores physical instances, prevents invalid placeme
       assert.equal((await request(`/route-installations/${second.id}/items/${secondRoot.id}?version=${next.version}`,
         'DELETE')).status, 409)
       const removedAssembly = await body(await request(
-        `/route-installations/${separate.id}/items/${assemblyRoot.id}?version=${nested.version}`, 'DELETE'))
-      assert.equal(removedAssembly.items.length, 0)
-      assert.equal(removedAssembly.version, nested.version + 1)
+        `/route-installations/${separate.id}/items/${assemblyRoot.id}?version=${microductGroup.version}`, 'DELETE'))
+      assert.equal(removedAssembly.items.filter(item => item.parentId === groupId).length, 2)
+      assert.equal(removedAssembly.version, microductGroup.version + 1)
     } finally {
       await stop()
       await rm(directory, { recursive: true, force: true })

@@ -7,6 +7,7 @@ export const POINT_SOURCE_ID = 'network-points'
 export const POINT_LAYER_ID = 'network-point-dots'
 export const SELECTED_LAYER_ID = 'network-point-selected'
 export const HOVERED_POINT_LAYER_ID = 'network-point-hovered'
+export const ROUTE_ENDPOINT_LAYER_ID = 'network-point-route-endpoint'
 export const PARCEL_SOURCE_ID = 'selected-parcel'
 export const PARCEL_FILL_LAYER_ID = 'selected-parcel-fill'
 export const ROUTE_SOURCE_ID = 'underground-routes'
@@ -128,6 +129,18 @@ export function initializeMapLayers(map: Map) {
       'circle-color': 'rgba(0, 0, 0, 0)',
       'circle-stroke-color': '#f0b344',
       'circle-stroke-width': 4,
+    },
+  })
+  map.addLayer({
+    id: ROUTE_ENDPOINT_LAYER_ID,
+    type: 'circle',
+    source: POINT_SOURCE_ID,
+    filter: ['in', ['get', 'id'], ['literal', []]],
+    paint: {
+      'circle-radius': 14,
+      'circle-color': 'rgba(0, 0, 0, 0)',
+      'circle-stroke-color': '#de8a39',
+      'circle-stroke-width': 3,
     },
   })
   map.addLayer({

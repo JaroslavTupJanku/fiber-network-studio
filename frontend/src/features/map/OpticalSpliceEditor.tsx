@@ -4,7 +4,7 @@ import { Cable, Check, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react'
 import type { InstalledItem, RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
 import { deleteOpticalSplice, fiberEndKey, loadOpticalSplice, saveOpticalSplice,
-  spliceCableEnds, spliceIncidentCables, type FiberEnd, type OpticalSpliceDocument } from './opticalSplices'
+  splitCableAtChamber, spliceCableEnds, spliceIncidentCables, type FiberEnd, type OpticalSpliceDocument } from './opticalSplices'
 
 function FiberPicker({ label, cables, value, onChange, occupied, cableLabel }: {
   label: string; cables: InstalledItem[]; value: FiberEnd | null
@@ -47,9 +47,11 @@ function FiberPicker({ label, cables, value, onChange, occupied, cableLabel }: {
   </div>
 }
 
-export function OpticalSpliceEditor({ pointId, pointName, routes, installations, onClose, onSaved, onDeleted }: {
+export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
+  onInstallationsUpdated, onClose, onSaved, onDeleted }: {
   pointId: string; pointName: string; routes: UndergroundRoute[]
-  installations: RouteInstallationDocument[]; onClose: () => void
+  installations: RouteInstallationDocument[]; onInstallationsUpdated: (documents: RouteInstallationDocument[]) => void
+  onClose: () => void
   onSaved: (document: OpticalSpliceDocument) => void; onDeleted: (pointId: string) => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
@@ -61,10 +63,17 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
   const [left, setLeft] = useState<FiberEnd | null>(null)
   const [right, setRight] = useState<FiberEnd | null>(null)
   const [kind, setKind] = useState<'fusion' | 'connector'>('fusion')
+  const [splitPendingRunId, setSplitPendingRunId] = useState<string | null>(null)
+  const [splitNotice, setSplitNotice] = useState('')
   const cables = useMemo(() => spliceCableEnds(pointId, routes, installations), [pointId, routes, installations])
+  const incidentCables = useMemo(() => spliceIncidentCables(pointId, routes, installations),
+    [pointId, routes, installations])
+  const incidentByRun = new Map<string, InstalledItem[]>()
+  for (const item of incidentCables) incidentByRun.set(item.runId, [...(incidentByRun.get(item.runId) ?? []), item])
+  const throughRuns = [...incidentByRun.entries()].filter(([, items]) => items.length === 2)
   const reserveIds = new Set(document?.reserves.map(reserve => reserve.itemId) ?? [])
   const reserveRuns = new Map<string, InstalledItem>()
-  for (const item of spliceIncidentCables(pointId, routes, installations)) {
+  for (const item of incidentCables) {
     if (!reserveRuns.has(item.runId) || reserveIds.has(item.id)) reserveRuns.set(item.runId, item)
   }
   const reserveCables = [...reserveRuns.values()]
@@ -111,6 +120,18 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
       { id: crypto.randomUUID(), left, right, kind }] })
     setLeft(null); setRight(null); setError(''); setSaved(false)
   }
+  const splitCable = async (item: InstalledItem) => {
+    const version = installations.find(document => document.routeId === item.routeId)?.version
+    if (version === undefined || busy) return
+    setBusy(true); setError(''); setSplitNotice('')
+    try {
+      const updated = await splitCableAtChamber(pointId, item.id, version)
+      onInstallationsUpdated(updated)
+      setSplitPendingRunId(null)
+      setSplitNotice('Kabel je v této šachtě rozdělený. Níže můžete vybrat jeho dva konce a spojit vlákna.')
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Kabel se nepodařilo rozdělit.') }
+    finally { setBusy(false) }
+  }
   const save = async () => {
     if (!document || busy) return
     setBusy(true); setError('')
@@ -137,11 +158,28 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
         <div className="splice-editor-intro"><label>Název spojky<input maxLength={80} value={document.name}
           placeholder={`Např. spojka v ${pointName}`} onChange={event => {
             setDocument({ ...document, name: event.target.value }); setSaved(false)
-          }} /></label><p>Spojte konkrétní vlákna kabelů přivedených do této šachty. Tuba je uvnitř kabelu, svar uvnitř spojky. Průběžný kabel bez odbočky už navazuje mezi úseky; odbočení z jeho vláken zatím tento editor neumí.</p></div>
+          }} /></label><p>Spojte konkrétní vlákna kabelů přivedených do této šachty. Tuba je uvnitř kabelu, svar uvnitř spojky. Průchozí kabel nejdřív rozdělte na dva konce; teprve potom vyberte vlákna ke spojení.</p></div>
         <div className="splice-editor-stats"><span><strong>{cables.length}</strong> konců kabelů</span>
           <span><strong>{document.connections.length}</strong> spojů</span>
           <span><strong>{cables.reduce((sum, item) => sum + (item.cable?.tubes.reduce((count, tube) => count + tube.fibers.length, 0) ?? 0), 0) - occupied.size}</strong> volných vláken</span></div>
-        {cables.length < 2 ? <p className="splice-empty">Ke spojování přiveďte do šachty alespoň dva samostatné kabelové běhy v navazujících úsecích a osaďte je kabely.</p> : <section className="splice-connection-form" aria-label="Přidat propojení">
+        {throughRuns.length > 0 && <section className="splice-through-runs" aria-label="Průchozí kabely">
+          <h3>Průchozí kabely v šachtě</h3>
+          <p>Kabel vede přes tuto šachtu bez ukončení. Chcete-li jeho vlákna spojovat nebo odbočit, rozdělte jej zde na dva konce.</p>
+          <div className="splice-through-list">{throughRuns.map(([runId, items]) => <div className="splice-through-item" key={runId}>
+            <div><strong>{items[0].label}</strong><small>{items.map(item => routeNames.get(item.routeId) ?? 'Úsek').join(' · ')}</small></div>
+            {splitPendingRunId === runId ? <div className="splice-split-confirm">
+              <span>Vzniknou dva samostatně evidované konce kabelu. Chránička se tímto krokem nemění; rozdělit ji můžete v detailu šachty.</span>
+              <div><button type="button" className="move-button" onClick={() => setSplitPendingRunId(null)}>Zpět</button>
+                <button type="button" className="primary-button" disabled={busy} onClick={() => void splitCable(items[0])}>
+                  {busy ? 'Rozděluji…' : 'Potvrdit rozdělení'}</button></div>
+            </div> : <button type="button" className="move-button" disabled={busy}
+              onClick={() => setSplitPendingRunId(runId)}>Rozdělit kabel</button>}
+          </div>)}</div>
+        </section>}
+        {splitNotice && <p className="installation-saved" role="status"><Check size={15} /> {splitNotice}</p>}
+        {cables.length < 2 ? throughRuns.length === 0
+          ? <p className="splice-empty">Ke spojování potřebujete dva dostupné konce kabelů. Přiveďte do šachty další kabel.</p>
+          : null : <section className="splice-connection-form" aria-label="Přidat propojení">
           <h3>Nové propojení</h3><div className="splice-pickers">
             <FiberPicker label="První konec" cables={cables} value={left} onChange={setLeft} occupied={occupied} cableLabel={cableLabel} />
             <FiberPicker label="Druhý konec" cables={cables} value={right} onChange={setRight} occupied={occupied} cableLabel={cableLabel} />

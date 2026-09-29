@@ -45,6 +45,30 @@ public static class RouteInstallationEndpoints
             RenameInstalledItemRequest request, RouteInstallationStore store) =>
             ToResult(await store.RenameAsync(routeId, itemId, request)));
 
+        group.MapPost("/{routeId:guid}/items/{itemId:guid}/generate-microducts", async (Guid routeId,
+            Guid itemId, GenerateMicroductsRequest request, RouteInstallationStore store,
+            DuctCatalogStore ductStore) =>
+        {
+            var microduct = (await ductStore.ListAsync()).FirstOrDefault(item => item.Id == request.CatalogId);
+            return ToResult(await store.GenerateMicroductsAsync(routeId, itemId, request, microduct));
+        });
+
+        group.MapPost("/chambers/{pointId:guid}/split-conduit", async (Guid pointId,
+            SplitInstalledRunRequest request, NetworkPointStore points, UndergroundRouteStore routes,
+            RouteInstallationStore store) =>
+        {
+            if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind == "chamber"))
+                return Results.NotFound(new { error = "Chráničku lze rozdělit jen v existující šachtě." });
+            var result = await store.SplitConduitRunAsync(pointId, request, await routes.ListAsync());
+            return result.Status switch
+            {
+                200 => Results.Ok(await store.ListAsync()),
+                404 => Results.NotFound(new { error = result.Error }),
+                409 => Results.Conflict(new { error = result.Error }),
+                _ => Results.BadRequest(new { error = result.Error })
+            };
+        });
+
         group.MapPut("/{routeId:guid}/items/{itemId:guid}/placement", async (Guid routeId, Guid itemId,
             MoveInstalledItemRequest request, RouteInstallationStore store) =>
             ToResult(await store.MoveAsync(routeId, itemId, request)));
