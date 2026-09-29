@@ -85,6 +85,7 @@ export function OpticalBudgetPage({ incoming, onIncomingHandled }: {
         <p className="ob-muted">Konektorový spoj je jeden spojený pár konektorů. U splitteru zadejte ztrátu konkrétní vstupní–výstupní cesty z technického listu, nikoli počet jeho výstupů.</p>
         {scenario.elements.length === 0 && <p className="ob-empty">Zatím žádné prvky. Pokud jsou na cestě svary, konektorové spoje nebo splittery, přidejte je sem.</p>}
         {scenario.elements.map((row, i) => <article className="ob-row" key={row.id}><div className="ob-row-heading"><strong>Prvek {i + 1}</strong><button className="ob-remove" aria-label={`Odebrat prvek ${i + 1}`} onClick={() => remove('elements', row.id)}><Trash2 size={16} /></button></div>
+          {row.source && <p className="ob-source">Zdroj hodnot: {row.source}</p>}
           <div className="ob-fields"><label>Typ prvku<select aria-label={`Typ prvku ${i + 1}`} value={row.kind} onChange={event => patchElement(row.id, { kind: event.target.value as Element['kind'] })}>{Object.entries(kinds).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
             <label>Označení<input aria-label={`Označení prvku ${i + 1}`} maxLength={200} placeholder="Nepovinné" value={row.name} onChange={event => patchElement(row.id, { name: event.target.value })} /></label></div>
           <div className="ob-fields"><NumberField label={`Počet prvků ${i + 1}`} unit="ks" value={row.count} onChange={count => patchElement(row.id, { count })} />

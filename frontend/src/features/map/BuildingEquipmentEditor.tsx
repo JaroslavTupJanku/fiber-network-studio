@@ -29,6 +29,10 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
   const [portCount, setPortCount] = useState(8)
   const [portQuery, setPortQuery] = useState('')
   const [path, setPath] = useState<OpticalPath | null>(null)
+  const [branchSelections, setBranchSelections] = useState<Record<string, number>>({})
+  const select = (next: Selection) => {
+    setSelection(next); setPath(null); setBranchSelections({}); onTrace(null)
+  }
   const cables = useMemo(() => spliceCableEnds(pointId, routes, installations), [pointId, routes, installations])
   useEffect(() => {
     const dialog = dialogRef.current
@@ -43,7 +47,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
     return () => { live = false }
   }, [pointId])
   const update = (next: BuildingEquipmentDocument) => {
-    setDraft(next); setDirty(true); setSaved(false); setPath(null); onTrace(null); setError('')
+    setDraft(next); setDirty(true); setSaved(false); setPath(null); setBranchSelections({}); onTrace(null); setError('')
   }
   const close = () => {
     if (!dirty || window.confirm('Zavřít editor a zahodit neuložené změny?')) onClose()
@@ -74,17 +78,17 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
   const addRack = () => {
     if (!draft) return
     const rack = { id: id(), name: `ODF/OLT stojan ${draft.racks.length + 1}` }
-    update({ ...draft, racks: [...draft.racks, rack] }); setSelection({ kind: 'rack', id: rack.id })
+    update({ ...draft, racks: [...draft.racks, rack] }); select({ kind: 'rack', id: rack.id })
   }
   const addShelf = (rackId: string, kind: 'odf' | 'olt') => {
     if (!draft) return
     const shelf = { id: id(), rackId, kind, name: `Police ${draft.shelves.filter(item => item.rackId === rackId && item.kind === kind).length + 1}` }
-    update({ ...draft, shelves: [...draft.shelves, shelf] }); setSelection({ kind: 'shelf', id: shelf.id })
+    update({ ...draft, shelves: [...draft.shelves, shelf] }); select({ kind: 'shelf', id: shelf.id })
   }
   const addCard = (shelfId: string) => {
     if (!draft) return
     const card = { id: id(), shelfId, name: `Karta ${draft.cards.filter(item => item.shelfId === shelfId).length + 1}` }
-    update({ ...draft, cards: [...draft.cards, card] }); setSelection({ kind: 'card', id: card.id })
+    update({ ...draft, cards: [...draft.cards, card] }); select({ kind: 'card', id: card.id })
   }
   const addPorts = (parentId: string) => {
     if (!draft || !Number.isInteger(portCount) || portCount < 1 || portCount > 48) return
@@ -95,7 +99,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
       existing.push({ id: id(), parentId, position, label: `Port ${position}`, fiber: null, patchPortId: null })
       return existing.at(-1)!
     })
-    update({ ...draft, ports: [...draft.ports, ...next] }); setSelection({ kind: 'port', id: next[0].id })
+    update({ ...draft, ports: [...draft.ports, ...next] }); select({ kind: 'port', id: next[0].id })
   }
   const removeSelected = () => {
     if (!draft || !selection) return
@@ -134,11 +138,16 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Vybavení se nepodařilo uložit.') }
     finally { setBusy(false) }
   }
-  const trace = () => {
+  const trace = (choices: Record<string, number> = branchSelections) => {
     if (!selectedPort || !draft) return
     const next = traceOpticalPath(selectedPort.id,
-      [...otherEquipment.filter(item => item.pointId !== pointId), draft], routes, installations, splices)
+      [...otherEquipment.filter(item => item.pointId !== pointId), draft], routes, installations, splices, choices)
     setPath(next); onTrace(next)
+  }
+  const selectBranch = (splitterId: string, position: number) => {
+    const choices = { ...branchSelections, [splitterId]: position }
+    setBranchSelections(choices)
+    trace(choices)
   }
   const rename = (name: string) => {
     if (!draft || !selection) return
@@ -170,28 +179,28 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
         {portQuery && draft && !draft.ports.some(visiblePort) && <p className="equipment-empty">Žádný port neodpovídá hledání.</p>}
         {draft?.racks.filter(rack => visibleRack(rack.id)).map(rack => <div className="equipment-rack" key={rack.id}>
           <button type="button" className={selection?.id === rack.id ? 'equipment-row selected' : 'equipment-row'}
-            onClick={() => setSelection({ kind: 'rack', id: rack.id })}><strong>{rack.name}</strong></button>
+            onClick={() => select({ kind: 'rack', id: rack.id })}><strong>{rack.name}</strong></button>
           {draft.shelves.filter(shelf => shelf.rackId === rack.id && (!portQuery || draft.ports.some(port =>
             (port.parentId === shelf.id || draft.cards.some(card => card.id === port.parentId && card.shelfId === shelf.id)) && visiblePort(port))))
             .map(shelf => <div className="equipment-shelf" key={shelf.id}>
             <button type="button" className={selection?.id === shelf.id ? 'equipment-row selected' : 'equipment-row'}
-              onClick={() => setSelection({ kind: 'shelf', id: shelf.id })}><span className="equipment-kind">{shelf.kind.toUpperCase()}</span> {shelf.name}</button>
+              onClick={() => select({ kind: 'shelf', id: shelf.id })}><span className="equipment-kind">{shelf.kind.toUpperCase()}</span> {shelf.name}</button>
             {shelf.kind === 'olt' && draft.cards.filter(card => card.shelfId === shelf.id && (!portQuery || draft.ports.some(port =>
               port.parentId === card.id && visiblePort(port)))).map(card =>
               <div className="equipment-card" key={card.id}>
                 <button type="button" className={selection?.id === card.id ? 'equipment-row selected' : 'equipment-row'}
-                  onClick={() => setSelection({ kind: 'card', id: card.id })}>{card.name}</button>
+                  onClick={() => select({ kind: 'card', id: card.id })}>{card.name}</button>
                 <div className="equipment-ports">{draft.ports.filter(port => port.parentId === card.id && visiblePort(port)).map(port =>
                   <button type="button" key={port.id} className={`equipment-port${selection?.id === port.id ? ' selected' : ''}${port.patchPortId ? ' linked' : ''}`}
                     aria-label={`${portLocation(draft, port)} · ${port.patchPortId ? 'propojeno' : 'volný port'}`}
                     title={`${portLocation(draft, port)} · ${port.patchPortId ? 'propojeno' : 'volný port'}`}
-                    onClick={() => setSelection({ kind: 'port', id: port.id })}>{port.position}{port.patchPortId ? ' ·' : ''}</button>)}</div>
+                    onClick={() => select({ kind: 'port', id: port.id })}>{port.position}{port.patchPortId ? ' ·' : ''}</button>)}</div>
               </div>)}
             {shelf.kind === 'odf' && <div className="equipment-ports">{draft.ports.filter(port => port.parentId === shelf.id && visiblePort(port)).map(port =>
               <button type="button" key={port.id} className={`equipment-port${selection?.id === port.id ? ' selected' : ''}${port.fiber || port.patchPortId ? ' linked' : ''}`}
                 aria-label={`${portLocation(draft, port)} · ${port.fiber ? 'vlákno připojeno' : 'bez vlákna'}${port.patchPortId ? ', propojeno s OLT' : ''}`}
                 title={`${portLocation(draft, port)} · ${port.fiber ? 'vlákno připojeno' : 'bez vlákna'}${port.patchPortId ? ', propojeno s OLT' : ''}`}
-                onClick={() => setSelection({ kind: 'port', id: port.id })}>{port.position}{port.fiber || port.patchPortId ? ' ·' : ''}</button>)}</div>}
+                onClick={() => select({ kind: 'port', id: port.id })}>{port.position}{port.fiber || port.patchPortId ? ' ·' : ''}</button>)}</div>}
           </div>)}
         </div>)}
         {(draft?.ports.length ?? 0) > 0 && <p className="equipment-tree-hint">Tečka označuje port s připojeným vláknem nebo propojkou.</p>}
@@ -226,9 +235,16 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
                 (shelfById.get(port.parentId)?.kind === 'odf') !== selectedOdf)
                 .concat(selectedPort.patchPortId && portById.get(selectedPort.patchPortId) ? [portById.get(selectedPort.patchPortId)!] : [])
                 .map(port => <option key={port.id} value={port.id}>{portLocation(draft, port)}</option>)}</select></label>
-            <button type="button" className="move-button" onClick={trace}><Link2 size={16} /> Sledovat optickou cestu</button>
+            <button type="button" className="move-button" onClick={() => { setBranchSelections({}); trace({}) }}><Link2 size={16} /> Sledovat optickou cestu</button>
             {path && <div className={`equipment-path ${path.status}`}><strong>{path.status === 'connected' ? 'Port je propojený' : path.status === 'ambiguous' ? 'Nejednoznačná cesta' : 'Otevřená cesta'}</strong>
-              <p>{path.message}</p>{path.steps.length > 0 && <ol>{path.steps.map((step, index) =>
+              <p>{path.message}</p>{[...new Set(path.branchChoices.map(choice => choice.splitterId))].map((splitterId, index) =>
+                <label className="equipment-field" key={splitterId}>Sledovat výstup splitteru {index + 1}
+                  <select value={branchSelections[splitterId] ?? ''} onChange={event => {
+                    if (event.target.value) selectBranch(splitterId, Number(event.target.value))
+                  }}><option value="">Vyberte výstup</option>
+                    {path.branchChoices.filter(choice => choice.splitterId === splitterId).map(choice =>
+                      <option key={choice.position} value={choice.position}>{choice.label}</option>)}
+                  </select></label>)}{path.steps.length > 0 && <ol>{path.steps.map((step, index) =>
                 <li key={index}>{step.label}</li>)}</ol>}
               {path.routeIds.length > 0 && <p>{path.routeIds.length} úseků je zvýrazněno na mapě.</p>}
               {dirty && <p>Jde o náhled neuložených změn. Před přenosem cestu uložte.</p>}

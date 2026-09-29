@@ -4,8 +4,14 @@ import type { UndergroundRoute } from './undergroundRoutes'
 export type FiberEnd = { itemId: string; tubeIndex: number; fiberIndex: number }
 export type FiberConnection = { id: string; left: FiberEnd; right: FiberEnd; kind: 'fusion' | 'connector' }
 export type CableReserve = { itemId: string; lengthMeters: number }
+export type SplitterOutput = { position: number; fiber: FiberEnd;
+  loss1270Db: number | null; loss1310Db: number | null; loss1490Db: number | null;
+  loss1550Db: number | null; loss1577Db: number | null }
+export type OpticalSplitter = { id: string; name: string; outputCount: number; input: FiberEnd | null;
+  outputs: SplitterOutput[]; lossSource: string }
 export type OpticalSpliceDocument = {
-  pointId: string; version: number; name: string; connections: FiberConnection[]; reserves: CableReserve[]
+  pointId: string; version: number; name: string; connections: FiberConnection[]; reserves: CableReserve[];
+  splitters: OpticalSplitter[]
 }
 
 export function spliceIncidentCables(pointId: string, routes: UndergroundRoute[],

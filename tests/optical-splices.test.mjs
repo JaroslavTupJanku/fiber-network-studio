@@ -98,6 +98,19 @@ test('splice API validates individual fiber ends, reservations, concurrency and 
         { id: crypto.randomUUID(), left, right: { ...right, fiberIndex: 1 }, kind: 'fusion' }] })).status, 409)
       assert.equal((await request(splicePath, 'PUT', { ...saved, connections: [
         { ...connection, left: { ...left, tubeIndex: 99 } }] })).status, 400)
+      const splitter = { id: crypto.randomUUID(), name: 'Splitter 1:2', outputCount: 2,
+        input: left, lossSource: 'Technický list výrobce', outputs: [{ position: 1, fiber: right,
+          loss1270Db: null, loss1310Db: 4.2, loss1490Db: null,
+          loss1550Db: null, loss1577Db: null }] }
+      assert.equal((await request(splicePath, 'PUT', { ...saved,
+        splitters: [splitter] })).status, 409)
+      assert.equal((await request(splicePath, 'PUT', { ...saved, connections: [],
+        splitters: [{ ...splitter, outputs: [{ ...splitter.outputs[0], loss1310Db: -1 }] }] })).status, 400)
+      response = await request(splicePath, 'PUT', { ...saved, connections: [], splitters: [splitter] })
+      assert.equal(response.status, 200)
+      const withSplitter = await json(response)
+      assert.equal(withSplitter.splitters[0].outputs[0].loss1310Db, 4.2)
+      assert.equal((await request(`/route-installations/${r1.id}/items/${i1.id}?version=${d1.version}`, 'DELETE')).status, 409)
       const extraDuct = await json(await request(`/route-installations/${r2.id}/items`, 'POST',
         { catalogId: microduct.id, parentId: null, slotIndex: null, version: d2.version }))
       assert.equal((await request(`/route-installations/${r2.id}/items`, 'POST',

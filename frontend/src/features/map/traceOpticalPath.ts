@@ -1,26 +1,29 @@
 import type { BuildingEquipmentDocument } from './buildingEquipment'
-import type { OpticalSpliceDocument } from './opticalSplices'
+import type { OpticalSpliceDocument, SplitterOutput } from './opticalSplices'
 import type { RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
 
-export type PathStep = { kind: 'cable' | 'splice' | 'connector' | 'patch'; label: string;
-  routeId?: string; itemId?: string }
+export type PathStep = { kind: 'cable' | 'splice' | 'connector' | 'patch' | 'splitter'; label: string;
+  routeId?: string; itemId?: string; splitterId?: string; outputPosition?: number; source?: string;
+  losses?: Pick<SplitterOutput, 'loss1270Db' | 'loss1310Db' | 'loss1490Db' | 'loss1550Db' | 'loss1577Db'> }
+export type BranchChoice = { splitterId: string; position: number; label: string }
 export type OpticalPath = { status: 'connected' | 'open' | 'ambiguous'; endPortId: string | null;
-  steps: PathStep[]; routeIds: string[]; message: string }
-type Edge = { to: string; step: PathStep }
+  steps: PathStep[]; routeIds: string[]; message: string; branchChoices: BranchChoice[] }
+type Edge = { to: string; step: PathStep; splitterFrom?: 'input' | 'output' }
 
 export function traceOpticalPath(startPortId: string, equipment: BuildingEquipmentDocument[],
   routes: UndergroundRoute[], installations: RouteInstallationDocument[],
-  splices: OpticalSpliceDocument[]): OpticalPath {
+  splices: OpticalSpliceDocument[], selectedOutputs: Record<string, number> = {}): OpticalPath {
   const graph = new Map<string, Edge[]>()
   const ports = equipment.flatMap(document => document.ports)
   const portById = new Map(ports.map(port => [port.id, port]))
   const odfParentIds = new Set(equipment.flatMap(document => document.shelves
     .filter(shelf => shelf.kind === 'odf').map(shelf => shelf.id)))
   const terminal = new Set(ports.map(port => `port:${port.id}`))
+  const addEdge = (from: string, edge: Edge) => graph.set(from, [...graph.get(from) ?? [], edge])
   const add = (left: string, right: string, step: PathStep) => {
-    graph.set(left, [...graph.get(left) ?? [], { to: right, step }])
-    graph.set(right, [...graph.get(right) ?? [], { to: left, step }])
+    addEdge(left, { to: right, step })
+    addEdge(right, { to: left, step })
   }
   const node = (pointId: string, itemId: string, tubeIndex: number, fiberIndex: number) =>
     `fiber:${pointId}:${itemId}:${tubeIndex}:${fiberIndex}`
@@ -50,12 +53,32 @@ export function traceOpticalPath(startPortId: string, equipment: BuildingEquipme
           node(shared, other.id, tubeIndex, fiberIndex), { kind: 'cable', label: 'Průběžný kabel' })))
     }
   }
-  for (const splice of splices) for (const connection of splice.connections) {
-    if (!byId.has(connection.left.itemId) || !byId.has(connection.right.itemId)) continue
-    add(node(splice.pointId, connection.left.itemId, connection.left.tubeIndex, connection.left.fiberIndex),
-      node(splice.pointId, connection.right.itemId, connection.right.tubeIndex, connection.right.fiberIndex),
-      { kind: connection.kind === 'fusion' ? 'splice' : 'connector',
-        label: connection.kind === 'fusion' ? `Svar v ${splice.name}` : `Konektor v ${splice.name}` })
+  for (const splice of splices) {
+    for (const connection of splice.connections) {
+      if (!byId.has(connection.left.itemId) || !byId.has(connection.right.itemId)) continue
+      add(node(splice.pointId, connection.left.itemId, connection.left.tubeIndex, connection.left.fiberIndex),
+        node(splice.pointId, connection.right.itemId, connection.right.tubeIndex, connection.right.fiberIndex),
+        { kind: connection.kind === 'fusion' ? 'splice' : 'connector',
+          label: connection.kind === 'fusion' ? `Svar v ${splice.name}` : `Konektor v ${splice.name}` })
+    }
+    for (const splitter of splice.splitters ?? []) {
+      if (!splitter.input || !byId.has(splitter.input.itemId)) continue
+      const input = node(splice.pointId, splitter.input.itemId,
+        splitter.input.tubeIndex, splitter.input.fiberIndex)
+      for (const output of splitter.outputs) {
+        if (!byId.has(output.fiber.itemId)) continue
+        const out = node(splice.pointId, output.fiber.itemId,
+          output.fiber.tubeIndex, output.fiber.fiberIndex)
+        const { loss1270Db, loss1310Db, loss1490Db, loss1550Db, loss1577Db } = output
+        const step: PathStep = { kind: 'splitter', splitterId: splitter.id,
+          outputPosition: output.position,
+          label: `${splitter.name} · výstup ${output.position} (1:${splitter.outputCount})`,
+          source: splitter.lossSource,
+          losses: { loss1270Db, loss1310Db, loss1490Db, loss1550Db, loss1577Db } }
+        addEdge(input, { to: out, step, splitterFrom: 'input' })
+        addEdge(out, { to: input, step, splitterFrom: 'output' })
+      }
+    }
   }
   for (const document of equipment) for (const port of document.ports) {
     if (port.fiber && byId.has(port.fiber.itemId))
@@ -68,17 +91,32 @@ export function traceOpticalPath(startPortId: string, equipment: BuildingEquipme
   }
   const start = `port:${startPortId}`
   if (!portById.has(startPortId)) return { status: 'open', endPortId: null, steps: [], routeIds: [],
-    message: 'Vybraný port už neexistuje.' }
+    message: 'Vybraný port už neexistuje.', branchChoices: [] }
   const steps: PathStep[] = []
+  const branchChoices: BranchChoice[] = []
   const visited = new Set<string>([start])
   let previous: string | null = null
   let current = start
+  let fromSplitterOutput: string | null = null
   while (true) {
-    const candidates: Edge[] = (graph.get(current) ?? []).filter(edge => edge.to !== previous)
+    let candidates: Edge[] = (graph.get(current) ?? []).filter(edge => edge.to !== previous)
+      .filter(edge => !fromSplitterOutput || edge.step.splitterId !== fromSplitterOutput
+        || edge.splitterFrom !== 'input')
       .filter(edge => current !== start || !odfParentIds.has(portById.get(startPortId)!.parentId)
         || edge.step.kind !== 'patch' || !(graph.get(current) ?? []).some(item => item.step.kind === 'connector'))
-    if (candidates.length > 1 || candidates.some(edge => visited.has(edge.to)))
-      return result('ambiguous', null, 'Cesta má větvení nebo smyčku. Zkontrolujte propojení.')
+    if (candidates.length > 1) {
+      const splitterId = candidates[0].step.splitterId
+      if (splitterId && candidates.every(edge => edge.step.splitterId === splitterId
+        && edge.splitterFrom === 'input')) {
+        branchChoices.push(...candidates.map(edge => ({ splitterId,
+          position: edge.step.outputPosition!, label: edge.step.label })))
+        const selected = candidates.find(edge => edge.step.outputPosition === selectedOutputs[splitterId])
+        if (selected) candidates = [selected]
+        else return result('ambiguous', null, 'Splitter má více výstupů. Vyberte větev, kterou chcete sledovat.')
+      } else return result('ambiguous', null, 'Cesta má větvení. Zkontrolujte propojení.')
+    }
+    if (candidates.some(edge => visited.has(edge.to)))
+      return result('ambiguous', null, 'Cesta tvoří smyčku. Zkontrolujte propojení.')
     if (candidates.length === 0) {
       const endPortId = current !== start && terminal.has(current) ? current.slice(5) : null
       return result(endPortId ? 'connected' : 'open', endPortId,
@@ -88,9 +126,11 @@ export function traceOpticalPath(startPortId: string, equipment: BuildingEquipme
     steps.push(next.step)
     previous = current
     current = next.to
+    fromSplitterOutput = next.splitterFrom === 'output' ? next.step.splitterId ?? null : null
     visited.add(current)
   }
   function result(status: OpticalPath['status'], endPortId: string | null, message: string): OpticalPath {
-    return { status, endPortId, steps, routeIds: [...new Set(steps.map(step => step.routeId).filter((id): id is string => !!id))], message }
+    return { status, endPortId, steps, routeIds: [...new Set(steps.map(step => step.routeId).filter((id): id is string => !!id))],
+      message, branchChoices }
   }
 }

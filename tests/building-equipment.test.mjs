@@ -58,6 +58,57 @@ test('trace follows ports, cable segments and splice without inventing optical l
   assert.equal(traceOpticalPath('olta', equipment, routes, installations, []).status, 'open')
 })
 
+test('splitter trace chooses one output and transfers only known losses', () => {
+  const routes = [
+    { id: 'r1', name: 'A-B', startPointId: 'a', endPointId: 'b' },
+    { id: 'r2', name: 'B-C', startPointId: 'b', endPointId: 'c' },
+    { id: 'r3', name: 'B-D', startPointId: 'b', endPointId: 'd' },
+  ]
+  const cable = { name: 'Kabel', attenuation1310DbPerKm: 0.35,
+    attenuation1550DbPerKm: 0.22, tubes: [{ name: 'Tuba', fibers: [{ name: 'Vlákno' }] }] }
+  const installations = routes.map((route, index) => ({ routeId: route.id, items: [{
+    id: `i${index + 1}`, routeId: route.id, runId: `run${index + 1}`,
+    label: `Kabel ${index + 1}`, cable,
+  }] }))
+  const end = itemId => ({ itemId, tubeIndex: 0, fiberIndex: 0 })
+  const equipment = [
+    { pointId: 'a', shelves: [{ id: 'sa', kind: 'odf' }], ports: [
+      { id: 'odfa', parentId: 'sa', label: 'ODF A', fiber: end('i1'), patchPortId: 'olta' },
+      { id: 'olta', parentId: 'carda', label: 'OLT A', fiber: null, patchPortId: 'odfa' }] },
+    { pointId: 'c', shelves: [{ id: 'sc', kind: 'odf' }], ports: [
+      { id: 'odfc', parentId: 'sc', label: 'ODF C', fiber: end('i2'), patchPortId: null }] },
+    { pointId: 'd', shelves: [{ id: 'sd', kind: 'odf' }], ports: [
+      { id: 'odfd', parentId: 'sd', label: 'ODF D', fiber: end('i3'), patchPortId: null }] },
+  ]
+  const losses = { loss1270Db: null, loss1310Db: 10.5, loss1490Db: null,
+    loss1550Db: null, loss1577Db: null }
+  const splice = { pointId: 'b', name: 'Spojka B', connections: [], splitters: [{
+    id: 's1', name: 'Splitter B', outputCount: 2, input: end('i1'), lossSource: 'Datasheet X',
+    outputs: [{ position: 1, fiber: end('i2'), ...losses },
+      { position: 2, fiber: end('i3'), ...losses, loss1310Db: 11.2 }],
+  }] }
+  const args = [equipment, routes, installations, [splice]]
+  const undecided = traceOpticalPath('olta', ...args)
+  assert.equal(undecided.status, 'ambiguous')
+  assert.deepEqual(undecided.branchChoices.map(choice => choice.position), [1, 2])
+  const first = traceOpticalPath('olta', ...args, { s1: 1 })
+  assert.equal(first.status, 'connected')
+  assert.equal(first.endPortId, 'odfc')
+  assert.deepEqual(first.routeIds, ['r1', 'r2'])
+  assert.deepEqual(first.branchChoices.map(choice => choice.position), [1, 2])
+  assert.equal(first.steps.filter(step => step.kind === 'splitter').length, 1)
+  const scenario = scenarioFromOpticalPath(first, installations)
+  const splitter = scenario.elements.find(element => element.kind === 'splitter')
+  assert.equal(splitter.loss1310, '10.5')
+  assert.equal(splitter.loss1550, '')
+  assert.equal(splitter.source, 'Datasheet X')
+  assert.equal(traceOpticalPath('olta', ...args, { s1: 2 }).endPortId, 'odfd')
+  const reverse = traceOpticalPath('odfc', ...args)
+  assert.equal(reverse.status, 'connected')
+  assert.equal(reverse.endPortId, 'olta')
+  assert.equal(reverse.steps.filter(step => step.kind === 'splitter').length, 1)
+})
+
 test('equipment API checks physical hierarchy, fiber termination and concurrency', { timeout: 50000 }, async () => {
   const directory = await mkdtemp(join(tmpdir(), 'fiber-equipment-test-'))
   const socket = createServer()
