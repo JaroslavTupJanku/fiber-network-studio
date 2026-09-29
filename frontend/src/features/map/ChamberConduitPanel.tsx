@@ -3,11 +3,12 @@ import { Check, Layers3 } from 'lucide-react'
 import { splitConduitAtChamber, type InstalledItem, type RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
 
-export function ChamberConduitPanel({ pointId, routes, documents, onUpdated }: {
+export function ChamberConduitPanel({ pointId, routes, documents, onUpdated, onOpenRoute }: {
   pointId: string
   routes: UndergroundRoute[]
   documents: RouteInstallationDocument[]
   onUpdated: (documents: RouteInstallationDocument[]) => void
+  onOpenRoute: (routeId: string) => void
 }) {
   const [pendingRunId, setPendingRunId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -55,15 +56,21 @@ export function ChamberConduitPanel({ pointId, routes, documents, onUpdated }: {
     {conduitRuns.length > 0 &&
       <div className="chamber-conduit-list">{conduitRuns.map(([runId, items]) =>
         <div className="chamber-conduit-item" key={runId}>
-          <div><strong>{items[0].label}</strong><small>{items.map(item => names.get(item.routeId) ?? 'Úsek').join(' · ')}</small></div>
+          <div><strong>{items[0].label}</strong>
+            <div className="chamber-conduit-routes">{items.map(item => <button type="button" key={item.id}
+              onClick={() => onOpenRoute(item.routeId)}
+              aria-label={`Otevřít osazení úseku ${names.get(item.routeId) ?? 'Úsek'}`}>
+              {names.get(item.routeId) ?? 'Úsek'} ↗</button>)}</div>
+          </div>
           {items.length === 2 && pendingRunId === runId ? <div className="chamber-conduit-confirm">
             <span>Obsah chráničky (mikrotrubičky a kabely) se nezmění. Kabel můžete rozdělit zvlášť ve spojce.</span>
             <div><button type="button" className="move-button" onClick={() => setPendingRunId(null)}>Zpět</button>
               <button type="button" className="primary-button" disabled={busy} onClick={() => void split(items[0])}>
                 {busy ? 'Rozděluji…' : 'Potvrdit rozdělení'}</button></div>
           </div> : items.length === 2
-            ? <button type="button" className="move-button" disabled={busy}
-              onClick={() => { setPendingRunId(runId); setNotice(''); setError('') }}>Rozdělit chráničku</button>
+            ? <div className="chamber-conduit-actions"><span className="chamber-conduit-through">Průchozí</span>
+              <button type="button" className="move-button" disabled={busy}
+                onClick={() => { setPendingRunId(runId); setNotice(''); setError('') }}>Rozdělit chráničku</button></div>
             : <span className="chamber-conduit-end">Končí v šachtě</span>}
         </div>)}</div>
     }

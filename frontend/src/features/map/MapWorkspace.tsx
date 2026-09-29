@@ -311,7 +311,7 @@ export function MapWorkspace({ active }: { active: boolean }) {
             }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Klikněte na nové místo' : 'Změnit polohu kliknutím'}</button>
             {editor.id && editor.kind === 'chamber' && <ChamberConduitPanel key={editor.id}
               pointId={editor.id} routes={route.routes} documents={installations.documents}
-              onUpdated={installations.replaceDocuments} />}
+              onUpdated={installations.replaceDocuments} onOpenRoute={selectSavedRoute} />}
             {editor.id && editor.kind === 'chamber' && <section className="chamber-splice-card" aria-labelledby="chamber-splice-heading">
               <div className="chamber-splice-heading">
                 <span className="chamber-splice-icon"><Cable size={17} aria-hidden="true" /></span>
