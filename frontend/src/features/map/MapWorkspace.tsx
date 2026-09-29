@@ -335,7 +335,9 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
               <span>{editor.latitude.toFixed(6)}°, {editor.longitude.toFixed(6)}°</span>
               <button type="button" className="icon-button" onClick={() => copyCoordinates(editor)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button>
             </div>
-            <p className="point-placement-hint">{editor.id ? 'Přetažením nebo kliknutím na nové místo se poloha uloží hned. Přilehlý průběh trasy se plynule přizpůsobí. Název a typ budovy uložíte tlačítkem Uložit.' : 'Polohu doladíte přetažením značky na mapě.'}</p>
+            <p className="point-placement-hint">{editor.id
+              ? `Přetažením nebo kliknutím na nové místo se poloha uloží hned. Přilehlý průběh trasy se plynule přizpůsobí. ${editor.kind === 'building' ? 'Název a typ budovy' : 'Název'} uložíte tlačítkem Uložit.`
+              : 'Polohu doladíte přetažením značky na mapě.'}</p>
             <button type="button" className={moving ? 'move-button active' : 'move-button'} onClick={() => {
               setMoving((value) => !value)
               setActiveTool(null)
@@ -355,7 +357,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
             {editor.id && editor.kind === 'building' && <section className="chamber-splice-card" aria-labelledby="building-distribution-heading">
               <div className="chamber-splice-heading"><span className="chamber-splice-icon"><Building2 size={17} aria-hidden="true" /></span>
                 <div><h2 id="building-distribution-heading">Domovní FTTH rozvody</h2><p>{selectedDistribution
-                  ? `${selectedDistribution.risers.length} stoupaček · ${selectedDistribution.premises.filter(item => item.status === 'connected').length}/${selectedDistribution.premises.length} připojených míst`
+                  ? `${countLabel(selectedDistribution.risers.length, 'stoupačka', 'stoupačky', 'stoupaček')} · ${selectedDistribution.premises.filter(item => item.status === 'connected').length}/${selectedDistribution.premises.length} připojených míst`
                   : 'Zatím bez stoupaček a přípojných míst'}</p></div></div>
               <div className="chamber-splice-actions"><button type="button" className="move-button" onClick={() => setDistributionOpen(true)}>
                 {selectedDistribution ? 'Otevřít rozvod' : 'Navrhnout domovní rozvod'}</button></div>

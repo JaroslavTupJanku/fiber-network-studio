@@ -19,6 +19,7 @@ export const ROUTE_DRAFT_SOURCE_ID = 'underground-route-draft'
 export const ROUTE_DRAFT_LAYER_ID = 'underground-route-draft-line'
 export const ROUTE_VERTEX_SOURCE_ID = 'underground-route-vertices'
 export const ROUTE_VERTEX_LAYER_ID = 'underground-route-vertex-dots'
+export const ROUTE_INSERT_SOURCE_ID = 'underground-route-insert-preview'
 
 export function routeCollection(routes: UndergroundRoute[], points: NetworkPoint[], installations: RouteInstallationDocument[] | null) {
   const byRoute = new globalThis.Map(installations?.map(document => [document.routeId, installationSummary(document)]) ?? [])
@@ -116,6 +117,10 @@ export function initializeMapLayers(map: Map) {
   map.addSource(ROUTE_VERTEX_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: ROUTE_VERTEX_LAYER_ID, type: 'circle', source: ROUTE_VERTEX_SOURCE_ID,
     paint: { 'circle-radius': 6, 'circle-color': '#fff', 'circle-stroke-color': '#a4532d', 'circle-stroke-width': 2 } })
+  map.addSource(ROUTE_INSERT_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer({ id: 'underground-route-insert-preview-dot', type: 'circle', source: ROUTE_INSERT_SOURCE_ID,
+    paint: { 'circle-radius': 7, 'circle-color': '#fff6e8', 'circle-stroke-color': '#a4532d',
+      'circle-stroke-width': 2.5 } })
   map.addSource(POINT_SOURCE_ID, {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },

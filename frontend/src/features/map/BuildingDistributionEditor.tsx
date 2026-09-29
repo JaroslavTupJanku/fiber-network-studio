@@ -17,6 +17,7 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState<BuildingDistributionDocument | null>(null)
   const [selection, setSelection] = useState<Selection | null>(null)
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
   const [reservedByEquipment, setReservedByEquipment] = useState<Set<string>>(new Set())
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -34,6 +35,7 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
     return () => dialog?.close()
   }, [pointId])
   const close = () => { if (!dirty || window.confirm('Zavřít editor a zahodit neuložené změny?')) onClose() }
+  const select = (item: Selection) => { setSelection(item); setMobileView('detail') }
   const update = (next: BuildingDistributionDocument) => { setDraft(next); setDirty(true); setSaved(false); setError('') }
   const selectedRiser = draft?.risers.find(item => item.id === selection?.id)
   const selectedBox = draft?.boxes.find(item => item.id === selection?.id)
@@ -52,18 +54,18 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
   const addRiser = () => {
     if (!draft) return
     const item: BuildingRiser = { id: crypto.randomUUID(), name: `Vchod ${draft.risers.length + 1}`, cableItemId: null }
-    update({ ...draft, risers: [...draft.risers, item] }); setSelection({ kind: 'riser', id: item.id })
+    update({ ...draft, risers: [...draft.risers, item] }); select({ kind: 'riser', id: item.id })
   }
   const addBox = (riserId: string) => {
     if (!draft) return
     const item: FloorBox = { id: crypto.randomUUID(), riserId, name: `Box ${draft.boxes.filter(box => box.riserId === riserId).length + 1}`, floor: 1 }
-    update({ ...draft, boxes: [...draft.boxes, item] }); setSelection({ kind: 'box', id: item.id })
+    update({ ...draft, boxes: [...draft.boxes, item] }); select({ kind: 'box', id: item.id })
   }
   const addPremise = (boxId: string) => {
     if (!draft) return
     const item: HomePremise = { id: crypto.randomUUID(), boxId,
       label: `HP ${draft.premises.length + 1}`, status: 'planned', fiber: null }
-    update({ ...draft, premises: [...draft.premises, item] }); setSelection({ kind: 'premise', id: item.id })
+    update({ ...draft, premises: [...draft.premises, item] }); select({ kind: 'premise', id: item.id })
   }
   const removeSelected = () => {
     if (!draft || !selection) return
@@ -78,6 +80,7 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
       premises: draft.premises.filter(item => item.id !== selection.id && !boxIds.has(item.boxId)),
     })
     setSelection(null)
+    setMobileView('list')
   }
   const save = async () => {
     if (!draft || !dirty || busy) return
@@ -109,7 +112,12 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
     <div className="distribution-summary"><span><strong>{draft?.risers.length ?? 0}</strong> stoupaček</span>
       <span><strong>{draft?.boxes.length ?? 0}</strong> podlažních boxů</span>
       <span><strong>{connected}/{draft?.premises.length ?? 0}</strong> připojených HP</span></div>
-    <div className="distribution-layout">
+    <nav className="distribution-mobile-tabs" aria-label="Zobrazení domovního rozvodu">
+      <button type="button" aria-pressed={mobileView === 'list'} onClick={() => setMobileView('list')}>Přehled</button>
+      <button type="button" aria-pressed={mobileView === 'detail'} disabled={!selection}
+        onClick={() => setMobileView('detail')}>Detail prvku</button>
+    </nav>
+    <div className="distribution-layout" data-mobile-view={mobileView}>
       <section className="distribution-list" aria-label="Schéma domovního rozvodu">
         <div className="distribution-list-heading"><div><small>VCHODY A PODLAŽÍ</small><h3>Rozvod v budově</h3></div>
           <button type="button" className="move-button" onClick={addRiser} disabled={!draft}><Plus size={15} /> Stoupačka</button></div>
@@ -118,15 +126,15 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
           <strong>Začněte stoupačkou</strong><p>Pro každý vchod můžete vytvořit vlastní stoupačku. Do ní přidáte boxy na podlažích a přípojná místa bytů.</p></div>}
         {draft?.risers.map(riser => <div className="distribution-riser" key={riser.id}>
           <button type="button" className={`distribution-row${selection?.id === riser.id ? ' selected' : ''}`}
-            onClick={() => setSelection({ kind: 'riser', id: riser.id })}><Building2 size={17} /><span><strong>{riser.name}</strong><small>{riser.cableItemId ? 'Přívodní kabel přiřazen' : 'Bez přívodního kabelu'}</small></span></button>
+            onClick={() => select({ kind: 'riser', id: riser.id })}><Building2 size={17} /><span><strong>{riser.name}</strong><small>{riser.cableItemId ? 'Přívodní kabel přiřazen' : 'Bez přívodního kabelu'}</small></span></button>
           {draft.boxes.filter(box => box.riserId === riser.id).sort((a, b) => b.floor - a.floor).map(box =>
             <div className="distribution-box" key={box.id}>
               <button type="button" className={`distribution-row${selection?.id === box.id ? ' selected' : ''}`}
-                onClick={() => setSelection({ kind: 'box', id: box.id })}><span className="distribution-floor">{box.floor}</span>
+                onClick={() => select({ kind: 'box', id: box.id })}><span className="distribution-floor">{box.floor}</span>
                 <span><strong>{box.name}</strong><small>{box.floor}. podlaží · {draft.premises.filter(item => item.boxId === box.id).length} HP</small></span></button>
               <div className="distribution-premises">{draft.premises.filter(item => item.boxId === box.id).map(premise =>
                 <button type="button" key={premise.id} className={`distribution-premise${selection?.id === premise.id ? ' selected' : ''}${premise.status === 'connected' ? ' connected' : ''}`}
-                  onClick={() => setSelection({ kind: 'premise', id: premise.id })}>
+                  onClick={() => select({ kind: 'premise', id: premise.id })}>
                   <span className="distribution-status-dot" /><strong>{premise.label}</strong>
                   <small>{premise.status === 'connected' ? 'Připojeno' : 'Plánováno'}</small></button>)}</div>
             </div>)}
