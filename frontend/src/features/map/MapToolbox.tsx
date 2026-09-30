@@ -80,6 +80,11 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
   const handleToolClick = (kind: NetworkPointKind) => {
     if (suppressToolClick.current) { suppressToolClick.current = false; return }
     onToolChange(activeTool === kind ? null : kind)
+    if (window.matchMedia('(max-width: 720px)').matches) setToolboxOpen(false)
+  }
+  const handleRouteToolClick = () => {
+    onRouteToolChange()
+    if (window.matchMedia('(max-width: 720px)').matches) setToolboxOpen(false)
   }
   return (
     <div className={`map-toolbar ${toolboxOpen ? '' : 'collapsed'}`} aria-label="Panel nástrojů mapy">
@@ -109,7 +114,7 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
           <h2>Trasy</h2>
           <button type="button" className={`map-tool route-tool${routeDrawing ? ' active' : ''}`}
             aria-pressed={routeDrawing} disabled={toolsDisabled || !canDrawRoute}
-            onClick={onRouteToolChange} title="Nakreslit podzemní trasu mezi dvěma body sítě">
+            onClick={handleRouteToolClick} title="Nakreslit podzemní trasu mezi dvěma body sítě">
             <Route size={18} aria-hidden="true" /> Podzemní trasa
           </button>
           <p className="map-toolbox-hint">{canDrawRoute

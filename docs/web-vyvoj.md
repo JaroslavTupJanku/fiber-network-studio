@@ -1,5 +1,7 @@
 # Webový vývoj: krátké poznámky
 
+**Domovní rozvod** je další příklad oddělení dat od zobrazení: React editor skládá stoupačku, podlažní box a přípojné místo; API před zápisem ověřuje vazby, jedinečnost vlákna a verzi dokumentu. Typ „bytový dům“ mění ikonu mapového bodu, zatímco identita budovy a navázané trasy zůstávají stejné. Data rozvodu jsou v samostatném JSON souboru; při pozdějším přechodu na databázi se zachovají ID prvků a vazby na kabelová vlákna.
+
 **ODF** je optický rozvaděč, kde se vlákno kabelu ukončí na konkrétním portu. **OLT** je aktivní zařízení v ústředně; jeho karta má vlastní porty. V aplikaci jsou stojan, police, karta a port konkrétní vybavení budovy, zatímco katalogový profil popisuje parametry typu zařízení pro výpočet. **Propojka** spojuje ODF a OLT port. Sledování cesty skládá vazby portů, kabelových vláken, svarů a splitterů jako graf; u větvení vyžaduje volbu výstupu. Mapa zvýrazní dotčené úseky, jednotlivé porty zůstávají uvnitř detailu budovy. Skutečná délka instalovaného kabelu je samostatný volitelný údaj každého úseku, takže přenos do kalkulačky nemusí odhadovat délku z mapy.
 
 ## Jak o našem projektu mluvit

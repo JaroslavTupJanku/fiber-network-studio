@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Cable, CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
+import { Building2, Cable, CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
 import { BuildingEquipmentEditor } from './BuildingEquipmentEditor'
+import { BuildingDistributionEditor } from './BuildingDistributionEditor'
+import { listBuildingDistribution, type BuildingDistributionDocument } from './buildingDistribution'
 import { listBuildingEquipment, type BuildingEquipmentDocument } from './buildingEquipment'
 import type { OpticalPath } from './traceOpticalPath'
 import type { Scenario } from '../optical-budget/model'
@@ -13,11 +15,13 @@ import { listOpticalSplices, type OpticalSpliceDocument } from './opticalSplices
 import { installationSummary } from './routeInstallations'
 import { useRouteInstallations } from './useRouteInstallations'
 import { useMapWorkspace } from './useMapWorkspace'
-import type { NetworkPointKind } from './networkPoints'
+import type { NetworkPoint, NetworkPointKind } from './networkPoints'
 import { routeCoordinates, routeLengthMeters } from './undergroundRoutes'
 import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
 
 const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : 'Šachta'
+const pointKindLabel = (point: Pick<NetworkPoint, 'kind' | 'buildingType'>) =>
+  point.kind === 'building' && point.buildingType === 'apartment' ? 'Bytový dům' : kindLabel(point.kind)
 const countLabel = (count: number, one: string, few: string, many: string) =>
   `${count} ${count === 1 ? one : count >= 2 && count <= 4 ? few : many}`
 
@@ -25,6 +29,9 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
   const [panelOpen, setPanelOpen] = useState(true)
   const [spliceOpen, setSpliceOpen] = useState(false)
   const [equipmentOpen, setEquipmentOpen] = useState(false)
+  const [distributionOpen, setDistributionOpen] = useState(false)
+  const [distributions, setDistributions] = useState<BuildingDistributionDocument[]>([])
+  useEffect(() => { void listBuildingDistribution().then(setDistributions).catch(() => {}) }, [])
   const [equipment, setEquipment] = useState<BuildingEquipmentDocument[]>([])
   const [tracedPath, setTracedPath] = useState<OpticalPath | null>(null)
   useEffect(() => { void listBuildingEquipment().then(setEquipment).catch(() => {}) }, [])
@@ -79,6 +86,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
   const attachedRoutes = editor?.id ? route.routes.filter(item => item.startPointId === editor.id || item.endPointId === editor.id) : []
   const selectedSplice = editor?.id ? splices.find(item => item.pointId === editor.id) : null
   const selectedEquipment = editor?.id ? equipment.find(item => item.pointId === editor.id) : null
+  const selectedDistribution = editor?.id ? distributions.find(item => item.pointId === editor.id) : null
   const fusionCount = selectedSplice?.connections.filter(item => item.kind === 'fusion').length ?? 0
   const connectorCount = selectedSplice?.connections.filter(item => item.kind === 'connector').length ?? 0
   const splitterCount = selectedSplice?.splitters.length ?? 0
@@ -166,7 +174,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
         <div className="panel-heading">
           <div>
             <span className="section-label">{routeDraft?.id ? 'Podzemní trasa' : selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
-            <h1>{routeDraft ? routeDraft.id ? routeDraft.name || 'Podzemní trasa' : 'Nová podzemní trasa' : editor ? editor.id ? kindLabel(editor.kind) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
+            <h1>{routeDraft ? routeDraft.id ? routeDraft.name || 'Podzemní trasa' : 'Nová podzemní trasa' : editor ? editor.id ? pointKindLabel(editor) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
           </div>
           <div className="panel-heading-actions">
             {(editor || selectedLocation || routeDraft) && (
@@ -316,12 +324,20 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
             <input id="point-name" autoFocus required maxLength={80} value={editor.name} onChange={(event) => setEditor({ ...editor, name: event.target.value })}
               onKeyDown={event => acceptExampleOnArrowRight(event, name => setEditor(current => current ? { ...current, name } : current))}
               title="Šipka doprava převezme šedý příklad" placeholder={editor.kind === 'building' ? 'Např. Dům 12' : 'Např. Šachta S-01'} />
-            <div className="point-kind"><span className={`kind-dot ${editor.kind}`} />{kindLabel(editor.kind)}</div>
+            <div className="point-kind">{editor.kind === 'building' && editor.buildingType === 'apartment'
+              ? <Building2 size={16} aria-hidden="true" /> : <span className={`kind-dot ${editor.kind}`} />}{pointKindLabel(editor)}</div>
+            {editor.kind === 'building' && <label className="building-type-field" htmlFor="building-type">Typ budovy
+              <select id="building-type" value={editor.buildingType ?? 'standard'}
+                onChange={event => setEditor({ ...editor, buildingType: event.target.value as 'standard' | 'apartment' })}>
+                <option value="standard">Běžná budova</option><option value="apartment">Bytový dům</option>
+              </select><small>Ikona bytového domu usnadní orientaci na mapě. Domovní rozvod lze evidovat u obou typů.</small></label>}
             <div className="coordinates-row">
               <span>{editor.latitude.toFixed(6)}°, {editor.longitude.toFixed(6)}°</span>
               <button type="button" className="icon-button" onClick={() => copyCoordinates(editor)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button>
             </div>
-            <p className="point-placement-hint">{editor.id ? 'Přetažením nebo kliknutím na nové místo se poloha uloží hned. Přilehlý průběh trasy se plynule přizpůsobí. Tlačítko Uložit slouží ke změně názvu.' : 'Polohu doladíte přetažením značky na mapě.'}</p>
+            <p className="point-placement-hint">{editor.id
+              ? `Přetažením nebo kliknutím na nové místo se poloha uloží hned. Přilehlý průběh trasy se plynule přizpůsobí. ${editor.kind === 'building' ? 'Název a typ budovy' : 'Název'} uložíte tlačítkem Uložit.`
+              : 'Polohu doladíte přetažením značky na mapě.'}</p>
             <button type="button" className={moving ? 'move-button active' : 'move-button'} onClick={() => {
               setMoving((value) => !value)
               setActiveTool(null)
@@ -337,6 +353,14 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
               <div className="chamber-splice-actions"><button type="button" className="move-button" onClick={() => setEquipmentOpen(true)}>
                 {selectedEquipment ? 'Otevřít vybavení' : 'Přidat stojan, ODF a OLT'}</button>
                 {tracedPath && <button type="button" className="move-button" onClick={() => setTracedPath(null)}>Skrýt zvýraznění cesty</button>}</div>
+            </section>}
+            {editor.id && editor.kind === 'building' && <section className="chamber-splice-card" aria-labelledby="building-distribution-heading">
+              <div className="chamber-splice-heading"><span className="chamber-splice-icon"><Building2 size={17} aria-hidden="true" /></span>
+                <div><h2 id="building-distribution-heading">Domovní FTTH rozvody</h2><p>{selectedDistribution
+                  ? `${countLabel(selectedDistribution.risers.length, 'stoupačka', 'stoupačky', 'stoupaček')} · ${selectedDistribution.premises.filter(item => item.status === 'connected').length}/${selectedDistribution.premises.length} připojených míst`
+                  : 'Zatím bez stoupaček a přípojných míst'}</p></div></div>
+              <div className="chamber-splice-actions"><button type="button" className="move-button" onClick={() => setDistributionOpen(true)}>
+                {selectedDistribution ? 'Otevřít rozvod' : 'Navrhnout domovní rozvod'}</button></div>
             </section>}
             {editor.id && editor.kind === 'chamber' && <section className="chamber-splice-card" aria-labelledby="chamber-splice-heading">
               <div className="chamber-splice-heading">
@@ -388,7 +412,9 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
               <ul>{visiblePoints.map((point) => <li key={point.id}><button type="button" className={mapHoveredPointId === point.id ? 'map-linked-hover' : undefined}
                 onMouseEnter={() => setListHoveredPointId(point.id)} onMouseLeave={() => setListHoveredPointId(null)}
                 onFocus={() => setListHoveredPointId(point.id)} onBlur={() => setListHoveredPointId(null)}
-                onClick={() => { setListHoveredPointId(null); handlePointSelect(point.id) }}><span className={`kind-dot ${point.kind}`} /><span className="point-list-text"><strong>{point.name}</strong><small>{kindLabel(point.kind)}{splices.some(splice => splice.pointId === point.id) ? ' · optická spojka' : ''}</small></span></button></li>)}</ul>
+                onClick={() => { setListHoveredPointId(null); handlePointSelect(point.id) }}>{point.kind === 'building' && point.buildingType === 'apartment'
+                  ? <Building2 className="point-list-building-icon" size={17} aria-hidden="true" /> : <span className={`kind-dot ${point.kind}`} />}
+                  <span className="point-list-text"><strong>{point.name}</strong><small>{pointKindLabel(point)}{splices.some(splice => splice.pointId === point.id) ? ' · optická spojka' : ''}</small></span></button></li>)}</ul>
             )}
             {route.visibleRoutes.length > 0 && <div className="route-list"><h2>Podzemní trasy</h2><ul>{route.visibleRoutes.map(item => {
               const summary = installationSummary(installationByRoute.get(item.id))
@@ -421,6 +447,11 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
           ...(document.racks.length ? [document] : [])])}
         onTrace={path => setTracedPath(path)}
         onBudget={path => { onOpenBudget(scenarioFromOpticalPath(path, installations.documents)); setEquipmentOpen(false) }} />}
+      {distributionOpen && editor?.id && editor.kind === 'building' && <BuildingDistributionEditor key={editor.id}
+        pointId={editor.id} pointName={editor.name} routes={route.routes} installations={installations.documents}
+        onClose={() => setDistributionOpen(false)}
+        onSaved={document => setDistributions(current => [...current.filter(item => item.pointId !== document.pointId),
+          ...(document.risers.length ? [document] : [])])} />}
     </main>
   )
 }

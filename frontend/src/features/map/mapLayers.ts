@@ -19,6 +19,7 @@ export const ROUTE_DRAFT_SOURCE_ID = 'underground-route-draft'
 export const ROUTE_DRAFT_LAYER_ID = 'underground-route-draft-line'
 export const ROUTE_VERTEX_SOURCE_ID = 'underground-route-vertices'
 export const ROUTE_VERTEX_LAYER_ID = 'underground-route-vertex-dots'
+export const ROUTE_INSERT_SOURCE_ID = 'underground-route-insert-preview'
 
 export function routeCollection(routes: UndergroundRoute[], points: NetworkPoint[], installations: RouteInstallationDocument[] | null) {
   const byRoute = new globalThis.Map(installations?.map(document => [document.routeId, installationSummary(document)]) ?? [])
@@ -69,13 +70,32 @@ export function pointCollection(points: NetworkPoint[], selectedPointId: string 
       return {
         type: 'Feature' as const,
         geometry: { type: 'Point' as const, coordinates: [location.longitude, location.latitude] },
-        properties: { id: point.id, kind: point.kind, name: point.name, hasSplice: splicePointIds.has(point.id) },
+        properties: { id: point.id, kind: point.kind, name: point.name,
+          buildingType: point.buildingType ?? 'standard', hasSplice: splicePointIds.has(point.id) },
       }
     }),
   }
 }
 
 export function initializeMapLayers(map: Map) {
+  for (const type of ['house', 'apartment'] as const) {
+    const canvas = document.createElement('canvas')
+    canvas.width = 32; canvas.height = 32
+    const context = canvas.getContext('2d')!
+    context.strokeStyle = '#fff'; context.fillStyle = '#fff'; context.lineWidth = 2.8
+    context.lineJoin = 'round'; context.lineCap = 'round'
+    if (type === 'house') {
+      context.beginPath(); context.moveTo(7, 15); context.lineTo(16, 8); context.lineTo(25, 15)
+      context.moveTo(10, 14); context.lineTo(10, 24); context.lineTo(22, 24); context.lineTo(22, 14)
+      context.stroke()
+      context.fillRect(15, 18, 3, 6)
+    } else {
+      context.strokeRect(9, 7, 14, 18)
+      for (const x of [12, 18]) for (const y of [11, 16]) context.fillRect(x, y, 2, 2)
+      context.fillRect(15, 21, 2, 4)
+    }
+    map.addImage(`point-${type}`, { width: 32, height: 32, data: context.getImageData(0, 0, 32, 32).data })
+  }
   map.addSource(ROUTE_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: SELECTED_ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
     filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#183c35',
@@ -97,6 +117,10 @@ export function initializeMapLayers(map: Map) {
   map.addSource(ROUTE_VERTEX_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: ROUTE_VERTEX_LAYER_ID, type: 'circle', source: ROUTE_VERTEX_SOURCE_ID,
     paint: { 'circle-radius': 6, 'circle-color': '#fff', 'circle-stroke-color': '#a4532d', 'circle-stroke-width': 2 } })
+  map.addSource(ROUTE_INSERT_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer({ id: 'underground-route-insert-preview-dot', type: 'circle', source: ROUTE_INSERT_SOURCE_ID,
+    paint: { 'circle-radius': 7, 'circle-color': '#fff6e8', 'circle-stroke-color': '#a4532d',
+      'circle-stroke-width': 2.5 } })
   map.addSource(POINT_SOURCE_ID, {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
@@ -106,19 +130,24 @@ export function initializeMapLayers(map: Map) {
     type: 'circle',
     source: POINT_SOURCE_ID,
     paint: {
-      'circle-radius': 8,
+      'circle-radius': 11,
       'circle-color': ['match', ['get', 'kind'], 'building', '#24796d', 'chamber', '#b8613e', '#64716d'],
       'circle-stroke-color': ['case', ['get', 'hasSplice'], '#704b92', '#ffffff'],
       'circle-stroke-width': ['case', ['get', 'hasSplice'], 3, 2],
     },
   })
+  map.addLayer({ id: 'network-point-building-icons', type: 'symbol', source: POINT_SOURCE_ID,
+    filter: ['==', ['get', 'kind'], 'building'], layout: {
+      'icon-image': ['match', ['get', 'buildingType'], 'apartment', 'point-apartment', 'point-house'],
+      'icon-size': 0.75, 'icon-allow-overlap': true, 'icon-ignore-placement': true,
+    } })
   map.addLayer({
     id: SELECTED_LAYER_ID,
     type: 'circle',
     source: POINT_SOURCE_ID,
     filter: ['==', ['get', 'id'], ''],
     paint: {
-      'circle-radius': 12,
+      'circle-radius': 15,
       'circle-color': 'rgba(0, 0, 0, 0)',
       'circle-stroke-color': '#183c35',
       'circle-stroke-width': 3,
@@ -130,7 +159,7 @@ export function initializeMapLayers(map: Map) {
     source: POINT_SOURCE_ID,
     filter: ['==', ['get', 'id'], ''],
     paint: {
-      'circle-radius': 16,
+      'circle-radius': 19,
       'circle-color': 'rgba(0, 0, 0, 0)',
       'circle-stroke-color': '#f0b344',
       'circle-stroke-width': 4,

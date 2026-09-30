@@ -38,9 +38,13 @@ export function routeLengthMeters(coordinates: Coordinates[]): number {
   return length
 }
 
-export function closestRouteSegment(points: { x: number; y: number }[], target: { x: number; y: number }): number {
+export function routeSegmentHit(points: { x: number; y: number }[], target: { x: number; y: number },
+  tolerance: number): { index: number; x: number; y: number } | null {
+  if (points.length < 2) return null
   let closest = 0
   let distance = Infinity
+  let nearestX = 0
+  let nearestY = 0
   for (let index = 0; index < points.length - 1; index += 1) {
     const start = points[index]
     const end = points[index + 1]
@@ -50,9 +54,26 @@ export function closestRouteSegment(points: { x: number; y: number }[], target: 
       ? Math.max(0, Math.min(1, ((target.x - start.x) * dx + (target.y - start.y) * dy) / (dx * dx + dy * dy)))
       : 0
     const squared = (target.x - start.x - fraction * dx) ** 2 + (target.y - start.y - fraction * dy) ** 2
-    if (squared < distance) { distance = squared; closest = index }
+    if (squared < distance) {
+      distance = squared; closest = index
+      nearestX = start.x + fraction * dx
+      nearestY = start.y + fraction * dy
+    }
   }
-  return closest
+  return distance <= tolerance * tolerance ? { index: closest, x: nearestX, y: nearestY } : null
+}
+
+export function routeGeometryHit(points: { x: number; y: number }[], target: { x: number; y: number },
+  tolerance: number): { kind: 'vertex'; index: number } | { kind: 'segment'; index: number; x: number; y: number } | null {
+  const vertexIndex = points.slice(1, -1).findIndex(item =>
+    Math.hypot(item.x - target.x, item.y - target.y) <= tolerance)
+  if (vertexIndex >= 0) return { kind: 'vertex', index: vertexIndex }
+  const segment = routeSegmentHit(points, target, tolerance)
+  return segment ? { kind: 'segment', ...segment } : null
+}
+
+export function closestRouteSegment(points: { x: number; y: number }[], target: { x: number; y: number }): number {
+  return routeSegmentHit(points, target, Infinity)?.index ?? 0
 }
 
 // Deform the mapped line smoothly when one of its endpoint objects is moved.

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
-import { closestRouteSegment, routeCoordinates, routeLengthMeters, undoRouteStep,
+import { closestRouteSegment, routeCoordinates, routeGeometryHit, routeLengthMeters, undoRouteStep,
   waypointsAfterPointMove } from '../frontend/src/features/map/undergroundRoutes.ts'
 
 test('route geometry follows its endpoint objects and measures only map geometry', () => {
@@ -47,6 +47,16 @@ test('a new bend is inserted in the nearest leg of an already connected route', 
   ] }
   assert.deepEqual(undoRouteStep(completed, 0).waypoints, [completed.waypoints[1]])
   assert.equal(undoRouteStep(completed).endPointId, null)
+})
+
+test('route hover and click share a generous geometric hit target', () => {
+  const line = [{ x: 0, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 100 }]
+  assert.deepEqual(routeGeometryHit(line, { x: 40, y: 10 }, 12),
+    { kind: 'segment', index: 0, x: 40, y: 0 })
+  assert.deepEqual(routeGeometryHit(line, { x: 109, y: 3 }, 12),
+    { kind: 'vertex', index: 0 })
+  assert.equal(routeGeometryHit(line, { x: 40, y: 13 }, 12), null)
+  assert.equal(routeGeometryHit([], { x: 0, y: 0 }, 12), null)
 })
 
 test('route API validates endpoints and vertices, persists edits, and protects connected points', { timeout: 40000 }, async () => {
