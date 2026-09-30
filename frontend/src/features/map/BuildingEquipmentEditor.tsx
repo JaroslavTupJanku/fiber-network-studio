@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Cable, Check, CircleHelp, Link2, Plus, Save, Trash2, X } from 'lucide-react'
 import { loadBuildingEquipment, listBuildingEquipment, saveBuildingEquipment,
   type BuildingEquipmentDocument, type EquipmentPort } from './buildingEquipment'
-import { listBuildingDistribution, type BuildingDistributionDocument } from './buildingDistribution'
+import { isConnectedPremise, listBuildingDistribution, type BuildingDistributionDocument } from './buildingDistribution'
 import { fiberEndKey, listOpticalSplices, spliceCableEnds, type OpticalSpliceDocument } from './opticalSplices'
 import type { RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
@@ -78,7 +78,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
   const selectedOdf = selectedPort ? shelfById.get(selectedPort.parentId)?.kind === 'odf' : false
   const selectedOlt = selectedShelf?.kind === 'olt'
   const targetPremises = distributions.flatMap(document => document.premises
-    .filter(premise => premise.status === 'connected' && premise.fiber)
+    .filter(isConnectedPremise)
     .map(premise => {
       const box = document.boxes.find(item => item.id === premise.boxId)
       const riser = document.risers.find(item => item.id === box?.riserId)
@@ -86,6 +86,9 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
     })).sort((a, b) => a.label.localeCompare(b.label, 'cs'))
   const occupied = new Set(draft?.ports.filter(port => port.id !== selectedPort?.id && port.fiber)
     .map(port => fiberEndKey(port.fiber!)) ?? [])
+  for (const premise of distributions.find(document => document.pointId === pointId)?.premises ?? []) {
+    if (isConnectedPremise(premise)) occupied.add(fiberEndKey(premise.fiber!))
+  }
   const fiberOptions = cables.flatMap(cable => cable.cable?.tubes.flatMap((tube, tubeIndex) =>
     tube.fibers.map((fiber, fiberIndex) => ({ end: { itemId: cable.id, tubeIndex, fiberIndex },
       label: `${cable.label} · ${tube.name} · ${fiber.name || `vlákno ${fiberIndex + 1}`}` }))) ?? [])

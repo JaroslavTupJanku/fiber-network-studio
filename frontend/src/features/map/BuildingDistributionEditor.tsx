@@ -5,7 +5,7 @@ import { fiberEndKey, spliceCableEnds, type FiberEnd } from './opticalSplices'
 import { listBuildingEquipment, loadBuildingEquipment } from './buildingEquipment'
 import { listOpticalSplices } from './opticalSplices'
 import { tracePremisePath, type OpticalPath } from './traceOpticalPath'
-import { loadBuildingDistribution, saveBuildingDistribution,
+import { isConnectedPremise, loadBuildingDistribution, saveBuildingDistribution,
   type BuildingDistributionDocument, type BuildingRiser, type FloorBox, type HomePremise } from './buildingDistribution'
 import type { RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
@@ -93,6 +93,12 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
     if (!draft || !dirty || busy) return
     if (draft.risers.some(item => !item.name.trim()) || draft.boxes.some(item => !item.name.trim())
       || draft.premises.some(item => !item.label.trim())) { setError('Doplňte všechna označení.'); return }
+    const missingFiber = draft.premises.find(item => item.status === 'connected' && !item.fiber)
+    if (missingFiber) {
+      select({ kind: 'premise', id: missingFiber.id })
+      setError(`U přípojného místa ${missingFiber.label} vyberte konkrétní vlákno přívodního kabelu.`)
+      return
+    }
     setBusy(true); setError('')
     try {
       const next = await saveBuildingDistribution(draft)
@@ -119,7 +125,7 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Cestu se nepodařilo načíst.') }
     finally { setTracing(false) }
   }
-  const connected = draft?.premises.filter(item => item.status === 'connected').length ?? 0
+  const connected = draft?.premises.filter(isConnectedPremise).length ?? 0
   return createPortal(<dialog ref={dialogRef} className="splice-editor-dialog distribution-dialog"
     aria-labelledby="distribution-title" onCancel={event => { event.preventDefault(); close() }}>
     <header className="splice-editor-header"><span className="splice-editor-emblem"><Building2 size={23} /></span>
@@ -150,10 +156,10 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
                 onClick={() => select({ kind: 'box', id: box.id })}><span className="distribution-floor">{box.floor}</span>
                 <span><strong>{box.name}</strong><small>{box.floor}. podlaží · {draft.premises.filter(item => item.boxId === box.id).length} HP</small></span></button>
               <div className="distribution-premises">{draft.premises.filter(item => item.boxId === box.id).map(premise =>
-                <button type="button" key={premise.id} className={`distribution-premise${selection?.id === premise.id ? ' selected' : ''}${premise.status === 'connected' ? ' connected' : ''}`}
+                <button type="button" key={premise.id} className={`distribution-premise${selection?.id === premise.id ? ' selected' : ''}${isConnectedPremise(premise) ? ' connected' : ''}`}
                   onClick={() => select({ kind: 'premise', id: premise.id })}>
                   <span className="distribution-status-dot" /><strong>{premise.label}</strong>
-                  <small>{premise.status === 'connected' ? 'Připojeno' : 'Plánováno'}</small></button>)}</div>
+                  <small>{isConnectedPremise(premise) ? 'Připojeno' : premise.status === 'connected' ? 'Vyberte vlákno' : 'Plánováno'}</small></button>)}</div>
             </div>)}
           <button type="button" className="distribution-add" onClick={() => addBox(riser.id)}><Plus size={14} /> Podlažní box</button>
         </div>)}
@@ -188,12 +194,13 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
                 <option value="planned">Plánováno</option><option value="connected" disabled={!selectedCable}>Připojeno k vláknu</option>
               </select></label>
             {selectedPremise.status === 'connected' && <label className="equipment-field">Konkrétní vlákno přívodního kabelu
-              <select value={selectedPremise.fiber ? fiberEndKey(selectedPremise.fiber) : ''} onChange={event => {
+              <select aria-invalid={!selectedPremise.fiber} value={selectedPremise.fiber ? fiberEndKey(selectedPremise.fiber) : ''} onChange={event => {
                 const option = fiberOptions.find(item => fiberEndKey(item.end) === event.target.value)
                 setPremise({ ...selectedPremise, fiber: (option?.end ?? null) as FiberEnd | null })
               }}><option value="">Vyberte volné vlákno</option>
                 {fiberOptions.map(option => <option key={fiberEndKey(option.end)} value={fiberEndKey(option.end)}
-                  disabled={occupied.has(fiberEndKey(option.end))}>{option.label}</option>)}</select></label>}
+                  disabled={occupied.has(fiberEndKey(option.end))}>{option.label}</option>)}</select>
+              {!selectedPremise.fiber && <small>Vyberte vlákno, aby bylo možné HP uložit jako připojené.</small>}</label>}
             {!selectedCable && <p className="equipment-note">Pro připojení nejdříve vyberte přívodní kabel u stoupačky.</p>}
             <p className="equipment-note">HP eviduje cílové místo. Číslo bytu ani jméno obyvatele nemusíte zadávat.</p>
             <div className="distribution-trace-action"><button type="button" className="move-button"
