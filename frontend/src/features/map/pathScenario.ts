@@ -13,7 +13,7 @@ export function scenarioFromOpticalPath(path: OpticalPath,
         loss1550: item?.cable?.attenuation1550DbPerKm?.toString() ?? '',
         source: item?.cable ? `${item.cable.name} · ${item.actualLengthMeters ? 'délka z evidence instalace' : 'délku doplňte podle instalace'}` : '' }
     })
-  const elements = path.steps.filter(step => step.kind !== 'cable').map(step => ({ ...newElement(),
+  const elements = path.steps.filter(step => step.kind !== 'cable' && step.kind !== 'premise').map(step => ({ ...newElement(),
     kind: step.kind === 'splice' ? 'splice' as const : step.kind === 'connector' ? 'connection' as const
       : step.kind === 'splitter' ? 'splitter' as const : 'other' as const,
     name: step.label, count: step.kind === 'patch' ? '2' : '1', source: step.source ?? '',
@@ -22,5 +22,9 @@ export function scenarioFromOpticalPath(path: OpticalPath,
     loss1490: step.losses?.loss1490Db?.toString() ?? '',
     loss1550: step.losses?.loss1550Db?.toString() ?? '',
     loss1577: step.losses?.loss1577Db?.toString() ?? '' }))
-  return { ...newScenario(), name: 'Cesta z mapy', sections: sections.length ? sections : [newSection()], elements }
+  if (path.endPremiseId) elements.push({ ...newElement(), kind: 'other',
+    name: 'Vnitřní kabeláž k HP (zatím neevidovaná)', count: '1', source: 'Délka a útlum v budově nejsou v evidenci.',
+    loss1270: '', loss1310: '', loss1490: '', loss1550: '', loss1577: '' })
+  return { ...newScenario(), name: path.endPremiseId ? 'Cesta k HP z mapy' : 'Cesta z mapy',
+    sections: sections.length ? sections : [newSection()], elements }
 }

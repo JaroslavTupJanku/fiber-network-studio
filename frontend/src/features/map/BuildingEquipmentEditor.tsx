@@ -3,17 +3,19 @@ import { createPortal } from 'react-dom'
 import { Cable, Check, CircleHelp, Link2, Plus, Save, Trash2, X } from 'lucide-react'
 import { loadBuildingEquipment, listBuildingEquipment, saveBuildingEquipment,
   type BuildingEquipmentDocument, type EquipmentPort } from './buildingEquipment'
+import { listBuildingDistribution, type BuildingDistributionDocument } from './buildingDistribution'
 import { fiberEndKey, listOpticalSplices, spliceCableEnds, type OpticalSpliceDocument } from './opticalSplices'
 import type { RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
-import { traceOpticalPath, type OpticalPath } from './traceOpticalPath'
+import { traceOpticalPath, tracePortToPremise, type OpticalPath } from './traceOpticalPath'
 import { countCzech, portLocation } from './equipmentPresentation'
 
 type Selection = { kind: 'rack' | 'shelf' | 'card' | 'port'; id: string }
 const id = () => crypto.randomUUID()
 
-export function BuildingEquipmentEditor({ pointId, pointName, routes, installations, onClose, onSaved, onTrace, onBudget }: {
+export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes, installations, onClose, onSaved, onTrace, onBudget }: {
   pointId: string; pointName: string; routes: UndergroundRoute[]; installations: RouteInstallationDocument[]
+  pointNames: Record<string, string>
   onClose: () => void; onSaved: (document: BuildingEquipmentDocument) => void
   onTrace: (path: OpticalPath | null) => void; onBudget: (path: OpticalPath) => void
 }) {
@@ -21,7 +23,9 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
   const [draft, setDraft] = useState<BuildingEquipmentDocument | null>(null)
   const [otherEquipment, setOtherEquipment] = useState<BuildingEquipmentDocument[]>([])
   const [splices, setSplices] = useState<OpticalSpliceDocument[]>([])
+  const [distributions, setDistributions] = useState<BuildingDistributionDocument[]>([])
   const [selection, setSelection] = useState<Selection | null>(null)
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -30,8 +34,9 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
   const [portQuery, setPortQuery] = useState('')
   const [path, setPath] = useState<OpticalPath | null>(null)
   const [branchSelections, setBranchSelections] = useState<Record<string, number>>({})
+  const [targetPremiseId, setTargetPremiseId] = useState('')
   const select = (next: Selection) => {
-    setSelection(next); setPath(null); setBranchSelections({}); onTrace(null)
+    setSelection(next); setMobileView('detail'); setPath(null); setBranchSelections({}); setTargetPremiseId(''); onTrace(null)
   }
   const cables = useMemo(() => spliceCableEnds(pointId, routes, installations), [pointId, routes, installations])
   useEffect(() => {
@@ -41,8 +46,10 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
   }, [])
   useEffect(() => {
     let live = true
-    Promise.all([loadBuildingEquipment(pointId), listBuildingEquipment(), listOpticalSplices()])
-      .then(([document, all, spliceList]) => { if (live) { setDraft(document); setOtherEquipment(all); setSplices(spliceList) } })
+    Promise.all([loadBuildingEquipment(pointId), listBuildingEquipment(), listOpticalSplices(), listBuildingDistribution()])
+      .then(([document, all, spliceList, homes]) => { if (live) {
+        setDraft(document); setOtherEquipment(all); setSplices(spliceList); setDistributions(homes)
+      } })
       .catch(reason => { if (live) setError(reason instanceof Error ? reason.message : 'Údaje se nepodařilo načíst.') })
     return () => { live = false }
   }, [pointId])
@@ -69,6 +76,14 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
     : [selectedRack?.name, selectedShelf ? `${selectedShelf.kind.toUpperCase()} ${selectedShelf.name}` : null,
       selectedCard?.name].filter(Boolean).join(' / ')
   const selectedOdf = selectedPort ? shelfById.get(selectedPort.parentId)?.kind === 'odf' : false
+  const selectedOlt = selectedShelf?.kind === 'olt'
+  const targetPremises = distributions.flatMap(document => document.premises
+    .filter(premise => premise.status === 'connected' && premise.fiber)
+    .map(premise => {
+      const box = document.boxes.find(item => item.id === premise.boxId)
+      const riser = document.risers.find(item => item.id === box?.riserId)
+      return { id: premise.id, label: `${pointNames[document.pointId] ?? 'Budova'} / ${riser?.name ?? 'Vchod'} / ${box?.name ?? 'Box'} / ${premise.label}` }
+    })).sort((a, b) => a.label.localeCompare(b.label, 'cs'))
   const occupied = new Set(draft?.ports.filter(port => port.id !== selectedPort?.id && port.fiber)
     .map(port => fiberEndKey(port.fiber!)) ?? [])
   const fiberOptions = cables.flatMap(cable => cable.cable?.tubes.flatMap((tube, tubeIndex) =>
@@ -117,7 +132,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
       cards: draft.cards.filter(item => !cardIds.has(item.id)),
       ports: draft.ports.filter(item => !portIds.has(item.id)).map(item =>
         portIds.has(item.patchPortId ?? '') ? { ...item, patchPortId: null } : item),
-    }); setSelection(null)
+    }); setSelection(null); setMobileView('list')
   }
   const setPatch = (targetId: string | null) => {
     if (!draft || !selectedPort) return
@@ -138,10 +153,12 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Vybavení se nepodařilo uložit.') }
     finally { setBusy(false) }
   }
-  const trace = (choices: Record<string, number> = branchSelections) => {
+  const trace = (choices: Record<string, number> = branchSelections, targetId = targetPremiseId) => {
     if (!selectedPort || !draft) return
-    const next = traceOpticalPath(selectedPort.id,
-      [...otherEquipment.filter(item => item.pointId !== pointId), draft], routes, installations, splices, choices)
+    const allEquipment = [...otherEquipment.filter(item => item.pointId !== pointId), draft]
+    const next = targetId && selectedOlt
+      ? tracePortToPremise(selectedPort.id, targetId, allEquipment, routes, installations, splices, distributions)
+      : traceOpticalPath(selectedPort.id, allEquipment, routes, installations, splices, choices, distributions)
     setPath(next); onTrace(next)
   }
   const selectBranch = (splitterId: string, position: number) => {
@@ -168,7 +185,12 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
       <div><small>Budova · {pointName}</small><h2 id="equipment-title">Optické vybavení</h2></div>
       <button type="button" className="icon-button" onClick={close} aria-label="Zavřít editor"><X size={19} /></button>
     </header>
-    <div className="equipment-layout">
+    <nav className="equipment-mobile-tabs" aria-label="Zobrazení optického vybavení">
+      <button type="button" aria-pressed={mobileView === 'list'} onClick={() => setMobileView('list')}>Stojany a porty</button>
+      <button type="button" aria-pressed={mobileView === 'detail'} disabled={!selection}
+        onClick={() => setMobileView('detail')}>Detail prvku</button>
+    </nav>
+    <div className="equipment-layout" data-mobile-view={mobileView}>
       <div className="equipment-tree"><div className="equipment-section-title"><div><small>UMÍSTĚNÍ</small><h3>Stojany a porty</h3></div>
         <button type="button" className="move-button" onClick={addRack}><Plus size={15} /> Stojan</button></div>
         {!draft && !error && <p>Načítání vybavení…</p>}
@@ -235,8 +257,19 @@ export function BuildingEquipmentEditor({ pointId, pointName, routes, installati
                 (shelfById.get(port.parentId)?.kind === 'odf') !== selectedOdf)
                 .concat(selectedPort.patchPortId && portById.get(selectedPort.patchPortId) ? [portById.get(selectedPort.patchPortId)!] : [])
                 .map(port => <option key={port.id} value={port.id}>{portLocation(draft, port)}</option>)}</select></label>
-            <button type="button" className="move-button" onClick={() => { setBranchSelections({}); trace({}) }}><Link2 size={16} /> Sledovat optickou cestu</button>
-            {path && <div className={`equipment-path ${path.status}`}><strong>{path.status === 'connected' ? 'Port je propojený' : path.status === 'ambiguous' ? 'Nejednoznačná cesta' : 'Otevřená cesta'}</strong>
+            {selectedOlt && targetPremises.length === 0 && <p className="equipment-note">Zatím není evidováno žádné HP připojené k vláknu. Cestu můžete sledovat po dostupných portech a kabelech.</p>}
+            {selectedOlt && targetPremises.length > 0 && <label className="equipment-field">Cílové přípojné místo (volitelné)
+              <select value={targetPremiseId} onChange={event => {
+                const id = event.target.value
+                setTargetPremiseId(id); setBranchSelections({});
+                if (id) trace({}, id)
+                else { setPath(null); onTrace(null) }
+              }}><option value="">Bez cíle – větev splitteru vyberu ručně</option>
+                {targetPremises.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select>
+              <small>Vyberte HP a aplikace ověří cestu právě z tohoto OLT portu.</small></label>}
+            <button type="button" className="move-button" onClick={() => { setBranchSelections({}); trace({}) }}>
+              <Link2 size={16} /> {targetPremiseId ? 'Ověřit cestu k HP' : 'Sledovat optickou cestu'}</button>
+            {path && <div className={`equipment-path ${path.status}`}><strong>{path.status === 'connected' ? path.endPremiseId ? 'Vlákno dohledáno k HP' : 'Port je propojený' : path.status === 'ambiguous' ? 'Nejednoznačná cesta' : 'Otevřená cesta'}</strong>
               <p>{path.message}</p>{[...new Set(path.branchChoices.map(choice => choice.splitterId))].map((splitterId, index) =>
                 <label className="equipment-field" key={splitterId}>Sledovat výstup splitteru {index + 1}
                   <select value={branchSelections[splitterId] ?? ''} onChange={event => {

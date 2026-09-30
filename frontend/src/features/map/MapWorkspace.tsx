@@ -441,7 +441,9 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
         onSaved={document => setSplices(current => [...current.filter(item => item.pointId !== document.pointId), document])}
         onDeleted={pointId => setSplices(current => current.filter(item => item.pointId !== pointId))} />}
       {equipmentOpen && editor?.id && editor.kind === 'building' && <BuildingEquipmentEditor key={editor.id}
-        pointId={editor.id} pointName={editor.name} routes={route.routes} installations={installations.documents}
+        pointId={editor.id} pointName={editor.name}
+        pointNames={Object.fromEntries(points.map(point => [point.id, point.name]))}
+        routes={route.routes} installations={installations.documents}
         onClose={() => setEquipmentOpen(false)}
         onSaved={document => setEquipment(current => [...current.filter(item => item.pointId !== document.pointId),
           ...(document.racks.length ? [document] : [])])}
@@ -451,7 +453,9 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
         pointId={editor.id} pointName={editor.name} routes={route.routes} installations={installations.documents}
         onClose={() => setDistributionOpen(false)}
         onSaved={document => setDistributions(current => [...current.filter(item => item.pointId !== document.pointId),
-          ...(document.risers.length ? [document] : [])])} />}
+          ...(document.risers.length ? [document] : [])])}
+        onTrace={path => setTracedPath(path)}
+        onBudget={path => { onOpenBudget(scenarioFromOpticalPath(path, installations.documents)); setDistributionOpen(false) }} />}
     </main>
   )
 }

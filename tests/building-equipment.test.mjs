@@ -7,8 +7,9 @@ import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
-import { traceOpticalPath } from '../frontend/src/features/map/traceOpticalPath.ts'
+import { traceOpticalPath, tracePortToPremise, tracePremisePath } from '../frontend/src/features/map/traceOpticalPath.ts'
 import { scenarioFromOpticalPath } from '../frontend/src/features/map/pathScenario.ts'
+import { calculate } from '../frontend/src/features/optical-budget/model.ts'
 import { countCzech, portLocation } from '../frontend/src/features/map/equipmentPresentation.ts'
 
 test('port choices identify their rack, shelf, card and position', () => {
@@ -107,6 +108,77 @@ test('splitter trace chooses one output and transfers only known losses', () => 
   assert.equal(reverse.status, 'connected')
   assert.equal(reverse.endPortId, 'olta')
   assert.equal(reverse.steps.filter(step => step.kind === 'splitter').length, 1)
+})
+
+test('a connected premise traces back through the selected splitter output to its OLT', () => {
+  const routes = [
+    { id: 'r1', name: 'OLT-spojka', startPointId: 'a', endPointId: 'b' },
+    { id: 'r2', name: 'Spojka-dům C', startPointId: 'b', endPointId: 'c' },
+    { id: 'r3', name: 'Spojka-dům D', startPointId: 'b', endPointId: 'd' },
+  ]
+  const cable = { name: 'Kabel', attenuation1310DbPerKm: 0.35,
+    tubes: [{ name: 'Tuba', fibers: [{ name: 'Vlákno' }] }] }
+  const installations = routes.map((route, index) => ({ routeId: route.id, items: [{
+    id: `i${index + 1}`, routeId: route.id, runId: `run${index + 1}`,
+    label: `Kabel ${index + 1}`, cable, actualLengthMeters: 120,
+  }] }))
+  const end = itemId => ({ itemId, tubeIndex: 0, fiberIndex: 0 })
+  const equipment = [{ pointId: 'a', shelves: [{ id: 'odf', kind: 'odf' }, { id: 'olt', kind: 'olt' }],
+    cards: [{ id: 'card', shelfId: 'olt' }], ports: [
+      { id: 'odfa', parentId: 'odf', label: 'ODF', fiber: end('i1'), patchPortId: 'olta' },
+      { id: 'olta', parentId: 'card', label: 'OLT', fiber: null, patchPortId: 'odfa' },
+    ] }]
+  const losses = { loss1270Db: null, loss1310Db: 10.5, loss1490Db: null,
+    loss1550Db: null, loss1577Db: null }
+  const splices = [{ pointId: 'b', name: 'Spojka', connections: [], splitters: [{
+    id: 'split', name: 'Splitter 1:2', outputCount: 2, input: end('i1'), lossSource: 'Technický list',
+    outputs: [{ position: 1, fiber: end('i2'), ...losses },
+      { position: 2, fiber: end('i3'), ...losses, loss1310Db: 11.2 }],
+  }] }]
+  const distributions = ['c', 'd'].map((pointId, index) => ({ pointId,
+    premises: [{ id: `hp${index + 1}`, boxId: `box${index + 1}`,
+      label: `HP ${index + 1}`, status: 'connected', fiber: end(`i${index + 2}`) }] }))
+  const reverse = tracePremisePath('hp2', equipment, routes, installations, splices, distributions)
+  assert.equal(reverse.status, 'connected')
+  assert.equal(reverse.endPortId, 'olta')
+  assert.deepEqual(reverse.routeIds, ['r3', 'r1'])
+  assert.equal(reverse.steps.find(step => step.kind === 'splitter').outputPosition, 2)
+  assert.equal(traceOpticalPath('olta', equipment, routes, installations, splices, {}, distributions).status, 'ambiguous')
+  const manuallySelected = traceOpticalPath('olta', equipment, routes, installations, splices,
+    { split: 2 }, distributions)
+  assert.equal(manuallySelected.endPremiseId, 'hp2')
+  const forward = tracePortToPremise('olta', 'hp2', equipment, routes, installations, splices, distributions)
+  assert.equal(forward.status, 'connected')
+  assert.deepEqual(forward.routeIds, ['r1', 'r3'])
+  assert.equal(forward.steps.at(-1).kind, 'premise')
+  assert.equal(tracePortToPremise('other', 'hp2', equipment, routes, installations, splices, distributions).status, 'open')
+  const scenario = scenarioFromOpticalPath(forward, installations)
+  assert.equal(scenario.sections.length, 2)
+  assert.equal(scenario.elements.find(element => element.kind === 'splitter').loss1310, '11.2')
+  assert.equal(scenario.elements.at(-1).loss1310, '')
+  assert.match(scenario.elements.at(-1).name, /Vnitřní kabeláž/)
+  assert.equal(calculate(scenario).total, null)
+  assert.equal(tracePremisePath('hp2', equipment, routes, installations, [], distributions).status, 'open')
+  assert.equal(tracePremisePath('hp2', equipment, routes, installations, splices,
+    distributions.map(document => ({ ...document, premises: document.premises.map(premise =>
+      premise.id === 'hp2' ? { ...premise, status: 'planned', fiber: null } : premise) }))).status, 'open')
+})
+
+test('a direct cable can lead from an OLT port to a premise without a splitter', () => {
+  const routes = [{ id: 'route', name: 'Přívod', startPointId: 'olt-building', endPointId: 'home' }]
+  const fiber = { itemId: 'cable', tubeIndex: 0, fiberIndex: 0 }
+  const installations = [{ routeId: 'route', items: [{ id: 'cable', routeId: 'route', runId: 'run',
+    label: 'Přívodní kabel', cable: { name: 'Kabel', tubes: [{ name: 'Tuba', fibers: [{ name: '1' }] }] } }] }]
+  const equipment = [{ pointId: 'olt-building', shelves: [{ id: 'odf', kind: 'odf' }, { id: 'olt', kind: 'olt' }],
+    cards: [{ id: 'card', shelfId: 'olt' }], ports: [
+      { id: 'odf-port', parentId: 'odf', label: 'ODF', fiber, patchPortId: 'olt-port' },
+      { id: 'olt-port', parentId: 'card', label: 'OLT', fiber: null, patchPortId: 'odf-port' },
+    ] }]
+  const distributions = [{ pointId: 'home', premises: [{ id: 'hp', status: 'connected', fiber }] }]
+  const path = tracePortToPremise('olt-port', 'hp', equipment, routes, installations, [], distributions)
+  assert.equal(path.status, 'connected')
+  assert.deepEqual(path.routeIds, ['route'])
+  assert.equal(path.steps.filter(step => step.kind === 'splitter').length, 0)
 })
 
 test('equipment API checks physical hierarchy, fiber termination and concurrency', { timeout: 50000 }, async () => {

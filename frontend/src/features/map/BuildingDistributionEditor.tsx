@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Building2, Check, Plus, Save, Trash2, X } from 'lucide-react'
+import { Building2, Check, Link2, Plus, Save, Trash2, X } from 'lucide-react'
 import { fiberEndKey, spliceCableEnds, type FiberEnd } from './opticalSplices'
-import { loadBuildingEquipment } from './buildingEquipment'
+import { listBuildingEquipment, loadBuildingEquipment } from './buildingEquipment'
+import { listOpticalSplices } from './opticalSplices'
+import { tracePremisePath, type OpticalPath } from './traceOpticalPath'
 import { loadBuildingDistribution, saveBuildingDistribution,
   type BuildingDistributionDocument, type BuildingRiser, type FloorBox, type HomePremise } from './buildingDistribution'
 import type { RouteInstallationDocument } from './routeInstallations'
@@ -10,9 +12,10 @@ import type { UndergroundRoute } from './undergroundRoutes'
 
 type Selection = { kind: 'riser' | 'box' | 'premise'; id: string }
 
-export function BuildingDistributionEditor({ pointId, pointName, routes, installations, onClose, onSaved }: {
+export function BuildingDistributionEditor({ pointId, pointName, routes, installations, onClose, onSaved, onTrace, onBudget }: {
   pointId: string; pointName: string; routes: UndergroundRoute[]; installations: RouteInstallationDocument[];
-  onClose: () => void; onSaved: (document: BuildingDistributionDocument) => void
+  onClose: () => void; onSaved: (document: BuildingDistributionDocument) => void;
+  onTrace: (path: OpticalPath | null) => void; onBudget: (path: OpticalPath) => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState<BuildingDistributionDocument | null>(null)
@@ -23,6 +26,8 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
+  const [path, setPath] = useState<OpticalPath | null>(null)
+  const [tracing, setTracing] = useState(false)
   const cableEnds = useMemo(() => spliceCableEnds(pointId, routes, installations), [pointId, routes, installations])
   useEffect(() => {
     const dialog = dialogRef.current
@@ -35,8 +40,10 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
     return () => dialog?.close()
   }, [pointId])
   const close = () => { if (!dirty || window.confirm('Zavřít editor a zahodit neuložené změny?')) onClose() }
-  const select = (item: Selection) => { setSelection(item); setMobileView('detail') }
-  const update = (next: BuildingDistributionDocument) => { setDraft(next); setDirty(true); setSaved(false); setError('') }
+  const select = (item: Selection) => { setSelection(item); setMobileView('detail'); setPath(null); onTrace(null) }
+  const update = (next: BuildingDistributionDocument) => {
+    setDraft(next); setDirty(true); setSaved(false); setError(''); setPath(null); onTrace(null)
+  }
   const selectedRiser = draft?.risers.find(item => item.id === selection?.id)
   const selectedBox = draft?.boxes.find(item => item.id === selection?.id)
   const selectedPremise = draft?.premises.find(item => item.id === selection?.id)
@@ -102,6 +109,16 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
   }
   const setBox = (next: FloorBox) => { if (draft) update({ ...draft, boxes: draft.boxes.map(item => item.id === next.id ? next : item) }) }
   const setPremise = (next: HomePremise) => { if (draft) update({ ...draft, premises: draft.premises.map(item => item.id === next.id ? next : item) }) }
+  const trace = async () => {
+    if (!draft || !selectedPremise || dirty || tracing) return
+    setTracing(true); setError('')
+    try {
+      const [equipment, splices] = await Promise.all([listBuildingEquipment(), listOpticalSplices()])
+      const next = tracePremisePath(selectedPremise.id, equipment, routes, installations, splices, [draft])
+      setPath(next); onTrace(next)
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Cestu se nepodařilo načíst.') }
+    finally { setTracing(false) }
+  }
   const connected = draft?.premises.filter(item => item.status === 'connected').length ?? 0
   return createPortal(<dialog ref={dialogRef} className="splice-editor-dialog distribution-dialog"
     aria-labelledby="distribution-title" onCancel={event => { event.preventDefault(); close() }}>
@@ -178,7 +195,20 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
                 {fiberOptions.map(option => <option key={fiberEndKey(option.end)} value={fiberEndKey(option.end)}
                   disabled={occupied.has(fiberEndKey(option.end))}>{option.label}</option>)}</select></label>}
             {!selectedCable && <p className="equipment-note">Pro připojení nejdříve vyberte přívodní kabel u stoupačky.</p>}
-            <p className="equipment-note">HP eviduje cílové místo. Číslo bytu ani jméno obyvatele nemusíte zadávat.</p></>}
+            <p className="equipment-note">HP eviduje cílové místo. Číslo bytu ani jméno obyvatele nemusíte zadávat.</p>
+            <div className="distribution-trace-action"><button type="button" className="move-button"
+              onClick={() => void trace()} disabled={dirty || tracing || selectedPremise.status !== 'connected' || !selectedPremise.fiber}>
+              <Link2 size={16} /> {tracing ? 'Hledám cestu…' : 'Sledovat cestu k OLT'}</button>
+              {dirty && <small>Nejdříve uložte změny rozvodu.</small>}
+              {selectedPremise.status !== 'connected' && <small>Plánované HP zatím nemá přiřazené vlákno.</small>}</div>
+            {path && <div className={`equipment-path distribution-path ${path.status}`} role="status">
+              <strong>{path.status === 'connected' ? 'Přiřazené vlákno dohledáno k OLT' : path.status === 'ambiguous' ? 'Nejednoznačná cesta' : 'Cesta není úplná'}</strong>
+              <p>{path.message}</p>
+              {path.steps.length > 0 && <ol>{path.steps.map((step, index) => <li key={index}>{step.label}</li>)}</ol>}
+              {path.routeIds.length > 0 && <p>{path.routeIds.length} úseků je zvýrazněno na mapě.</p>}
+              {path.status === 'connected' && <button type="button" className="move-button"
+                onClick={() => onBudget(path)}>Přenést do kalkulačky</button>}
+            </div>}</>}
         </>}
       </section>
     </div>
