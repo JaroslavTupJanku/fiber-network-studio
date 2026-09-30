@@ -282,7 +282,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
                       <option key={choice.position} value={choice.position}>{choice.label}</option>)}
                   </select></label>)}{path.steps.length > 0 && <ol>{path.steps.map((step, index) =>
                 <li key={index}>{step.label}</li>)}</ol>}
-              {path.routeIds.length > 0 && <p>{path.routeIds.length} úseků je zvýrazněno na mapě.</p>}
+              {path.routeIds.length > 0 && <p>Počet zvýrazněných úseků na mapě: {path.routeIds.length}</p>}
               {dirty && <p>Jde o náhled neuložených změn. Před přenosem cestu uložte.</p>}
               {path.status === 'connected' && path.steps.some(step => step.routeId) && <button type="button" className="move-button" disabled={dirty}
                 onClick={() => onBudget(path)}>Přenést do kalkulačky</button>}</div>}

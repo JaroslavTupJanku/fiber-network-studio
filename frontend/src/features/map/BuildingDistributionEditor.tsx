@@ -212,7 +212,7 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
               <strong>{path.status === 'connected' ? 'Přiřazené vlákno dohledáno k OLT' : path.status === 'ambiguous' ? 'Nejednoznačná cesta' : 'Cesta není úplná'}</strong>
               <p>{path.message}</p>
               {path.steps.length > 0 && <ol>{path.steps.map((step, index) => <li key={index}>{step.label}</li>)}</ol>}
-              {path.routeIds.length > 0 && <p>{path.routeIds.length} úseků je zvýrazněno na mapě.</p>}
+              {path.routeIds.length > 0 && <p>Počet zvýrazněných úseků na mapě: {path.routeIds.length}</p>}
               {path.status === 'connected' && <button type="button" className="move-button"
                 onClick={() => onBudget(path)}>Přenést do kalkulačky</button>}
             </div>}</>}

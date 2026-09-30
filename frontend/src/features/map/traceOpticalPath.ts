@@ -62,6 +62,11 @@ function tracePath(start: string, equipment: BuildingEquipmentDocument[],
       .map(card => card.id),
   ]))
   const oltPortIds = new Set(ports.filter(port => oltParentIds.has(port.parentId)).map(port => port.id))
+  const portLabel = (portId: string) => {
+    const port = portById.get(portId)!
+    const kind = oltPortIds.has(portId) ? 'OLT' : 'ODF'
+    return port.label.toUpperCase().startsWith(`${kind} `) ? port.label : `${kind} ${port.label}`
+  }
   const addEdge = (from: string, edge: Edge) => graph.set(from, [...graph.get(from) ?? [], edge])
   const add = (left: string, right: string, step: PathStep) => {
     addEdge(left, { to: right, step })
@@ -127,9 +132,12 @@ function tracePath(start: string, equipment: BuildingEquipmentDocument[],
       add(`port:${port.id}`, node(document.pointId, port.fiber.itemId,
         port.fiber.tubeIndex, port.fiber.fiberIndex),
       { kind: 'connector', label: `Ukončení na ODF · ${port.label}` })
-    if (port.patchPortId && port.id < port.patchPortId && portById.has(port.patchPortId))
+    if (port.patchPortId && port.id < port.patchPortId && portById.has(port.patchPortId)) {
+      const first = oltPortIds.has(port.id) ? port.id : port.patchPortId
+      const second = first === port.id ? port.patchPortId : port.id
       add(`port:${port.id}`, `port:${port.patchPortId}`,
-        { kind: 'patch', label: `Propojka ${port.label} ↔ ${portById.get(port.patchPortId)!.label}` })
+        { kind: 'patch', label: `Propojka ${portLabel(first)} ↔ ${portLabel(second)}` })
+    }
   }
   for (const document of distributions) for (const premise of document.premises) {
     if (premise.status !== 'connected' || !premise.fiber || !byId.has(premise.fiber.itemId)) continue

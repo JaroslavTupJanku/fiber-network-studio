@@ -52,7 +52,7 @@ export function OpticalBudgetPage({ incoming, onIncomingHandled }: {
         }} /></div></header>
     <div className="ob-layout"><div className="ob-inputs">
       {(state.storageError || importError) && <p className="ob-message" role="alert">{state.storageError || importError}</p>}
-      <section className="ob-panel"><div className="ob-section-heading"><h2>Zadání cesty</h2><span className="ob-tag">Ruční výpočet</span></div>
+      <section className="ob-panel"><div className="ob-section-heading"><h2>Zadání cesty</h2><span className="ob-tag">Výpočet optické cesty</span></div>
         <div className="ob-mode" aria-label="Úroveň nastavení"><button aria-pressed={!advanced} onClick={() => setAdvanced(false)}>Základní</button><button aria-pressed={advanced} onClick={() => setAdvanced(true)}>Pokročilé</button></div>
         <p className="ob-muted">Například: rozvaděč → kabel A → svar → kabel B → dům. Přidejte všechny úseky a spoje, kterými prochází jeden sledovaný signál.</p>
         <div className="ob-fields"><label>Název výpočtu<input value={scenario.name} maxLength={200} placeholder="Např. Přívod k budově A" onChange={event => setScenario({ ...scenario, name: event.target.value })}
