@@ -423,6 +423,11 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .route-continuation p { margin: 0; color: #61776e; font-size: 11px; line-height: 1.5; }
 .route-continuation-actions { display: grid; gap: 6px; }
 .route-continuation-actions button { justify-content: flex-start; width: 100%; text-align: left; }
+.route-split-card { display: grid; gap: 9px; padding: 13px; border: 1px solid #cddfd8; border-radius: 9px; background: #f7faf8; }
+.route-split-card > strong { color: #28574e; font-size: 12px; }
+.route-split-card p { margin: 0; color: #61776e; font-size: 11px; line-height: 1.5; }
+.route-split-card label { margin: 2px 0 -5px; }
+.route-split-card .form-error { color: #a94436; }
 .route-length { display: grid; gap: 3px; margin: 0; color: #36524b; font-size: 12px; }
 .route-length strong { color: #a4532d; font-size: 16px; }
 .route-length small { color: #73847e; font-size: 11px; }

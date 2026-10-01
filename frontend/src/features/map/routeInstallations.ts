@@ -13,6 +13,7 @@ export type InstalledItem = {
   duct: DuctType | null
   cable: CableSpecification | null
   actualLengthMeters?: number | null
+  lengthBeforeSplitMeters?: number | null
 }
 
 export type RouteInstallationDocument = { routeId: string; version: number; items: InstalledItem[] }

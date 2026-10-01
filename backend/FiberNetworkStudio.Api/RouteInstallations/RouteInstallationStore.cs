@@ -7,7 +7,7 @@ namespace FiberNetworkStudio.Api.RouteInstallations;
 
 public sealed record InstalledItem(Guid Id, Guid RouteId, Guid? ParentId, int? SlotIndex,
     string Label, Guid CatalogId, Guid RunId, DuctType? Duct, CableSpecification? Cable,
-    double? ActualLengthMeters = null);
+    double? ActualLengthMeters = null, double? LengthBeforeSplitMeters = null);
 
 public sealed record RouteInstallationDocument(Guid RouteId, int Version, List<InstalledItem> Items);
 

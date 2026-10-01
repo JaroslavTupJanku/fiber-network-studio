@@ -29,8 +29,35 @@ builder.Services.AddSingleton(new BuildingEquipmentStore(equipmentDataPath));
 var distributionDataPath = builder.Configuration["BuildingDistribution:Path"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "building-distribution.json");
 builder.Services.AddSingleton(new BuildingDistributionStore(distributionDataPath));
+builder.Services.AddSingleton(new RouteSplitService(dataPath, routeDataPath, installationDataPath,
+    spliceDataPath, equipmentDataPath, distributionDataPath));
+builder.Services.AddSingleton(new SemaphoreSlim(1, 1));
 builder.Services.AddHttpClient<ParcelLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
 var app = builder.Build();
+var splitService = app.Services.GetRequiredService<RouteSplitService>();
+await splitService.RecoverAsync();
+app.Use(async (context, next) =>
+{
+    var path = context.Request.Path;
+    if (!path.StartsWithSegments("/api/network-points")
+        && !path.StartsWithSegments("/api/underground-routes")
+        && !path.StartsWithSegments("/api/route-installations")
+        && !path.StartsWithSegments("/api/optical-splices")
+        && !path.StartsWithSegments("/api/building-equipment")
+        && !path.StartsWithSegments("/api/building-distribution"))
+    {
+        await next(context);
+        return;
+    }
+    var gate = context.RequestServices.GetRequiredService<SemaphoreSlim>();
+    await gate.WaitAsync(context.RequestAborted);
+    try
+    {
+        await splitService.RecoverAsync();
+        await next(context);
+    }
+    finally { gate.Release(); }
+});
 app.MapCableCatalog();
 app.MapDuctCatalog();
 app.MapUndergroundRoutes();
