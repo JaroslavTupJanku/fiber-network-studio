@@ -212,6 +212,11 @@ export function MapCanvas({ points, routes, installations, splices, installation
       }).filter(hit => hit.distance <= tolerance).sort((a, b) => a.distance - b.distance)[0]?.feature ?? null
     }
 
+    // The visible endpoint ring is wider than the point dot. Use the same hit
+    // area for hover, click and drag so grabbing its edge still moves the point.
+    const pointAt = (point: MapMouseEvent['point'], drawingRoute: boolean) =>
+      featureAt(point, POINT_LAYER_ID, drawingRoute ? 24 : 16)
+
     const draftGeometryHit = (point: MapMouseEvent['point']) => {
       const { routeDraft, displayedPoints } = geometryRef.current
       if (!routeDraft?.startPointId) return null
@@ -246,7 +251,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
       if (suppressMapClick) { suppressMapClick = false; return }
       setLegendOpen(false)
       const { placementActive, drawingRoute, onLocationClick, onPointSelect, onRouteSelect } = interactionRef.current
-      const pointId = featureAt(event.point, POINT_LAYER_ID, 16)?.properties?.id
+      const pointId = pointAt(event.point, drawingRoute)?.properties?.id
       if (drawingRoute) {
         selectVertex(null)
         if (pointId) onPointSelect(String(pointId))
@@ -265,7 +270,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
     }
     const handleMouseMove = (event: MapMouseEvent) => {
       const { placementActive, activeTool, drawingRoute } = interactionRef.current
-      const pointId = featureAt(event.point, POINT_LAYER_ID, 16)?.properties?.id
+      const pointId = pointAt(event.point, drawingRoute)?.properties?.id
       overPoint = Boolean(pointId)
       const routeId = !placementActive && !drawingRoute && !overPoint
         ? featureAt(event.point, ROUTE_LAYER_ID, 8)?.properties?.id : null
@@ -281,13 +286,14 @@ export function MapCanvas({ points, routes, installations, splices, installation
         interactionRef.current.onMapRouteHoverChange(nextRouteId)
       }
       const draftHit = drawingRoute ? draftGeometryHit(event.point) : null
-      overRouteVertex = draftHit?.kind === 'vertex'
+      overRouteVertex = !overPoint && draftHit?.kind === 'vertex'
       overDraftLine = !overPoint && draftHit?.kind === 'segment'
       setHoveredWaypointIndex(overRouteVertex && draftHit?.kind === 'vertex' ? draftHit.index : null)
       setInsertPreview(overDraftLine && draftHit?.kind === 'segment' ? draftHit : null)
       overParcel = !placementActive && !overPoint && Boolean(map.getLayer(PARCEL_FILL_LAYER_ID))
         && map.queryRenderedFeatures(event.point, { layers: [PARCEL_FILL_LAYER_ID] }).length > 0
-      if (drawingRoute && vertexDrag === null) setRouteHover({ latitude: event.lngLat.lat, longitude: event.lngLat.lng })
+      if (drawingRoute && vertexDrag === null && !pointDrag)
+        setRouteHover({ latitude: event.lngLat.lat, longitude: event.lngLat.lng })
       setPlacementPointer(activeTool && !dragging && !pointDrag && !overPoint
         ? { kind: activeTool, x: event.point.x, y: event.point.y } : null)
       updateCursor()
@@ -363,9 +369,11 @@ export function MapCanvas({ points, routes, installations, splices, installation
       updateCursor()
     }
     const handlePointMouseDown = (event: MapMouseEvent) => {
-      if (interactionRef.current.drawingRoute) {
+      const drawingRoute = interactionRef.current.drawingRoute
+      const pointFeature = pointAt(event.point, drawingRoute)
+      if (drawingRoute) {
         const hit = draftGeometryHit(event.point)
-        if (hit?.kind === 'vertex' || (hit && !featureAt(event.point, POINT_LAYER_ID, 16))) {
+        if (hit && !pointFeature) {
           event.preventDefault()
           map.stop()
           canvas.focus()
@@ -389,8 +397,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
         }
       }
       if (interactionRef.current.placementActive && !interactionRef.current.activeTool) return
-      const feature = featureAt(event.point, POINT_LAYER_ID, 16)
-      const id = feature?.properties?.id
+      const id = pointFeature?.properties?.id
       const renderedPoint = pointData.current.features.find((item) => item.properties.id === id)
       if (!id || !renderedPoint) return
       setLegendOpen(false)
