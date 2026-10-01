@@ -87,6 +87,8 @@ public sealed class BuildingDistributionStore(string path)
                 return new(400, null, "Označení musí mít 1 až 80 znaků.");
             var riserIds = risers.Select(item => item.Id).ToHashSet();
             var boxById = boxes.ToDictionary(item => item.Id);
+            if (premises.Any(item => item.Status == "connected" && item.Fiber is null))
+                return new(400, null, "U připojeného přípojného místa vyberte konkrétní vlákno přívodního kabelu.");
             if (boxes.Any(item => !riserIds.Contains(item.RiserId) || item.Floor is < -10 or > 150)
                 || premises.Any(item => !boxById.ContainsKey(item.BoxId)
                     || item.Status is not ("planned" or "connected")

@@ -5,7 +5,7 @@ import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
 import { BuildingEquipmentEditor } from './BuildingEquipmentEditor'
 import { BuildingDistributionEditor } from './BuildingDistributionEditor'
-import { listBuildingDistribution, type BuildingDistributionDocument } from './buildingDistribution'
+import { isConnectedPremise, listBuildingDistribution, type BuildingDistributionDocument } from './buildingDistribution'
 import { listBuildingEquipment, type BuildingEquipmentDocument } from './buildingEquipment'
 import type { OpticalPath } from './traceOpticalPath'
 import type { Scenario } from '../optical-budget/model'
@@ -357,7 +357,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
             {editor.id && editor.kind === 'building' && <section className="chamber-splice-card" aria-labelledby="building-distribution-heading">
               <div className="chamber-splice-heading"><span className="chamber-splice-icon"><Building2 size={17} aria-hidden="true" /></span>
                 <div><h2 id="building-distribution-heading">Domovní FTTH rozvody</h2><p>{selectedDistribution
-                  ? `${countLabel(selectedDistribution.risers.length, 'stoupačka', 'stoupačky', 'stoupaček')} · ${selectedDistribution.premises.filter(item => item.status === 'connected').length}/${selectedDistribution.premises.length} připojených míst`
+                  ? `${countLabel(selectedDistribution.risers.length, 'stoupačka', 'stoupačky', 'stoupaček')} · ${selectedDistribution.premises.filter(isConnectedPremise).length}/${selectedDistribution.premises.length} připojených míst`
                   : 'Zatím bez stoupaček a přípojných míst'}</p></div></div>
               <div className="chamber-splice-actions"><button type="button" className="move-button" onClick={() => setDistributionOpen(true)}>
                 {selectedDistribution ? 'Otevřít rozvod' : 'Navrhnout domovní rozvod'}</button></div>

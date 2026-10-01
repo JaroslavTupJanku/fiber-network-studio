@@ -1,10 +1,10 @@
-import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent, type FormEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
-import { Check, ChevronRight, GripVertical, Layers3, Maximize2, MoveRight, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
+import { Check, ChevronDown, ChevronRight, GripVertical, Layers3, Maximize2, MoveRight, Pencil, Plus, RefreshCw, Trash2, X } from 'lucide-react'
 import type { CableSpecification } from '../cable-catalog/model'
 import { kindLabel, type DuctType } from '../duct-catalog/model'
 import { canPlaceItem, hasAvailablePlacement, installationContinuations, installationFit, installationSummary,
-  type InstalledItem, type InstallationSummary, type RouteInstallationDocument } from './routeInstallations'
+  type InstalledItem, type InstallationSummary } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
 import { useRouteInstallations } from './useRouteInstallations'
 import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
@@ -91,72 +91,6 @@ function InstallationIllustration({ item }: { item: InstalledItem }) {
   </svg>
 }
 
-function InstallationTreeItem({ item, items, documents, routes, busy, draggedPlacements, dropTargetKey,
-  onDragStart, onDragEnd, onDragOver, onDrop, onRename, onRequestRemove, onAddInside }:
-  { item: InstalledItem; items: InstalledItem[]; documents: RouteInstallationDocument[]; routes: UndergroundRoute[];
-    busy: boolean; draggedPlacements: Placement[]; dropTargetKey: string | null;
-    onDragStart: (event: DragEvent<HTMLElement>, item: InstalledItem) => void; onDragEnd: () => void;
-    onDragOver: (event: DragEvent<HTMLElement>, place: Placement | undefined) => void;
-    onDrop: (event: DragEvent<HTMLElement>, place: Placement | undefined) => void;
-    onRename: (id: string, label: string) => Promise<boolean>; onRequestRemove: (id: string) => void;
-    onAddInside: (id: string) => void }) {
-  const [editing, setEditing] = useState(false)
-  const [label, setLabel] = useState(item.label)
-  const children = items.filter(child => child.parentId === item.id)
-  const parent = items.find(other => other.id === item.parentId) ?? null
-  const fit = installationFit(item, parent, item.slotIndex,
-    items.filter(other => other.parentId === parent?.id && other.id !== item.id))
-  const linkedRoutes = documents.filter(document => document.routeId !== item.routeId
-    && document.items.some(other => other.runId === item.runId)).map(document => routeName(document.routeId, routes))
-  const targets = draggedPlacements.filter(place => place.parentId === item.id)
-  const directTarget = targets.find(place => place.slotIndex === null)
-  const saveLabel = async (event: FormEvent) => {
-    event.preventDefault()
-    if (await onRename(item.id, label)) setEditing(false)
-  }
-  return <li className="install-tree-item">
-    <div className={`install-item-head ${dropTargetKey === directTarget?.key ? 'drop-active' : ''} ${directTarget ? 'can-drop' : ''}`}
-      onDragOver={event => onDragOver(event, directTarget)} onDrop={event => onDrop(event, directTarget)}>
-      <span className="install-drag-handle" draggable={!busy} title={`Přetáhnout ${item.label}`} aria-label={`Přetáhnout ${item.label}`}
-        onDragStart={event => onDragStart(event, item)} onDragEnd={onDragEnd}><GripVertical size={17} /></span>
-      <span className="install-item-dot" style={{ background: itemColor(item) }} />
-      <div className="install-item-text"><strong>{item.label}</strong>
-        <small>{itemKind(item)} · typ: {item.duct?.name ?? item.cable?.name}
-          {item.slotIndex !== null ? ` · pozice ${item.slotIndex + 1}` : ''}</small>
-        {linkedRoutes.length > 0 && <small className="install-continuity">Prvek pokračuje: {linkedRoutes.join(', ')}</small>}
-        {parent && <small className={`install-fit ${fit}`}>{fit === 'possible' ? 'Rozměrově předběžně vyhovuje'
-          : fit === 'too-small' ? 'Rozměry nevyhovují' : 'Kompatibilita neurčená'}</small>}
-      </div>
-      <div className="install-item-actions">
-        {hasAvailablePlacement(item, items) && <button type="button" title={`Vložit do ${item.label}`} aria-label={`Vložit do ${item.label}`}
-          onClick={() => onAddInside(item.id)} disabled={busy}><Plus size={15} /></button>}
-        <button type="button" title={`Přejmenovat ${item.label}`} aria-label={`Přejmenovat ${item.label}`}
-          onClick={() => { setLabel(item.label); setEditing(value => !value) }} disabled={busy}><Pencil size={14} /></button>
-        <button type="button" title={`Odebrat ${item.label} včetně obsahu`}
-          aria-label={`Odebrat ${item.label} včetně obsahu`} disabled={busy}
-          onClick={() => onRequestRemove(item.id)}><Trash2 size={14} /></button>
-      </div>
-    </div>
-    {targets.some(place => place.slotIndex !== null) && <div className="install-slot-targets" aria-label={`Volné pozice: ${item.label}`}>
-      {targets.filter(place => place.slotIndex !== null).map(place => <div key={place.key}
-        className={`install-slot-target ${dropTargetKey === place.key ? 'drop-active' : ''}`}
-        onDragOver={event => onDragOver(event, place)} onDrop={event => onDrop(event, place)}>
-        Pozice {(place.slotIndex ?? 0) + 1}
-      </div>)}</div>}
-    {editing && <form className="install-rename" onSubmit={saveLabel}>
-      <input aria-label={`Nové označení ${item.label}`} value={label} maxLength={80}
-        onChange={event => setLabel(event.target.value)} required />
-      <button type="submit" disabled={busy || !label.trim()} aria-label="Uložit označení"><Check size={15} /></button>
-      <button type="button" onClick={() => setEditing(false)} aria-label="Zrušit přejmenování"><X size={15} /></button>
-    </form>}
-    {children.length > 0 && <ul>{children.map(child => <InstallationTreeItem key={child.id} item={child}
-      items={items} documents={documents} routes={routes} busy={busy} draggedPlacements={draggedPlacements}
-      dropTargetKey={dropTargetKey} onDragStart={onDragStart} onDragEnd={onDragEnd}
-      onDragOver={onDragOver} onDrop={onDrop} onRename={onRename}
-      onRequestRemove={onRequestRemove} onAddInside={onAddInside} />)}</ul>}
-  </li>
-}
-
 export function RouteInstallationPanel({ route, routes, editable, installations }: {
   route: UndergroundRoute; routes: UndergroundRoute[]; editable: boolean;
   installations: ReturnType<typeof useRouteInstallations>
@@ -169,7 +103,6 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     const timer = window.setTimeout(() => setSavedMessage(''), 5000)
     return () => window.clearTimeout(timer)
   }, [savedMessage])
-  const [view, setView] = useState<'diagram' | 'list'>('diagram')
   const [addOpen, setAddOpen] = useState(false)
   const [parentId, setParentId] = useState('')
   const [slotIndex, setSlotIndex] = useState<number | null>(null)
@@ -179,7 +112,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const [label, setLabel] = useState('')
   const [formError, setFormError] = useState('')
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null)
-  const [focusedParentId, setFocusedParentId] = useState<string | null>(null)
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(() => new Set())
   const [draggedId, setDraggedId] = useState<string | null>(null)
   const [dropTargetKey, setDropTargetKey] = useState<string | null>(null)
   const [movePickerOpen, setMovePickerOpen] = useState(false)
@@ -241,14 +174,6 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     document.items.filter(item => item.parentId === parent?.id)) : null
   const roots = document.items.filter(item => item.parentId === null)
   const selectedItem = document.items.find(item => item.id === selectedItemId) ?? null
-  const focusedParent = document.items.find(item => item.id === focusedParentId) ?? null
-  const visibleItems = document.items.filter(item => item.parentId === (focusedParent?.id ?? null))
-  const breadcrumb: InstalledItem[] = []
-  let ancestor = focusedParent
-  while (ancestor && !breadcrumb.some(item => item.id === ancestor?.id)) {
-    breadcrumb.unshift(ancestor)
-    ancestor = document.items.find(item => item.id === ancestor?.parentId) ?? null
-  }
   const selectedPlacements = selectedItem ? availablePlacements(selectedItem, document.items) : []
   const draggedItem = document.items.find(item => item.id === draggedId) ?? null
   const draggedPlacements = draggedItem ? availablePlacements(draggedItem, document.items) : []
@@ -293,20 +218,38 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     if (await setCableLength(item.id, length)) {
       setLengthInput(length?.toString() ?? '')
       setLengthError('')
-      setSavedMessage(length === null ? 'Délka kabelu odebrána.' : 'Skutečná délka kabelu uložena.')
+      setSavedMessage(length === null ? 'Délka kabelu odebrána.' : 'Délka uloženého kabelu uložena.')
     }
   }
-  const openContents = (item: InstalledItem | null) => {
-    setFocusedParentId(item?.id ?? null)
-    if (item) selectItem(item)
-    else { setSelectedItemId(null); setSelectionEditing(false) }
+  const toggleContents = (item: InstalledItem) => {
+    if (!collapsedIds.has(item.id)) {
+      let ancestorId = selectedItem?.parentId ?? null
+      while (ancestorId) {
+        if (ancestorId === item.id) { selectItem(item); break }
+        ancestorId = document.items.find(other => other.id === ancestorId)?.parentId ?? null
+      }
+    }
+    setCollapsedIds(previous => {
+      const next = new Set(previous)
+      if (next.has(item.id)) next.delete(item.id)
+      else next.add(item.id)
+      return next
+    })
   }
   const moveItem = async (item: InstalledItem, place: Placement) => {
     setSavedMessage('')
     const success = await move(item.id, { parentId: place.parentId, slotIndex: place.slotIndex })
     if (success) {
       setSavedMessage(`${item.label} přesunut: ${place.label}.`)
-      setFocusedParentId(place.parentId)
+      if (place.parentId) setCollapsedIds(previous => {
+        const next = new Set(previous)
+        let ancestorId: string | null = place.parentId
+        while (ancestorId) {
+          next.delete(ancestorId)
+          ancestorId = document.items.find(other => other.id === ancestorId)?.parentId ?? null
+        }
+        return next
+      })
       selectItem(item)
       setMovePickerOpen(false)
     }
@@ -413,7 +356,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       for (let count = 0; count < document.items.length; count++)
         for (const item of document.items) if (item.parentId && removedIds.has(item.parentId)) removedIds.add(item.id)
       if (selectedItemId && removedIds.has(selectedItemId)) setSelectedItemId(null)
-      if (focusedParentId && removedIds.has(focusedParentId)) setFocusedParentId(null)
+      setCollapsedIds(previous => new Set([...previous].filter(itemId => !removedIds.has(itemId))))
     }
     return success
   }
@@ -423,9 +366,57 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     setPendingRemovalId(null)
     await removeItem(id)
   }
+  const renderDiagramNodes = (parentId: string | null): ReactNode => document.items
+    .filter(item => item.parentId === parentId).map(item => {
+      const children = document.items.filter(child => child.parentId === item.id)
+      const emptySlots = item.duct?.kind === 'assembly'
+        ? item.duct.slots.map((slot, index) => ({ slot, index }))
+          .filter(({ index }) => !children.some(child => child.slotIndex === index)) : []
+      const target = draggedPlacements.find(place => place.parentId === item.id && place.slotIndex === null)
+      const collapsed = collapsedIds.has(item.id)
+      const contents = nestedItemCount(item, document.items)
+      return <div className="installation-flow-node" key={item.id}>
+        <div className={`installation-flow-card ${selectedItemId === item.id ? 'selected' : ''} ${target ? 'can-drop' : ''} ${dropTargetKey === target?.key ? 'drop-active' : ''}`}
+          style={{ '--install-color': itemColor(item) } as CSSProperties}
+          onDragOver={event => allowDrop(event, target)} onDragLeave={() => setDropTargetKey(null)}
+          onDrop={event => drop(event, target)}>
+          <button type="button" className="installation-flow-select" draggable={editable && !busy}
+            aria-pressed={selectedItemId === item.id} aria-label={`Vybrat a přetáhnout: ${item.label}`}
+            onClick={() => selectItem(item)} onDragStart={event => startDrag(event, item)}
+            onDragEnd={() => { setDraggedId(null); setDropTargetKey(null) }}>
+            <InstallationIllustration item={item} />
+            <span className="installation-flow-text"><small>{itemKind(item)}{item.slotIndex === null ? '' : ` · pozice ${item.slotIndex + 1}`}</small>
+              <strong>{item.label}</strong><span>{item.duct ? `${contents} ${contents === 1 ? 'prvek uvnitř' : contents > 1 && contents < 5 ? 'prvky uvnitř' : 'prvků uvnitř'}` : 'Optický kabel'}</span></span>
+            <GripVertical size={17} aria-hidden="true" />
+          </button>
+          {item.duct && (children.length > 0 || emptySlots.length > 0) && <button type="button"
+            className="installation-flow-toggle" aria-expanded={!collapsed}
+            aria-label={`${collapsed ? 'Rozbalit' : 'Sbalit'} obsah: ${item.label}`}
+            onClick={() => toggleContents(item)}>
+            {collapsed ? <ChevronRight size={17} /> : <ChevronDown size={17} />}
+          </button>}
+          {draggedId && target && <span className="installation-flow-drop-hint">Pustit dovnitř</span>}
+        </div>
+        {!collapsed && (children.length > 0 || emptySlots.length > 0) && <div className="installation-flow-children">
+          {renderDiagramNodes(item.id)}
+          {emptySlots.map(({ slot, index }) => {
+            const place = draggedPlacements.find(candidate => candidate.parentId === item.id && candidate.slotIndex === index)
+            return <div key={`slot-${index}`} className={`installation-flow-slot ${dropTargetKey === place?.key ? 'drop-active' : ''}`}
+              onDragOver={event => allowDrop(event, place)} onDragLeave={() => setDropTargetKey(null)}
+              onDrop={event => drop(event, place)}>
+              <span>Pozice {index + 1} · {slot.name}</span><strong>Volná</strong>
+            </div>
+          })}
+        </div>}
+      </div>
+    })
+  const expandableIds = document.items.filter(item => item.duct && (
+    document.items.some(child => child.parentId === item.id)
+    || item.duct.kind === 'assembly' && item.duct.slots.length > 0)).map(item => item.id)
+  const allCollapsed = expandableIds.length > 0 && expandableIds.every(id => collapsedIds.has(id))
   const editorContent = <section className="installation-panel installation-editor-panel" aria-label="Osazení trasy" ref={sectionRef}>
     <div className="installation-heading"><div><span className="section-label">Prvky v úseku</span>
-      <h2>{view === 'diagram' ? 'Schéma uložení' : 'Seznam osazení'}</h2></div><div className="installation-heading-actions">
+      <h2>Uspořádání prvků</h2></div><div className="installation-heading-actions">
         <button type="button" className="move-button" aria-expanded={addOpen} aria-controls="installation-add-form"
           onClick={() => {
             setAddOpen(current => !current)
@@ -435,61 +426,28 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
           aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button>
       </div></div>
     {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
-    <p className="route-help">{view === 'diagram'
-      ? 'Úsek je vybraná podzemní trasa mezi dvěma body sítě. Její osazení platí pro celou délku; více samostatných chrániček může ležet vedle sebe.'
-      : 'Prvek uchopte za tečky a pusťte ho na cílový prvek, volnou pozici sestavy nebo vedle ostatních do úseku. Tlačítko Přesunout… je také v detailu na kartě Schéma.'}</p>
+    <p className="route-help">Prvky můžete rozbalit, vybrat a přetáhnout do vhodného místa.</p>
     {loading ? <p className="installation-muted">Načítání osazení…</p> : <>
       {error && <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>}
       {loadFailed ? null : roots.length === 0 ? <><p className="installation-empty">Trasa je zatím prázdná. Tlačítkem Přidat prvek vložte první chráničku, mikrotrubičku nebo sestavu.</p>
         {rootContinuations.length > 0 && <button type="button" className="move-button" onClick={openRootContinuation}
           disabled={!editable || busy}>Navázat osazení ze sousedního úseku</button>}</>
-        : <><div className="installation-view-switch" role="group" aria-label="Zobrazení osazení">
-          <button type="button" aria-pressed={view === 'diagram'} onClick={() => setView('diagram')}>Schéma</button>
-          <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>Seznam prvků</button>
-        </div><div className="installation-view installation-diagram-view" hidden={view !== 'diagram'}>
+        : <div className="installation-view installation-diagram-view">
           <div className="installation-canvas">
-            <nav className="installation-breadcrumbs" aria-label="Cesta osazením">
-              <button type="button" onClick={() => openContents(null)}
-                aria-current={focusedParent === null ? 'page' : undefined}>Úsek trasy</button>
-              {breadcrumb.map(item => <span key={item.id}><ChevronRight size={13} aria-hidden="true" />
-                <button type="button" onClick={() => openContents(item)}
-                  aria-current={focusedParent?.id === item.id ? 'page' : undefined}>{item.label}</button></span>)}
-            </nav>
-            <div className="installation-canvas-heading"><span>{focusedParent ? `Uvnitř: ${focusedParent.label}` : 'Hlavní prvky v úseku'}</span>
-              <small>{visibleItems.length} {visibleItems.length === 1 ? 'prvek' : visibleItems.length > 1 && visibleItems.length < 5 ? 'prvky' : 'prvků'}</small></div>
-            <div className="installation-board" aria-label="Prvky na aktuální úrovni">
-              {visibleItems.map(item => {
-                const contents = nestedItemCount(item, document.items)
-                const target = draggedPlacements.find(place => place.parentId === item.id)
-                return <div key={item.id} className={`installation-board-card ${dropTargetKey === target?.key ? 'drop-active' : ''}`}
-                  style={{ '--install-color': itemColor(item) } as CSSProperties}
-                  onDragOver={event => allowDrop(event, target)} onDragLeave={() => setDropTargetKey(null)}
-                  onDrop={event => drop(event, target)}>
-                  <button type="button" className="installation-board-select" draggable={editable && !busy}
-                    aria-pressed={selectedItemId === item.id} aria-label={`Vybrat a přetáhnout: ${item.label}`}
-                    onClick={() => selectItem(item)} onDragStart={event => startDrag(event, item)}
-                    onDragEnd={() => { setDraggedId(null); setDropTargetKey(null) }}>
-                    <InstallationIllustration item={item} />
-                    <span className="installation-board-text"><small>{itemKind(item)}{item.slotIndex === null ? '' : ` · pozice ${item.slotIndex + 1}`}</small>
-                      <strong>{item.label}</strong><span>{item.duct ? `${contents} uvnitř` : 'Optický kabel'}</span></span>
-                    <GripVertical size={16} aria-hidden="true" />
-                  </button>
-                  {item.duct && <button type="button" className="installation-board-open"
-                    onClick={() => openContents(item)}>
-                    Otevřít obsah <ChevronRight size={14} aria-hidden="true" /></button>}
-                </div>
-              })}
-              {focusedParent?.duct?.kind === 'assembly' && focusedParent.duct.slots.map((slot, index) => {
-                if (visibleItems.some(item => item.slotIndex === index)) return null
-                const place = draggedPlacements.find(target => target.parentId === focusedParent.id && target.slotIndex === index)
-                return <div key={`slot-${index}`} className={`installation-board-slot ${dropTargetKey === place?.key ? 'drop-active' : ''}`}
-                  onDragOver={event => allowDrop(event, place)} onDragLeave={() => setDropTargetKey(null)}
-                  onDrop={event => drop(event, place)}>
-                  <small>Pozice {index + 1} · {slot.name}</small><strong>Volná pozice</strong>
-                </div>
-              })}
-              {visibleItems.length === 0 && focusedParent?.duct?.kind !== 'assembly' && <p className="installation-board-empty">
-                Tady zatím nic není. Prvek můžete přidat nebo sem přesunout.</p>}
+            <div className="installation-canvas-heading"><span>Celý úsek trasy</span>
+              <div><small>{document.items.length} {document.items.length === 1 ? 'prvek' : document.items.length > 1 && document.items.length < 5 ? 'prvky' : 'prvků'}</small>
+                {expandableIds.length > 0 && <button type="button" onClick={() => {
+                  if (allCollapsed) setCollapsedIds(new Set())
+                  else { setCollapsedIds(new Set(expandableIds)); setSelectedItemId(null) }
+                }}>{allCollapsed ? 'Rozbalit vše' : 'Sbalit vše'}</button>}</div></div>
+            <div className="installation-flow" aria-label="Uspořádání prvků v úseku">
+              <div className={`installation-flow-route ${dropTargetKey === draggedPlacements.find(place => place.parentId === null)?.key ? 'drop-active' : ''}`}
+                onDragOver={event => allowDrop(event, draggedPlacements.find(place => place.parentId === null))}
+                onDrop={event => drop(event, draggedPlacements.find(place => place.parentId === null))}>
+                <Layers3 size={19} /><span><strong>Úsek trasy</strong><small>{roots.length} {roots.length === 1 ? 'samostatný prvek' : roots.length > 1 && roots.length < 5 ? 'samostatné prvky' : 'samostatných prvků'}</small></span>
+                {draggedId && draggedPlacements.some(place => place.parentId === null) && <em>Pustit vedle ostatních</em>}
+              </div>
+              <div className="installation-flow-forest">{renderDiagramNodes(null)}</div>
             </div>
           </div>{selectedItem ? <div className="installation-selection">
           <div className="installation-selection-heading"><div><span>Vybraný prvek · {itemKind(selectedItem)}</span><strong>{selectedItem.label}</strong>
@@ -504,8 +462,6 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
             <button type="submit" disabled={busy || !selectionLabel.trim()} aria-label="Uložit označení"><Check size={15} /></button>
             <button type="button" onClick={() => setSelectionEditing(false)} aria-label="Zrušit přejmenování"><X size={15} /></button>
           </form> : <div className="installation-selection-actions">
-            {selectedItem.duct && <button type="button" onClick={() => openContents(selectedItem)}>
-              <Layers3 size={14} /> Otevřít obsah</button>}
             {selectedHasRoom && <button type="button" onClick={() => addInside(selectedItem.id)} disabled={!editable || busy}>
               <Plus size={14} /> Vložit dovnitř</button>}
             {openMicroductSlots.length > 0 && <button type="button" onClick={() => {
@@ -514,21 +470,19 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
             }}
               disabled={!editable || busy} aria-expanded={generateOpen}>
               <Layers3 size={14} /> Vyplnit sestavu</button>}
+            {selectedPlacements.length > 0 && <button type="button" onClick={() => setMovePickerOpen(current => !current)}
+              disabled={!editable || busy} aria-expanded={movePickerOpen}><MoveRight size={14} /> Přesunout…</button>}
             <button type="button" onClick={() => { setSelectionLabel(selectedItem.label); setSelectionEditing(true) }}
               disabled={!editable || busy}><Pencil size={14} /> Přejmenovat</button>
-            <button type="button" onClick={() => setMovePickerOpen(current => !current)}
-              disabled={!editable || busy || selectedPlacements.length === 0}
-              aria-expanded={movePickerOpen}><MoveRight size={14} /> Přesunout…</button>
-            <button type="button" className="installation-remove-button" onClick={() => setPendingRemovalId(selectedItem.id)}
-              disabled={!editable || busy}><Trash2 size={14} /> Odebrat…</button>
           </div>}
+          {selectedPlacements.length === 0 && <p className="installation-move-unavailable">Prvek nyní nemá jiné vhodné místo pro přesun.</p>}
           {selectedItem.cable && <form className="installation-length" onSubmit={event => {
             event.preventDefault(); void saveCableLength(selectedItem)
-          }}><label>Skutečná délka kabelu v tomto úseku
+          }}><label>Délka uloženého kabelu v úseku
             <span><input inputMode="decimal" value={lengthInput} placeholder="Zatím neznámá"
               aria-invalid={!!lengthError} onChange={event => { setLengthInput(event.target.value); setLengthError('') }} /> m</span>
           </label><button type="submit" className="move-button" disabled={!editable || busy}>Uložit délku</button>
-            <p>Délka instalovaného kabelu včetně rezerv. Mapa ukazuje jen přibližnou délku trasy.</p>
+            <p>Zadejte délku kabelu včetně rezerv. Mapa ukazuje jen přibližnou délku trasy.</p>
             {lengthError && <p className="form-error" role="alert">{lengthError}</p>}</form>}
           {generateOpen && openMicroductSlots.length > 0 && <div className="installation-generate-panel" ref={generateRef}>
             <strong>Vyplnit {openMicroductSlots.length} volných pozic</strong>
@@ -562,21 +516,13 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
             ? 'Všechny pozice sestavy jsou obsazené.'
             : selectedItem.duct.kind === 'microduct' ? 'Mikrotrubička už obsahuje kabel.'
               : 'Chránička s přímým kabelem nemá další volné místo.'}</p>}
+          <div className="installation-selection-footer"><button type="button" className="installation-remove-button"
+            onClick={() => setPendingRemovalId(selectedItem.id)} disabled={!editable || busy}>
+            <Trash2 size={14} /> Odebrat prvek…</button></div>
         </div> : <div className="installation-selection installation-selection-empty">
           <strong>Vyberte prvek vlevo</strong>
-          <p>Zde uvidíte jeho údaje a akce. Uspořádání můžete upravit v Seznamu prvků.</p>
-        </div>}</div><div className="installation-list-view installation-view" hidden={view !== 'list'}>
-          <div className={`installation-route-target ${dropTargetKey === draggedPlacements.find(place => place.parentId === null)?.key ? 'drop-active' : ''}`}
-            onDragOver={event => allowDrop(event, draggedPlacements.find(place => place.parentId === null))}
-            onDrop={event => drop(event, draggedPlacements.find(place => place.parentId === null))}>
-            <Layers3 size={16} /> Úsek trasy · pustit vedle ostatních prvků
-          </div>
-          <ul className="installation-tree">{roots.map(root => <InstallationTreeItem key={root.id} item={root}
-          items={document.items} documents={documents} routes={routes} busy={busy || !editable}
-          draggedPlacements={draggedPlacements} dropTargetKey={dropTargetKey} onDragStart={startDrag}
-          onDragEnd={() => { setDraggedId(null); setDropTargetKey(null) }} onDragOver={allowDrop} onDrop={drop}
-          onRename={renameItem} onRequestRemove={setPendingRemovalId} onAddInside={addInside} />)}</ul>
-        </div></>}
+          <p>Zde uvidíte jeho údaje a akce. Pořadí a vložení prvků můžete upravit přetažením vlevo.</p>
+        </div>}</div>}
       {!loadFailed && <div id="installation-add-form" className="installation-add-container" hidden={!addOpen}>
       <form className="installation-add" onSubmit={submit} ref={formRef}>
         <h3><Layers3 size={16} /> Vložit prvek do trasy</h3>
@@ -689,7 +635,9 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
                 disabled={!editable || busy}>Navázat osazení ze sousedního úseku</button>}</>
             : <><div className="installation-preview-list" aria-label="Hlavní prvky v úseku">
               {roots.slice(0, 4).map(root => <button type="button" className="installation-preview-item" key={root.id}
-                onClick={() => { selectItem(root); setFocusedParentId(root.id); setEditorOpen(true) }}>
+                onClick={() => { selectItem(root); setCollapsedIds(previous => {
+                  const next = new Set(previous); next.delete(root.id); return next
+                }); setEditorOpen(true) }}>
                 <span className="installation-preview-mark" style={{ background: itemColor(root) }} aria-hidden="true" />
                 <span><strong>{root.label}</strong><small>{itemKind(root)} · {nestedItemCount(root, document.items)} uvnitř</small></span>
                 <ChevronRight size={16} aria-hidden="true" />
@@ -697,7 +645,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
             </div>{roots.length > 4 && <p className="installation-muted">A další {roots.length - 4} hlavní prvky v editoru.</p>}</>}
       <p className="installation-preview-hint">Editor nabídne přehled celého uložení, navázání pokračování a úpravy prvků.</p>
       <button type="button" className="installation-open-editor" disabled={loading || loadFailed}
-        onClick={() => { openContents(roots.length === 1 ? roots[0] : null); setEditorOpen(true) }}>
+        onClick={() => { if (roots.length === 1) selectItem(roots[0]); setEditorOpen(true) }}>
         <Maximize2 size={16} /> Otevřít editor osazení</button>
     </section>
     {createPortal(<><dialog ref={dialogRef} className="installation-editor-dialog"

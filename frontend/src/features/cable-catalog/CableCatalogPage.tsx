@@ -67,7 +67,7 @@ export function CableCatalogPage() {
           </button></li>)}</ul>}
         {!catalog.loading && matches.length === 0 && <div className="cc-empty"><Search size={24} /><strong>{filter === 'custom' && !query ? 'Zatím žádné vlastní kabely' : 'Žádný odpovídající kabel'}</strong>
           <p>{filter === 'custom' && !query ? 'Začněte kopií šablony nebo vytvořte nový typ.' : 'Zkuste jiný název nebo změňte filtr.'}</p></div>}
-        <div className="cc-sidebar-note"><Layers size={18} /><p>Katalog obsahuje typy kabelů.<br />Jejich umístění do sítě přijde v dalším kroku.</p></div>
+        <div className="cc-sidebar-note"><Layers size={18} /><p>Zde upravujete typy kabelů.<br />Konkrétní kabely vložíte do vybrané mapové trasy v panelu Osazení.</p></div>
       </aside>
       <section className="cc-detail" aria-label="Detail kabelu" aria-busy={catalog.busy}>
         {catalog.error && <div className="cc-error" role="alert"><span>{catalog.error}</span><button className="cc-button" type="button" disabled={catalog.busy || catalog.loading} onClick={catalog.reload}>Načíst znovu</button></div>}

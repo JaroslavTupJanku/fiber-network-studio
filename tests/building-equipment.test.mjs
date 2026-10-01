@@ -36,7 +36,8 @@ test('trace follows ports, cable segments and splice without inventing optical l
   const installations = [{ routeId: 'r1', items: [items[0]] }, { routeId: 'r2', items: [items[1]] }]
   const end = itemId => ({ itemId, tubeIndex: 0, fiberIndex: 0 })
   const equipment = [
-    { pointId: a, shelves: [{ id: 'sa', kind: 'odf' }], ports: [
+    { pointId: a, shelves: [{ id: 'sa', kind: 'odf' }, { id: 'so', kind: 'olt' }],
+      cards: [{ id: 'carda', shelfId: 'so' }], ports: [
       { id: 'odfa', parentId: 'sa', label: 'ODF A', fiber: end('i1'), patchPortId: 'olta' },
       { id: 'olta', parentId: 'carda', label: 'OLT A', fiber: null, patchPortId: 'odfa' }] },
     { pointId: c, shelves: [{ id: 'sc', kind: 'odf' }], ports: [
@@ -49,6 +50,7 @@ test('trace follows ports, cable segments and splice without inventing optical l
   assert.equal(path.endPortId, 'odfc')
   assert.deepEqual(path.routeIds, ['r1', 'r2'])
   assert.equal(path.steps.filter(step => step.kind === 'splice').length, 1)
+  assert.equal(path.steps.find(step => step.kind === 'patch')?.label, 'Propojka OLT A ↔ ODF A')
   assert.deepEqual(traceOpticalPath('odfa', equipment, routes, installations, splices).routeIds, ['r1', 'r2'])
   const scenario = scenarioFromOpticalPath(path, installations)
   assert.equal(scenario.sections.length, 2)

@@ -62,6 +62,10 @@ test('building distribution keeps apartment identity and valid fiber assignments
       premises: [home, { ...home, id: crypto.randomUUID(), label: 'Byt 202' }] })).status, 400)
     assert.equal((await request(path, 'PUT', { version: 0, risers: [riser], boxes: [box],
       premises: [{ ...home, status: 'planned' }] })).status, 400)
+    const missingFiber = await request(path, 'PUT', { version: 0, risers: [riser], boxes: [box],
+      premises: [{ ...home, fiber: null }] })
+    assert.equal(missingFiber.status, 400)
+    assert.match((await missingFiber.json()).error, /vyberte konkrétní vlákno/i)
     let document = await (await request(path, 'PUT', { version: 0, risers: [riser], boxes: [box], premises: [home] })).json()
     assert.equal(document.version, 1)
     assert.equal(document.premises[0].label, 'Byt 201')

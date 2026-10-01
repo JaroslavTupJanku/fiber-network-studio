@@ -37,7 +37,7 @@ export function OpticalBudgetPage({ incoming, onIncomingHandled }: {
   }
   return <main className="optical-budget" aria-label="Optické ztráty">
     <header className="ob-heading"><div><span className="ob-eyebrow">NÁVRH OPTICKÉ CESTY</span><h1><Calculator size={27} /> Optické ztráty</h1>
-      <p>Sestavte cestu ručně nebo přeneste sledovanou optickou cestu z mapy. Délky instalovaných kabelů a ztráty spojů doplňte podle měření a technických listů.</p></div>
+      <p>Sestavte optickou cestu a zkontrolujte její ztrátu. Můžete začít ručně nebo cestou z mapy.</p></div>
       <div className="ob-actions"><button onClick={() => state.replace(demoScenario(), 'demo')}><FlaskConical size={16} /> Ukázka</button>
         <button onClick={() => state.replace(newScenario(), 'new')}><Plus size={16} /> Nový výpočet</button>
         <details className="ob-more"><summary>Další možnosti</summary><div className="ob-more-panel">
@@ -52,16 +52,15 @@ export function OpticalBudgetPage({ incoming, onIncomingHandled }: {
         }} /></div></header>
     <div className="ob-layout"><div className="ob-inputs">
       {(state.storageError || importError) && <p className="ob-message" role="alert">{state.storageError || importError}</p>}
-      <section className="ob-panel"><div className="ob-section-heading"><h2>Zadání cesty</h2><span className="ob-tag">Ruční výpočet</span></div>
+      <section className="ob-panel"><div className="ob-section-heading"><h2>Zadání cesty</h2></div>
         <div className="ob-mode" aria-label="Úroveň nastavení"><button aria-pressed={!advanced} onClick={() => setAdvanced(false)}>Základní</button><button aria-pressed={advanced} onClick={() => setAdvanced(true)}>Pokročilé</button></div>
-        <p className="ob-muted">Například: rozvaděč → kabel A → svar → kabel B → dům. Přidejte všechny úseky a spoje, kterými prochází jeden sledovaný signál.</p>
+        <details className="ob-method ob-intro-help"><summary>Jak sestavit cestu</summary><p>Například: rozvaděč → kabel A → svar → kabel B → dům. Zadejte všechny úseky a spoje, kterými prochází jeden sledovaný signál.</p></details>
         <div className="ob-fields"><label>Název výpočtu<input value={scenario.name} maxLength={200} placeholder="Např. Přívod k budově A" onChange={event => setScenario({ ...scenario, name: event.target.value })}
           onKeyDown={event => acceptExampleOnArrowRight(event, name => setScenario({ ...scenario, name }))}
           title="Šipka doprava převezme šedý příklad" /></label>
           </div>
         <TechnologySettings scenario={scenario} onChange={setScenario} />
-        {!advanced && <p className="ob-muted">Základní zobrazení počítá ztráty. Limity a rezervu upravíte v Pokročilém nastavení; již zadané se uplatňují v obou zobrazeních.</p>}
-        <p className="ob-muted">{state.storageError ? 'Automatické ukládání není dostupné.' : 'Zadání se automaticky ukládá pouze v tomto prohlížeči.'} Přenos souborem najdete v nabídce Další možnosti. Katalog kabelů ani mapu tím neměníte.</p>
+        <details className="ob-method"><summary>Ukládání a pokročilé nastavení</summary><p>{state.storageError ? 'Automatické ukládání není dostupné.' : 'Výpočet se ukládá v tomto prohlížeči.'} Soubor pro přenos najdete v nabídce Další možnosti. Limity a rezervu upravíte v Pokročilém nastavení; změny se projeví i v základním zobrazení.</p></details>
       </section>
       <EquipmentProfiles scenario={scenario} onChange={setScenario} />
       <section className="ob-panel"><div className="ob-section-heading"><h2>1. Kabelové úseky</h2><button disabled={scenario.sections.length >= 100} onClick={() => setScenario({ ...scenario, sections: [...scenario.sections, newSection()] })}><Plus size={16} /> Přidat úsek</button></div>

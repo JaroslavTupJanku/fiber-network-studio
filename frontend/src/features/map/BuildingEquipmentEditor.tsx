@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import { Cable, Check, CircleHelp, Link2, Plus, Save, Trash2, X } from 'lucide-react'
 import { loadBuildingEquipment, listBuildingEquipment, saveBuildingEquipment,
   type BuildingEquipmentDocument, type EquipmentPort } from './buildingEquipment'
-import { listBuildingDistribution, type BuildingDistributionDocument } from './buildingDistribution'
+import { isConnectedPremise, listBuildingDistribution, type BuildingDistributionDocument } from './buildingDistribution'
 import { fiberEndKey, listOpticalSplices, spliceCableEnds, type OpticalSpliceDocument } from './opticalSplices'
 import type { RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
@@ -78,7 +78,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
   const selectedOdf = selectedPort ? shelfById.get(selectedPort.parentId)?.kind === 'odf' : false
   const selectedOlt = selectedShelf?.kind === 'olt'
   const targetPremises = distributions.flatMap(document => document.premises
-    .filter(premise => premise.status === 'connected' && premise.fiber)
+    .filter(isConnectedPremise)
     .map(premise => {
       const box = document.boxes.find(item => item.id === premise.boxId)
       const riser = document.risers.find(item => item.id === box?.riserId)
@@ -86,6 +86,9 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
     })).sort((a, b) => a.label.localeCompare(b.label, 'cs'))
   const occupied = new Set(draft?.ports.filter(port => port.id !== selectedPort?.id && port.fiber)
     .map(port => fiberEndKey(port.fiber!)) ?? [])
+  for (const premise of distributions.find(document => document.pointId === pointId)?.premises ?? []) {
+    if (isConnectedPremise(premise)) occupied.add(fiberEndKey(premise.fiber!))
+  }
   const fiberOptions = cables.flatMap(cable => cable.cable?.tubes.flatMap((tube, tubeIndex) =>
     tube.fibers.map((fiber, fiberIndex) => ({ end: { itemId: cable.id, tubeIndex, fiberIndex },
       label: `${cable.label} · ${tube.name} · ${fiber.name || `vlákno ${fiberIndex + 1}`}` }))) ?? [])
@@ -179,12 +182,15 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
     const shelf = shelfById.get(draft.cards.find(card => card.id === port.parentId)?.shelfId ?? port.parentId)
     return shelf?.rackId === rackId && visiblePort(port)
   })
-  return createPortal(<dialog ref={dialogRef} className="splice-editor-dialog equipment-dialog"
+  return createPortal(<dialog ref={dialogRef} className="splice-editor-dialog network-structure-dialog equipment-dialog"
     aria-labelledby="equipment-title" onCancel={event => { event.preventDefault(); close() }}>
     <header className="splice-editor-header"><span className="splice-editor-emblem"><Cable size={23} /></span>
       <div><small>Budova · {pointName}</small><h2 id="equipment-title">Optické vybavení</h2></div>
       <button type="button" className="icon-button" onClick={close} aria-label="Zavřít editor"><X size={19} /></button>
     </header>
+    <div className="distribution-summary"><span>{countCzech(draft?.racks.length ?? 0, 'stojan', 'stojany', 'stojanů')}</span>
+      <span>{countCzech(draft?.shelves.length ?? 0, 'police', 'police', 'polic')}</span>
+      <span>{countCzech(draft?.ports.length ?? 0, 'port', 'porty', 'portů')}</span></div>
     <nav className="equipment-mobile-tabs" aria-label="Zobrazení optického vybavení">
       <button type="button" aria-pressed={mobileView === 'list'} onClick={() => setMobileView('list')}>Stojany a porty</button>
       <button type="button" aria-pressed={mobileView === 'detail'} disabled={!selection}
@@ -216,22 +222,23 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
                   <button type="button" key={port.id} className={`equipment-port${selection?.id === port.id ? ' selected' : ''}${port.patchPortId ? ' linked' : ''}`}
                     aria-label={`${portLocation(draft, port)} · ${port.patchPortId ? 'propojeno' : 'volný port'}`}
                     title={`${portLocation(draft, port)} · ${port.patchPortId ? 'propojeno' : 'volný port'}`}
-                    onClick={() => select({ kind: 'port', id: port.id })}>{port.position}{port.patchPortId ? ' ·' : ''}</button>)}</div>
+                    onClick={() => select({ kind: 'port', id: port.id })}>P{port.position}{port.patchPortId && <span className="equipment-port-status" aria-hidden="true" />}</button>)}</div>
               </div>)}
             {shelf.kind === 'odf' && <div className="equipment-ports">{draft.ports.filter(port => port.parentId === shelf.id && visiblePort(port)).map(port =>
               <button type="button" key={port.id} className={`equipment-port${selection?.id === port.id ? ' selected' : ''}${port.fiber || port.patchPortId ? ' linked' : ''}`}
                 aria-label={`${portLocation(draft, port)} · ${port.fiber ? 'vlákno připojeno' : 'bez vlákna'}${port.patchPortId ? ', propojeno s OLT' : ''}`}
                 title={`${portLocation(draft, port)} · ${port.fiber ? 'vlákno připojeno' : 'bez vlákna'}${port.patchPortId ? ', propojeno s OLT' : ''}`}
-                onClick={() => select({ kind: 'port', id: port.id })}>{port.position}{port.fiber || port.patchPortId ? ' ·' : ''}</button>)}</div>}
+                onClick={() => select({ kind: 'port', id: port.id })}>P{port.position}{(port.fiber || port.patchPortId) && <span className="equipment-port-status" aria-hidden="true" />}</button>)}</div>}
           </div>)}
         </div>)}
-        {(draft?.ports.length ?? 0) > 0 && <p className="equipment-tree-hint">Tečka označuje port s připojeným vláknem nebo propojkou.</p>}
+        {(draft?.ports.length ?? 0) > 0 && <p className="equipment-tree-hint">Zelená tečka označuje využitý port. Kliknutím zobrazíte vlákno a propojku.</p>}
       </div>
-      <div className="equipment-detail"><small>VYBRANÝ PRVEK</small>
+      <div className="equipment-detail">
         {!selected && <div className="equipment-empty"><CircleHelp size={25} /><h3>Vyberte prvek vlevo</h3>
           <p>Stojan obsahuje police. ODF police ukončuje vlákna kabelu, OLT police obsahuje karty a jejich porty.</p></div>}
-        {selected && draft && <><div className="equipment-detail-heading"><h3>{selection?.kind === 'port' ? 'Port' : selection?.kind === 'card' ? 'OLT karta' : selection?.kind === 'shelf' ? `${selectedShelf?.kind.toUpperCase()} police` : 'Stojan'}</h3>
-          <button type="button" className="icon-button" onClick={removeSelected} title="Odebrat prvek" aria-label="Odebrat prvek"><Trash2 size={17} /></button></div>
+        {cables.length === 0 && <p className="equipment-note">Do budovy zatím nevede koncový kabel. Porty můžete připravit; vlákno připojíte po osazení trasy.</p>}
+        {selected && draft && <><div className="equipment-detail-heading"><div><small>VYBRANÝ PRVEK · {selection?.kind === 'port' ? 'PORT' : selection?.kind === 'card' ? 'OLT KARTA' : selection?.kind === 'shelf' ? `${selectedShelf?.kind.toUpperCase()} POLICE` : 'STOJAN'}</small>
+          <h3>{'label' in selected ? selected.label : selected.name}</h3></div></div>
           <p className="equipment-location" aria-label="Umístění vybraného prvku">{selectedLocation}</p>
           <label className="equipment-field">Název<input maxLength={80} value={'label' in selected ? selected.label : selected.name}
             onChange={event => rename(event.target.value)} /></label>
@@ -279,13 +286,14 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
                       <option key={choice.position} value={choice.position}>{choice.label}</option>)}
                   </select></label>)}{path.steps.length > 0 && <ol>{path.steps.map((step, index) =>
                 <li key={index}>{step.label}</li>)}</ol>}
-              {path.routeIds.length > 0 && <p>{path.routeIds.length} úseků je zvýrazněno na mapě.</p>}
+              {path.routeIds.length > 0 && <p>Počet zvýrazněných úseků na mapě: {path.routeIds.length}</p>}
               {dirty && <p>Jde o náhled neuložených změn. Před přenosem cestu uložte.</p>}
               {path.status === 'connected' && path.steps.some(step => step.routeId) && <button type="button" className="move-button" disabled={dirty}
                 onClick={() => onBudget(path)}>Přenést do kalkulačky</button>}</div>}
           </>}
+          <div className="network-structure-remove"><button type="button" onClick={removeSelected}>
+            <Trash2 size={15} /> Odebrat prvek…</button></div>
         </>}
-        {cables.length === 0 && <p className="equipment-note">Do budovy zatím nevede koncový kabel. Porty můžete připravit; vlákno připojíte po osazení trasy.</p>}
       </div>
     </div>
     {error && <p className="form-error equipment-message" role="alert">{error}</p>}

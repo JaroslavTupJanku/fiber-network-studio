@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CircleDot, House, Info } from 'lucide-react'
+import { CircleDot, House, Info, Route as RouteIcon } from 'lucide-react'
 import { MapToolbox, type BaseMap, type CadastreStatus, type OrthophotoStatus, type PlacementPointer } from './MapToolbox'
 import { GeoJSONSource, LngLatBounds, Map, Marker, NavigationControl, setWorkerUrl, type ErrorEvent, type MapMouseEvent, type MapSourceDataEvent } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
@@ -672,14 +672,19 @@ export function MapCanvas({ points, routes, installations, splices, installation
       )}
       {drawingRoute && (
         <div className={`placement-guide route-guide${routeError ? ' route-guide-error' : ''}`} role="status">
-          <span>{routeError || (routeDraft?.startPointId
-            ? routeDraft.endPointId
-              ? `Spojeno: ${routeStartName} → ${routeEndName}. Uchopte úsek trasy a táhněte jej kolem překážky.`
-              : `Začátek: ${routeStartName}. Klikněte na cílovou budovu nebo šachtu.`
-            : 'Klikněte na první budovu nebo šachtu.')}</span>
-          <button type="button" onClick={onRouteUndo} disabled={!routeDraft?.startPointId}>Zpět</button>
-          <button type="button" onClick={onRouteFinish} disabled={!routeDraft?.endPointId}>Dokončit</button>
-          <button type="button" onClick={onRouteCancel}>Zrušit · Esc</button>
+          <RouteIcon size={20} aria-hidden="true" />
+          <div className="route-guide-copy"><strong>{routeDraft?.id ? 'Úprava trasy' : 'Kreslení trasy'}</strong>
+            <span>{routeError || (routeDraft?.startPointId
+              ? routeDraft.endPointId
+                ? `Spojeno: ${routeStartName} → ${routeEndName}. Uchopte úsek trasy a táhněte jej kolem překážky.`
+                : `Začátek: ${routeStartName}. Klikněte na cílovou budovu nebo šachtu.`
+              : 'Klikněte na první budovu nebo šachtu.')}</span>
+            <small>Běžný výběr objektů se vrátí po dokončení nebo zrušení.</small></div>
+          <div className="route-guide-actions">
+            <button type="button" onClick={onRouteUndo} disabled={!routeDraft?.startPointId}>Zpět</button>
+            <button type="button" onClick={onRouteFinish} disabled={!routeDraft?.endPointId}>Dokončit</button>
+            <button type="button" onClick={onRouteCancel}>Zrušit · Esc</button>
+          </div>
         </div>
       )}
       {(points.length > 0 || routes.length > 0) && !drawingRoute && !placementActive && (
