@@ -8,7 +8,13 @@ namespace FiberNetworkStudio.Api.BuildingDistribution;
 
 public sealed record BuildingRiser(Guid Id, string Name, Guid? CableItemId);
 public sealed record FloorBox(Guid Id, Guid RiserId, string Name, int Floor);
-public sealed record HomePremise(Guid Id, Guid BoxId, string Label, string Status, FiberEnd? Fiber);
+public sealed record IndoorLosses(double? Loss1270, double? Loss1310, double? Loss1490,
+    double? Loss1550, double? Loss1577);
+public sealed record IndoorCableRun(string CableName, Guid? CatalogCableId, double? LengthMeters,
+    IndoorLosses? AttenuationDbPerKm, int? SpliceCount, IndoorLosses? SpliceLossDb,
+    int? ConnectorPairCount, IndoorLosses? ConnectorLossDb, string? Source);
+public sealed record HomePremise(Guid Id, Guid BoxId, string Label, string Status, FiberEnd? Fiber,
+    IndoorCableRun? IndoorCable = null);
 public sealed record BuildingDistributionDocument(Guid PointId, int Version, List<BuildingRiser> Risers,
     List<FloorBox> Boxes, List<HomePremise> Premises);
 public sealed record SaveBuildingDistributionRequest(int Version, List<BuildingRiser>? Risers,
@@ -18,6 +24,25 @@ public sealed record DistributionResult(int Status, BuildingDistributionDocument
 public sealed class BuildingDistributionStore(string path)
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = true };
+    private static bool ValidLosses(IndoorLosses? losses) => losses is not null
+        && new[] { losses.Loss1270, losses.Loss1310, losses.Loss1490, losses.Loss1550, losses.Loss1577 }
+            .All(value => value is null || double.IsFinite(value.Value) && value is >= 0 and <= 100);
+    private static bool HasLosses(IndoorLosses losses) => new[] {
+        losses.Loss1270, losses.Loss1310, losses.Loss1490, losses.Loss1550, losses.Loss1577,
+    }.Any(value => value is not null);
+    private static bool ValidIndoorCable(IndoorCableRun? indoor)
+    {
+        if (indoor is null) return true;
+        if (string.IsNullOrWhiteSpace(indoor.CableName) || indoor.CableName.Trim().Length > 120
+            || indoor.CatalogCableId == Guid.Empty || indoor.Source is null or { Length: > 2000 }
+            || indoor.LengthMeters is not null && (!double.IsFinite(indoor.LengthMeters.Value)
+                || indoor.LengthMeters is <= 0 or > 10000)
+            || indoor.SpliceCount is < 0 or > 100 || indoor.ConnectorPairCount is < 0 or > 100
+            || !ValidLosses(indoor.AttenuationDbPerKm) || !ValidLosses(indoor.SpliceLossDb)
+            || !ValidLosses(indoor.ConnectorLossDb)) return false;
+        return (indoor.SpliceCount is > 0 || !HasLosses(indoor.SpliceLossDb!))
+            && (indoor.ConnectorPairCount is > 0 || !HasLosses(indoor.ConnectorLossDb!));
+    }
     private readonly SemaphoreSlim gate = new(1, 1);
 
     public async Task<List<BuildingDistributionDocument>> ListAsync()
@@ -85,6 +110,8 @@ public sealed class BuildingDistributionStore(string path)
             if (risers.Any(item => !NameOk(item.Name)) || boxes.Any(item => !NameOk(item.Name))
                 || premises.Any(item => !NameOk(item.Label)))
                 return new(400, null, "Označení musí mít 1 až 80 znaků.");
+            if (premises.Any(item => !ValidIndoorCable(item.IndoorCable)))
+                return new(400, null, "Domovní přívod potřebuje typ kabelu, platnou délku, počty spojů a nezáporné útlumy.");
             var riserIds = risers.Select(item => item.Id).ToHashSet();
             var boxById = boxes.ToDictionary(item => item.Id);
             if (premises.Any(item => item.Status == "connected" && item.Fiber is null))

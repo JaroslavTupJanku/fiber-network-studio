@@ -1,11 +1,13 @@
 import type { BuildingEquipmentDocument } from './buildingEquipment'
 import type { BuildingDistributionDocument } from './buildingDistribution'
+import type { IndoorCableRun, IndoorLosses } from './indoorCable'
 import type { OpticalSpliceDocument, SplitterOutput } from './opticalSplices'
 import type { RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
 
-export type PathStep = { kind: 'cable' | 'splice' | 'connector' | 'patch' | 'splitter' | 'premise'; label: string;
+export type PathStep = { kind: 'cable' | 'indoor-cable' | 'splice' | 'connector' | 'patch' | 'splitter' | 'premise'; label: string;
   routeId?: string; itemId?: string; splitterId?: string; outputPosition?: number; source?: string;
+  lengthMeters?: number | null; attenuationDbPerKm?: IndoorLosses | null; count?: number | null;
   losses?: Pick<SplitterOutput, 'loss1270Db' | 'loss1310Db' | 'loss1490Db' | 'loss1550Db' | 'loss1577Db'> }
 export type BranchChoice = { splitterId: string; position: number; label: string }
 export type OpticalPath = { status: 'connected' | 'open' | 'ambiguous'; endPortId: string | null;
@@ -44,7 +46,40 @@ export function tracePortToPremise(startPortId: string, premiseId: string,
   }
   return { ...reverse, endPortId: null, endPremiseId: premiseId, steps: [...reverse.steps].reverse(),
     routeIds: [...reverse.routeIds].reverse(),
-    message: 'Cesta vede od OLT k vybranému přípojnému místu. Vnitřní kabeláž budovy a její útlum nejsou evidovány.' }
+    message: premiseMessage(premiseId, distributions) }
+}
+
+const stepLosses = (values: IndoorLosses) => ({
+  loss1270Db: values.loss1270, loss1310Db: values.loss1310, loss1490Db: values.loss1490,
+  loss1550Db: values.loss1550, loss1577Db: values.loss1577,
+})
+
+function premiseMessage(premiseId: string, distributions: BuildingDistributionDocument[]) {
+  const indoor = distributions.flatMap(document => document.premises)
+    .find(premise => premise.id === premiseId)?.indoorCable
+  return indoor
+    ? 'Cesta vede k přípojnému místu. Domovní přívod je evidován; úplnost délky a útlumů ověřte v kalkulačce.'
+    : 'Cesta vede k přípojnému místu, ale domovní přívod a jeho útlum zatím nejsou evidovány.'
+}
+
+function indoorSteps(label: string, run?: IndoorCableRun | null): PathStep[] {
+  const steps: PathStep[] = [
+    { kind: 'premise', label: `Přípojné místo ${label}` },
+    { kind: 'indoor-cable', label: run?.cableName ? `Domovní kabel · ${run.cableName}` : 'Domovní přívod k HP (neevidován)',
+      source: run?.source ?? '', lengthMeters: run?.lengthMeters ?? null,
+      attenuationDbPerKm: run?.attenuationDbPerKm ?? null },
+  ]
+  if (run?.spliceCount !== undefined && run.spliceCount !== 0) steps.push({
+    kind: 'splice', label: run?.spliceCount === null ? 'Domovní svary · počet neznámý' : 'Domovní svary',
+    count: run?.spliceCount ?? null, source: run?.source ?? '',
+    losses: run ? stepLosses(run.spliceLossDb) : undefined,
+  })
+  if (run?.connectorPairCount !== undefined && run.connectorPairCount !== 0) steps.push({
+    kind: 'connector', label: run?.connectorPairCount === null ? 'Domovní konektorové spoje · počet neznámý' : 'Domovní konektorové spoje',
+    count: run?.connectorPairCount ?? null, source: run?.source ?? '',
+    losses: run ? stepLosses(run.connectorLossDb) : undefined,
+  })
+  return steps
 }
 
 function tracePath(start: string, equipment: BuildingEquipmentDocument[],
@@ -141,9 +176,15 @@ function tracePath(start: string, equipment: BuildingEquipmentDocument[],
   }
   for (const document of distributions) for (const premise of document.premises) {
     if (premise.status !== 'connected' || !premise.fiber || !byId.has(premise.fiber.itemId)) continue
-    add(`premise:${premise.id}`, node(document.pointId, premise.fiber.itemId,
-      premise.fiber.tubeIndex, premise.fiber.fiberIndex),
-    { kind: 'premise', label: `Přípojné místo ${premise.label}` })
+    const steps = indoorSteps(premise.label, premise.indoorCable)
+    let previousNode = `premise:${premise.id}`
+    steps.forEach((step, index) => {
+      const nextNode = index === steps.length - 1
+        ? node(document.pointId, premise.fiber!.itemId, premise.fiber!.tubeIndex, premise.fiber!.fiberIndex)
+        : `indoor:${premise.id}:${index}`
+      add(previousNode, nextNode, step)
+      previousNode = nextNode
+    })
   }
   const startPortId = start.startsWith('port:') ? start.slice(5) : null
   const startPremiseId = start.startsWith('premise:') ? start.slice(8) : null
@@ -183,8 +224,8 @@ function tracePath(start: string, equipment: BuildingEquipmentDocument[],
       const connected = startPremiseId ? !!endPortId && oltPortIds.has(endPortId)
         : !!endPortId || !!endPremiseId
       return result(connected ? 'connected' : 'open', endPortId,
-        connected ? endPremiseId ? 'Cesta končí na přípojném místě; vnitřní kabeláž a její útlum nejsou evidovány.'
-          : startPremiseId ? 'Cesta končí na OLT portu; vnitřní kabeláž budovy není evidována.'
+        connected ? endPremiseId ? premiseMessage(endPremiseId, distributions)
+          : startPremiseId ? premiseMessage(startPremiseId, distributions)
             : 'Cesta končí na dalším portu.'
           : endPortId ? 'Cesta končí na portu bez pokračování k OLT.' : 'Cesta končí volným vláknem nebo portem.',
         endPremiseId ?? startPremiseId)

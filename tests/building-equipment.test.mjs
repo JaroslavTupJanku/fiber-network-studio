@@ -9,6 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
 import { traceOpticalPath, tracePortToPremise, tracePremisePath } from '../frontend/src/features/map/traceOpticalPath.ts'
 import { scenarioFromOpticalPath } from '../frontend/src/features/map/pathScenario.ts'
+import { indoorCableError, indoorRunFromCatalog, newIndoorCableRun } from '../frontend/src/features/map/indoorCable.ts'
 import { calculate } from '../frontend/src/features/optical-budget/model.ts'
 import { countCzech, portLocation } from '../frontend/src/features/map/equipmentPresentation.ts'
 
@@ -23,6 +24,21 @@ test('port choices identify their rack, shelf, card and position', () => {
     'Stojan B / OLT Police 1 / Karta 1 / Port 1 (pozice 1)')
   assert.equal(countCzech(1, 'stojan', 'stojany', 'stojanů'), '1 stojan')
   assert.equal(countCzech(3, 'port', 'porty', 'portů'), '3 porty')
+})
+
+test('indoor catalog selection copies known rates and preserves unknown wavelengths', () => {
+  const cable = { id: 'cable-a', name: 'Vnitřní kabel', attenuation1310DbPerKm: 0.4,
+    attenuation1550DbPerKm: 0.25, sourceUrl: 'https://example.test/specification' }
+  const run = indoorRunFromCatalog(newIndoorCableRun(), cable)
+  assert.equal(run.catalogCableId, 'cable-a')
+  assert.equal(run.attenuationDbPerKm.loss1310, 0.4)
+  assert.equal(run.attenuationDbPerKm.loss1550, 0.25)
+  assert.equal(run.attenuationDbPerKm.loss1490, null)
+  assert.equal(run.source, cable.sourceUrl)
+  cable.attenuation1310DbPerKm = 0.6
+  assert.equal(run.attenuationDbPerKm.loss1310, 0.4)
+  assert.equal(indoorCableError({ ...run, spliceCount: null,
+    spliceLossDb: { ...run.spliceLossDb, loss1310: 0.1 } }) !== null, true)
 })
 
 test('trace follows ports, cable segments and splice without inventing optical losses', () => {
@@ -155,10 +171,11 @@ test('a connected premise traces back through the selected splitter output to it
   assert.equal(forward.steps.at(-1).kind, 'premise')
   assert.equal(tracePortToPremise('other', 'hp2', equipment, routes, installations, splices, distributions).status, 'open')
   const scenario = scenarioFromOpticalPath(forward, installations)
-  assert.equal(scenario.sections.length, 2)
+  assert.equal(scenario.sections.length, 3)
   assert.equal(scenario.elements.find(element => element.kind === 'splitter').loss1310, '11.2')
-  assert.equal(scenario.elements.at(-1).loss1310, '')
-  assert.match(scenario.elements.at(-1).name, /Vnitřní kabeláž/)
+  assert.equal(scenario.sections.at(-1).lengthM, '')
+  assert.match(scenario.sections.at(-1).name, /Domovní přívod/)
+  assert.equal(calculate(scenario).rows.find(row => row.name.includes('Domovní přívod')).loss, null)
   assert.equal(calculate(scenario).total, null)
   assert.equal(tracePremisePath('hp2', equipment, routes, installations, [], distributions).status, 'open')
   assert.equal(tracePremisePath('hp2', equipment, routes, installations, splices,
@@ -176,11 +193,24 @@ test('a direct cable can lead from an OLT port to a premise without a splitter',
       { id: 'odf-port', parentId: 'odf', label: 'ODF', fiber, patchPortId: 'olt-port' },
       { id: 'olt-port', parentId: 'card', label: 'OLT', fiber: null, patchPortId: 'odf-port' },
     ] }]
-  const distributions = [{ pointId: 'home', premises: [{ id: 'hp', status: 'connected', fiber }] }]
+  const losses = (loss1310, loss1550) => ({ loss1270: null, loss1310, loss1490: null, loss1550, loss1577: null })
+  const indoorCable = { cableName: 'Vnitřní kabel', catalogCableId: null, lengthMeters: 18,
+    attenuationDbPerKm: losses(0.4, 0.25), spliceCount: 1, spliceLossDb: losses(0.1, 0.1),
+    connectorPairCount: 1, connectorLossDb: losses(0.3, 0.3), source: 'Měření' }
+  const distributions = [{ pointId: 'home', premises: [{ id: 'hp', status: 'connected', fiber, indoorCable }] }]
   const path = tracePortToPremise('olt-port', 'hp', equipment, routes, installations, [], distributions)
   assert.equal(path.status, 'connected')
   assert.deepEqual(path.routeIds, ['route'])
   assert.equal(path.steps.filter(step => step.kind === 'splitter').length, 0)
+  assert.equal(path.steps.find(step => step.kind === 'indoor-cable').lengthMeters, 18)
+  const scenario = scenarioFromOpticalPath(path, installations)
+  assert.equal(scenario.sections.at(-1).lengthM, '18')
+  assert.equal(scenario.sections.at(-1).loss1310, '0.4')
+  assert.equal(scenario.sections.at(-1).loss1550, '0.25')
+  assert.equal(scenario.sections.at(-1).source, 'Měření')
+  assert.equal(scenario.elements.find(element => element.name === 'Domovní svary').loss1310, '0.1')
+  assert.equal(scenario.elements.find(element => element.name === 'Domovní konektorové spoje').loss1550, '0.3')
+  assert.equal(calculate(scenario).rows.find(row => row.name.includes('Domovní kabel')).loss, 0.0072)
 })
 
 test('equipment API checks physical hierarchy, fiber termination and concurrency', { timeout: 50000 }, async () => {
