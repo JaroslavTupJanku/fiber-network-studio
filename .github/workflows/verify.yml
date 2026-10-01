@@ -35,3 +35,16 @@ jobs:
         run: dotnet build backend/FiberNetworkStudio.Api/FiberNetworkStudio.Api.csproj
       - name: Run tests
         run: node --test tests/*.test.mjs
+      - name: Build single-address customer preview
+        run: docker build -t fiber-network-studio-preview:ci .
+      - name: Smoke test customer preview
+        run: |
+          docker run --rm -d --name fiber-network-studio-preview-ci -p 127.0.0.1:18080:8080 fiber-network-studio-preview:ci
+          trap 'docker stop fiber-network-studio-preview-ci' EXIT
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:18080/api/health > /dev/null; then break; fi
+            sleep 1
+          done
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/customers/example)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/not-a-route)" = 404

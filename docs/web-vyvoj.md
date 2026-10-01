@@ -8,7 +8,7 @@
 
 > Stavíme webovou aplikaci pro návrh optických sítí. React v prohlížeči zobrazuje mapu, katalogy a kalkulačku. Backend v ASP.NET Core přijímá požadavky, kontroluje data a ukládá katalogy kabelů a chrániček i mapové objekty. Frontend s backendem komunikují přes API. Zatím je to prototyp; část dat ukládá server do JSON souborů a rozpracovaný výpočet zůstává v prohlížeči.
 
-Po nasazení uživatel otevře jen webovou adresu. Dva vývojové procesy spouštíme pouze při práci na kódu; sestavený frontend lze podávat spolu s API z jedné adresy.
+Po nasazení uživatel otevře jen webovou adresu. Dva vývojové procesy spouštíme pouze při práci na kódu; sestavený frontend podává ASP.NET Core spolu s API z jedné adresy. Kontejner obsahuje kód aplikace, zatímco pojmenovaný svazek uchovává soubory `App_Data` i po jeho restartu.
 
 ## Co se stane po kliknutí na „Uložit“
 
@@ -45,7 +45,7 @@ Po nasazení uživatel otevře jen webovou adresu. Dva vývojové procesy spouš
 
 V editoru osazení se přetažením ve stromu mění nadřazený prvek kabelu nebo trubičky. Frontend zvýrazní jen vhodné cíle a po puštění volá API s ID prvku, novým rodičem, případnou pozicí v sestavě a verzí dokumentu. Backend znovu ověří pravidla uložení; tlačítko **Přesunout…** nabídne stejnou operaci bez přetahování. Při odebrání rodiče API atomicky odebere celý jeho podstrom, pokud tím nepřeruší souvislý prvek v jiných úsecích.
 
-**Rozpracovaná poloha** je změna bodu viditelná ve frontendu. Při tažení se překreslí bod v mapové vrstvě GeoJSON, ale backend dostane nové souřadnice až po kliknutí na **Uložit**.
+Při tažení uloženého mapového bodu se jeho poloha nejprve průběžně překresluje ve vrstvě GeoJSON. Po puštění se nové souřadnice uloží přes API; tlačítko **Uložit** v detailu slouží ke změně dalších údajů.
 
 **Podzemní trasa** propojuje dva uložené mapové body a mezi nimi může mít seřazené lomové body. Po výběru obou konců jen kliknutí nebo uchopení přímo na trase vloží lomový bod do geometricky nejbližšího segmentu; výpočet probíhá v obrazových souřadnicích mapy. Uložená trasa nabízí přímou akci **Upravit průběh trasy**, která otevře režim kreslení. Při kreslení a úpravách vidí uživatel náhled; server dostane změnu až po **Uložit**. Krajní body uchováváme jejich identitou, takže se průběh trasy přizpůsobí přesunu budovy či šachty. Přibližná délka vychází z mapy, ne z evidence skutečně uloženého kabelu. Backend kontroluje koncové body a souřadnice a ukládá trasy do samostatného JSON souboru. Při dokončení i přesunu navázaného bodu frontend požádá API o půdorysy budov z RÚIAN jen podél trasy a označí průchod cizí budovou. Mapové budovy dál ukládáme jako body; tato kontrola nenahrazuje ověření skutečné proveditelnosti výkopu.
 
