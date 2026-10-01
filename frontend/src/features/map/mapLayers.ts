@@ -19,7 +19,9 @@ export const ROUTE_DRAFT_SOURCE_ID = 'underground-route-draft'
 export const ROUTE_DRAFT_LAYER_ID = 'underground-route-draft-line'
 export const ROUTE_VERTEX_SOURCE_ID = 'underground-route-vertices'
 export const ROUTE_VERTEX_LAYER_ID = 'underground-route-vertex-dots'
+export const ROUTE_VERTEX_HALO_LAYER_ID = 'underground-route-vertex-halo'
 export const ROUTE_INSERT_SOURCE_ID = 'underground-route-insert-preview'
+export const BUILDING_CROSSING_SOURCE_ID = 'route-building-crossings'
 
 export function routeCollection(routes: UndergroundRoute[], points: NetworkPoint[], installations: RouteInstallationDocument[] | null) {
   const byRoute = new globalThis.Map(installations?.map(document => [document.routeId, installationSummary(document)]) ?? [])
@@ -50,13 +52,15 @@ export function routeDraftCollection(draft: RouteDraft | null, points: NetworkPo
   }
 }
 
-export function routeVertexCollection(draft: RouteDraft | null) {
+export function routeVertexCollection(draft: RouteDraft | null, hoveredIndex: number | null = null,
+  selectedIndex: number | null = null, draggedIndex: number | null = null) {
   return {
     type: 'FeatureCollection' as const,
     features: draft?.waypoints.map((point, index) => ({
       type: 'Feature' as const,
       geometry: { type: 'Point' as const, coordinates: [point.longitude, point.latitude] },
-      properties: { index },
+      properties: { index, state: index === draggedIndex ? 'dragged'
+        : index === hoveredIndex ? 'hovered' : index === selectedIndex ? 'selected' : 'idle' },
     })) ?? [],
   }
 }
@@ -115,12 +119,23 @@ export function initializeMapLayers(map: Map) {
     paint: { 'line-color': '#de8a39',
       'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 12, 3, 15, 4, 18, 5], 'line-dasharray': [2, 1.5] } })
   map.addSource(ROUTE_VERTEX_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer({ id: ROUTE_VERTEX_HALO_LAYER_ID, type: 'circle', source: ROUTE_VERTEX_SOURCE_ID,
+    filter: ['!=', ['get', 'state'], 'idle'], paint: { 'circle-radius': ['match', ['get', 'state'],
+      'dragged', 18, 'selected', 15, 13], 'circle-color': '#f3aa48', 'circle-opacity': 0.28 } })
   map.addLayer({ id: ROUTE_VERTEX_LAYER_ID, type: 'circle', source: ROUTE_VERTEX_SOURCE_ID,
-    paint: { 'circle-radius': 6, 'circle-color': '#fff', 'circle-stroke-color': '#a4532d', 'circle-stroke-width': 2 } })
+    paint: { 'circle-radius': ['match', ['get', 'state'], 'dragged', 10, 'selected', 9, 'hovered', 8, 6],
+      'circle-color': ['match', ['get', 'state'], 'dragged', '#de8a39', 'selected', '#f3aa48', '#fff'],
+      'circle-stroke-color': ['match', ['get', 'state'], 'dragged', '#fff', '#a4532d'],
+      'circle-stroke-width': ['match', ['get', 'state'], 'dragged', 3, 'hovered', 3, 2] } })
   map.addSource(ROUTE_INSERT_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
   map.addLayer({ id: 'underground-route-insert-preview-dot', type: 'circle', source: ROUTE_INSERT_SOURCE_ID,
     paint: { 'circle-radius': 7, 'circle-color': '#fff6e8', 'circle-stroke-color': '#a4532d',
       'circle-stroke-width': 2.5 } })
+  map.addSource(BUILDING_CROSSING_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer({ id: 'route-building-crossing-fill', type: 'fill', source: BUILDING_CROSSING_SOURCE_ID,
+    paint: { 'fill-color': '#da5643', 'fill-opacity': 0.3 } })
+  map.addLayer({ id: 'route-building-crossing-outline', type: 'line', source: BUILDING_CROSSING_SOURCE_ID,
+    paint: { 'line-color': '#b72b22', 'line-width': 3 } })
   map.addSource(POINT_SOURCE_ID, {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },
@@ -215,5 +230,6 @@ export function initializeMapLayers(map: Map) {
   map.moveLayer(ROUTE_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer(HOVERED_ROUTE_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer(ROUTE_DRAFT_LAYER_ID, POINT_LAYER_ID)
+  map.moveLayer(ROUTE_VERTEX_HALO_LAYER_ID, POINT_LAYER_ID)
   map.moveLayer(ROUTE_VERTEX_LAYER_ID, POINT_LAYER_ID)
 }

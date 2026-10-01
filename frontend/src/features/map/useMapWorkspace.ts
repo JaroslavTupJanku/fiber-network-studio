@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { findParcelAt, type Parcel } from './parcels'
 import { useUndergroundRoutes } from './useUndergroundRoutes'
-import { saveUndergroundRoute, waypointsAfterPointMove } from './undergroundRoutes'
+import { routeCoordinates, saveUndergroundRoute, waypointsAfterPointMove } from './undergroundRoutes'
+import { crossingBuildingFootprints, findBuildingFootprints } from './buildingFootprints'
 import {
   createNetworkPoint,
   deleteNetworkPoint,
@@ -61,20 +62,40 @@ export function useMapWorkspace() {
   const relocatePoint = useCallback(async (id: string, location: Coordinates) => {
     const point = points.find(item => item.id === id)
     if (!point || saving) return
+    setSaving(true)
+    setActionError('')
+    const movedPoints = points.map(item => item.id === id ? { ...item, ...location } : item)
+    try {
+      for (const original of route.routes.filter(item => item.startPointId === id || item.endPointId === id)) {
+        const changed = { ...original, waypoints: waypointsAfterPointMove(original, points, id, location) }
+        const footprints = await findBuildingFootprints(routeCoordinates(changed, movedPoints))
+        if (crossingBuildingFootprints(changed, movedPoints, footprints).length) {
+          setActionError('Přesun by vedl navázanou trasu přes budovu. Nejprve upravte její průběh.')
+          setSaving(false)
+          return
+        }
+      }
+    } catch {
+      setActionError('Půdorysy budov se nepodařilo ověřit. Přesun zkuste znovu.')
+      setSaving(false)
+      return
+    }
     const changedRoutes = route.routes.filter(item => item.startPointId === id || item.endPointId === id)
       .filter(item => item.waypoints.length > 0)
       .map(original => ({ original, changed: { ...original,
         waypoints: waypointsAfterPointMove(original, points, id, location) } }))
-    route.cancel()
+    const draftBeforeMove = route.drawing ? route.draft : null
+    if (draftBeforeMove) route.setDraft(current => current ? { ...current,
+      waypoints: waypointsAfterPointMove(current, points, id, location) } : current)
+    else route.cancel()
     clearParcel()
-    setEditor(current => current?.id === id ? { ...current, ...location } : { ...point, ...location })
+    if (!draftBeforeMove) setEditor(current => current?.id === id ? { ...current, ...location } : { ...point, ...location })
     setPoints(current => current.map(item => item.id === id ? { ...item, ...location } : item))
     route.setRoutes(current => current.map(item => changedRoutes.find(entry => entry.original.id === item.id)?.changed ?? item))
     setSelectedLocation(null)
     setActiveTool(null)
     setMoving(false)
     setActionError('')
-    setSaving(true)
     const changedOnServer: typeof changedRoutes = []
     try {
       for (const entry of changedRoutes) {
@@ -89,7 +110,9 @@ export function useMapWorkspace() {
         try { await saveUndergroundRoute(entry.original) }
         catch { rollbackFailed = true }
       }
-      setEditor(current => current?.id === id
+      if (draftBeforeMove) route.setDraft(current => current ? { ...current,
+        waypoints: draftBeforeMove.waypoints } : current)
+      else setEditor(current => current?.id === id
         ? { ...current, latitude: point.latitude, longitude: point.longitude } : current)
       setPoints(current => current.map(item => item.id === id ? point : item))
       route.setRoutes(current => current.map(item => changedRoutes.find(entry => entry.original.id === item.id)?.original ?? item))
@@ -172,6 +195,16 @@ export function useMapWorkspace() {
 
   const handleRouteSelect = (id: string) => {
     route.selectRoute(id)
+    setActiveTool(null)
+    setMoving(false)
+    setEditor(null)
+    setSelectedLocation(null)
+    clearParcel()
+    setActionError('')
+  }
+
+  const handleRouteEdit = (id: string) => {
+    route.editRoute(id)
     setActiveTool(null)
     setMoving(false)
     setEditor(null)
@@ -267,7 +300,7 @@ export function useMapWorkspace() {
     selectedLocation, selectedParcel, parcelStatus, query, visiblePoints,
     buildings, chambers, preview, setQuery, setEditor, setSelectedLocation,
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,
-    clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect,
+    clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect, handleRouteEdit,
     handleLocationClick, handlePointSelect, relocatePoint,
     handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   }

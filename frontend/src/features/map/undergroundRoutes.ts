@@ -64,8 +64,8 @@ export function routeSegmentHit(points: { x: number; y: number }[], target: { x:
 }
 
 export function routeGeometryHit(points: { x: number; y: number }[], target: { x: number; y: number },
-  tolerance: number): { kind: 'vertex'; index: number } | { kind: 'segment'; index: number; x: number; y: number } | null {
-  const vertexIndex = points.slice(1, -1).findIndex(item =>
+  tolerance: number, openEnd = false): { kind: 'vertex'; index: number } | { kind: 'segment'; index: number; x: number; y: number } | null {
+  const vertexIndex = points.slice(1, openEnd ? undefined : -1).findIndex(item =>
     Math.hypot(item.x - target.x, item.y - target.y) <= tolerance)
   if (vertexIndex >= 0) return { kind: 'vertex', index: vertexIndex }
   const segment = routeSegmentHit(points, target, tolerance)
@@ -78,7 +78,7 @@ export function closestRouteSegment(points: { x: number; y: number }[], target: 
 
 // Deform the mapped line smoothly when one of its endpoint objects is moved.
 // Existing waypoints keep their order and count; points nearer the moved end travel farther.
-export function waypointsAfterPointMove(route: UndergroundRoute, points: NetworkPoint[],
+export function waypointsAfterPointMove(route: UndergroundRouteInput, points: NetworkPoint[],
   pointId: string, next: Coordinates): Coordinates[] {
   if (route.startPointId !== pointId && route.endPointId !== pointId) return route.waypoints
   const coordinates = routeCoordinates(route, points)
