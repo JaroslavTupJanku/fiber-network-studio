@@ -692,4 +692,4 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
   .route-guide-actions { margin-left: auto; }
   .route-guide-actions button:disabled { display: none; }
 }
-@media (max-width: 650px) { .app-header { gap: 8px; }.app-brand span { display: none; }.workspace-navigation { overflow-x: auto; }.workspace-navigation button { white-space: nowrap; } }
+@media (max-width: 650px) { .app-shell .app-header { flex-wrap: nowrap; gap: 8px; min-width: 0; overflow: hidden; }.app-brand { flex: none; }.app-brand span { display: none; }.app-shell .workspace-navigation { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }.workspace-navigation::-webkit-scrollbar { display: none; }.workspace-navigation button { flex: none; white-space: nowrap; } }

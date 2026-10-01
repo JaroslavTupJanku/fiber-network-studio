@@ -14,32 +14,38 @@ type Props = {
   buildings: NetworkPoint[]
   distributions: BuildingDistributionDocument[]
   onShowBuilding: (id: string) => void
+  onDirtyChange: (dirty: boolean) => void
 }
 
-export function CustomerPanel({ buildingId, buildings, distributions, onShowBuilding }: Props) {
+export function CustomerPanel({ buildingId, buildings, distributions, onShowBuilding, onDirtyChange }: Props) {
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [draft, setDraft] = useState<CustomerDraft | null>(null)
   const [dirty, setDirty] = useState(false)
+  useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [query, setQuery] = useState('')
-  const [showAllFor, setShowAllFor] = useState<string | null>(null)
+  const [filterBuildingId, setFilterBuildingId] = useState(buildingId ?? '')
   const [detailTab, setDetailTab] = useState<'contacts' | 'messages'>('contacts')
   const [messageFilter, setMessageFilter] = useState<'all' | MessageStatus>('all')
   const [addingMessage, setAddingMessage] = useState(false)
   const [messageInput, setMessageInput] = useState({ subject: '', sender: '', date: new Date().toISOString().slice(0, 10),
     category: 'request' as CustomerMessage['category'], status: 'todo' as MessageStatus, summary: '' })
-  const building = buildings.find(point => point.id === buildingId)
-  const showAll = !!buildingId && showAllFor === buildingId
-  const filtered = useMemo(() => customers.filter(customer => (showAll || !buildingId || customer.buildingPointId === buildingId)
-    && `${customer.name} ${customer.contacts.map(contact => contact.name).join(' ')}`.toLocaleLowerCase('cs').includes(query.toLocaleLowerCase('cs'))),
-  [customers, showAll, buildingId, query])
+  const filtered = useMemo(() => customers.filter(customer => (!filterBuildingId || customer.buildingPointId === filterBuildingId)
+    && `${customer.name} ${customer.contacts.map(contact => contact.name).join(' ')}`.toLocaleLowerCase('cs').includes(query.toLocaleLowerCase('cs')))
+    .sort((a, b) => a.name.localeCompare(b.name, 'cs')),
+  [customers, filterBuildingId, query])
   const premises = distributions.find(item => item.pointId === draft?.buildingPointId)?.premises ?? []
   const buildingName = (id: string) => buildings.find(point => point.id === id)?.name ?? 'Budova již není na mapě'
   const premiseName = (premiseId: string | null, pointId: string) => premiseId
     ? distributions.find(item => item.pointId === pointId)?.premises.find(item => item.id === premiseId)?.label ?? 'HP již neexistuje'
     : 'Bez vazby na HP'
+  const showBuilding = () => {
+    if (!draft?.buildingPointId) return
+    if (dirty && !window.confirm('Zahodit neuložené změny zákazníka a otevřít budovu na mapě?')) return
+    onShowBuilding(draft.buildingPointId)
+  }
 
   useEffect(() => {
     let live = true
@@ -61,7 +67,7 @@ export function CustomerPanel({ buildingId, buildings, distributions, onShowBuil
   }
   const start = () => {
     if (dirty && !window.confirm('Zahodit neuložené změny zákazníka?')) return
-    setDraft(newCustomer(buildingId ?? buildings[0]?.id ?? ''))
+    setDraft(newCustomer(filterBuildingId || buildings[0]?.id || ''))
     setDirty(true); setError(''); setDetailTab('contacts'); setAddingMessage(false)
   }
   const save = async (value = draft) => {
@@ -77,9 +83,9 @@ export function CustomerPanel({ buildingId, buildings, distributions, onShowBuil
     finally { setBusy(false) }
   }
   const addDemo = () => {
-    if (!buildingId) return
-    const firstPremise = distributions.find(item => item.pointId === buildingId)?.premises[0]?.id ?? null
-    void save(demoCustomer(buildingId, firstPremise))
+    if (!filterBuildingId) return
+    const firstPremise = distributions.find(item => item.pointId === filterBuildingId)?.premises[0]?.id ?? null
+    void save(demoCustomer(filterBuildingId, firstPremise))
   }
   const remove = async () => {
     const current = customers.find(item => item.id === draft?.id)
@@ -109,37 +115,43 @@ export function CustomerPanel({ buildingId, buildings, distributions, onShowBuil
     .sort((a, b) => b.date.localeCompare(a.date)) ?? []
   const todoCount = (record: CustomerRecord | CustomerDraft) => record.messages.filter(message => message.status === 'todo').length
 
-  return <div className="customer-panel">
-    {!draft ? <>
+  return <div className={`customer-panel${draft ? ' has-detail' : ''}`}>
+    <div className="customer-directory">
       <header className="customer-panel-heading"><div><span className="section-label">ZÁKAZNICKÝ PŘEHLED</span>
-        <h1>{building && !showAll ? building.name : 'Zákazníci'}</h1>
-        <p>{building && !showAll ? 'Klienti přiřazení k vybrané budově' : 'Kontakty a komunikace podle budov'}</p></div>
+        <h1>Zákazníci</h1>
+        <p>Kontakty a komunikace podle budov</p></div>
         <button type="button" className="icon-button" title="Obnovit zákazníky" aria-label="Obnovit zákazníky"
           onClick={() => { setLoading(true); setError(''); void listCustomers().then(setCustomers)
             .catch(reason => setError(reason instanceof Error ? reason.message : 'Zákazníci se nenačetli.'))
             .finally(() => setLoading(false)) }}><RefreshCw size={16} /></button></header>
       <div className="customer-intro"><Users size={17} /><span>Prototyp pro fiktivní údaje. Zprávy se zadávají ručně; poštovní schránka není připojena.</span></div>
-      {building && <button type="button" className="customer-scope" onClick={() => setShowAllFor(showAll ? null : buildingId)}>
-        {showAll ? 'Zobrazit jen tuto budovu' : 'Zobrazit všechny budovy'} <ChevronRight size={15} /></button>}
+      <label className="customer-building-filter">Budova
+        <select value={filterBuildingId} onChange={event => setFilterBuildingId(event.target.value)}>
+          <option value="">Všechny budovy</option>
+          {buildings.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </select>
+      </label>
       <div className="customer-list-tools"><label className="search-field"><Search size={16} />
         <input value={query} onChange={event => setQuery(event.target.value)} placeholder="Hledat klienta nebo kontakt"
           aria-label="Hledat zákazníka" /></label>
         <button type="button" className="primary-button" disabled={buildings.length === 0 || busy} onClick={start}><Plus size={15} /> Přidat zákazníka</button></div>
+      {!loading && <span className="customer-result-count">{countCzech(filtered.length, 'zákazník', 'zákazníci', 'zákazníků')}</span>}
       {error && <p className="customer-error" role="alert">{error}</p>}
       {loading ? <p className="customer-empty">Načítání zákazníků…</p> : filtered.length === 0 ?
         <div className="customer-empty-card"><Users size={22} /><strong>{query ? 'Nic nenalezeno' : 'Zatím žádní zákazníci'}</strong>
-          <p>{query ? 'Zkuste jiné hledání.' : building && !showAll
+          <p>{query ? 'Zkuste jiné hledání.' : filterBuildingId
             ? 'K této budově můžete přidat klienta nebo si vložit fiktivní ukázku.'
-            : 'Vyberte budovu na mapě a založte jejího prvního klienta.'}</p>
-          {building && !showAll && !query && <button type="button" className="move-button" disabled={busy}
+            : 'Vyberte budovu a založte jejího prvního klienta.'}</p>
+          {filterBuildingId && !query && <button type="button" className="move-button" disabled={busy}
             onClick={addDemo}>Vložit ukázkového klienta</button>}</div> :
         <div className="customer-list">{filtered.map(customer => <button type="button" key={customer.id}
-          className="customer-list-card" onClick={() => open(customer)}>
+          className="customer-list-card" aria-current={draft?.id === customer.id ? 'true' : undefined} onClick={() => open(customer)}>
           <span className="customer-avatar"><Users size={19} /></span><span className="customer-list-copy"><strong>{customer.name}</strong>
             <small>{buildingName(customer.buildingPointId)} · {premiseName(customer.premiseId, customer.buildingPointId)}</small>
             <span>{countCzech(customer.contacts.length, 'kontakt', 'kontakty', 'kontaktů')} · {countCzech(customer.messages.length, 'zpráva', 'zprávy', 'zpráv')}{todoCount(customer) > 0 ? ` · ${todoCount(customer)} k vyřízení` : ''}</span></span>
           <ChevronRight size={17} /></button>)}</div>}
-    </> : <>
+    </div>
+    <div className="customer-detail-pane">{draft ? <>
       <button type="button" className="customer-back" onClick={leaveDetail}><ArrowLeft size={16} /> Seznam zákazníků</button>
       <header className="customer-detail-heading"><span className="section-label">KARTA ZÁKAZNÍKA</span>
         <h1>{draft.name.trim() || 'Nový zákazník'}</h1>
@@ -156,7 +168,7 @@ export function CustomerPanel({ buildingId, buildings, distributions, onShowBuil
         <label>Přípojné místo (HP)<select value={draft.premiseId ?? ''} disabled={!draft.buildingPointId}
           onChange={event => edit({ ...draft, premiseId: event.target.value || null })}><option value="">Bez vazby na HP</option>
           {premises.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}</select></label>
-        <button type="button" className="customer-map-link" onClick={() => onShowBuilding(draft.buildingPointId)}
+        <button type="button" className="customer-map-link" onClick={showBuilding}
           disabled={!draft.buildingPointId || !buildings.some(item => item.id === draft.buildingPointId)}><MapPin size={14} /> Otevřít budovu v mapě</button>
         <label>Poznámka<textarea value={draft.note} maxLength={2000} rows={2} placeholder="Nepovinná poznámka"
           onChange={event => edit({ ...draft, note: event.target.value })} /></label></div>
@@ -221,6 +233,8 @@ export function CustomerPanel({ buildingId, buildings, distributions, onShowBuil
           : <span className="customer-saved"><Check size={15} /> Vše uloženo</span>}
         {draft.id && <button type="button" className="customer-delete" disabled={busy} onClick={() => void remove()}>
           <Trash2 size={15} /> Odebrat zákazníka</button>}</div>
-    </>}
+    </> : <div className="customer-detail-placeholder"><Users size={28} /><strong>Vyberte zákazníka</strong>
+      <p>Vlevo najdete klienty podle budovy. Tady se otevřou kontakty a přehled komunikace.</p></div>}
+    </div>
   </div>
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Building2, Cable, CircleDot, Copy, Crosshair, House, MapPin, Network, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, Users, X } from 'lucide-react'
-import { CustomerPanel } from '../customers/CustomerPanel'
+import { CustomerQuickPanel } from '../customers/CustomerQuickPanel'
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
@@ -26,7 +26,12 @@ const pointKindLabel = (point: Pick<NetworkPoint, 'kind' | 'buildingType'>) =>
 const countLabel = (count: number, one: string, few: string, many: string) =>
   `${count} ${count === 1 ? one : count >= 2 && count <= 4 ? few : many}`
 
-export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpenBudget: (scenario: Scenario) => void }) {
+export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpenBudget }: {
+  active: boolean
+  customerMapFocus: { id: string; sequence: number } | null
+  onOpenCustomers: (buildingId: string | null) => void
+  onOpenBudget: (scenario: Scenario) => void
+}) {
   const [panelOpen, setPanelOpen] = useState(true)
   const [sideTab, setSideTab] = useState<'infrastructure' | 'customers'>('infrastructure')
   const [spliceOpen, setSpliceOpen] = useState(false)
@@ -48,6 +53,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
   const [routeTab, setRouteTab] = useState<'installations' | 'route'>('installations')
   const detailsPanelRef = useRef<HTMLElement>(null)
   const lastRouteId = useRef<string | null>(null)
+  const lastCustomerFocusSequence = useRef(0)
   const [listHoveredPointId, setListHoveredPointId] = useState<string | null>(null)
   const [listHoveredRouteId, setListHoveredRouteId] = useState<string | null>(null)
   const [mapHoveredPointId, setMapHoveredPointId] = useState<string | null>(null)
@@ -68,6 +74,17 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
     handleLocationClick, handlePointSelect, relocatePoint,
     handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   } = useMapWorkspace()
+  useEffect(() => {
+    if (!active || !customerMapFocus || customerMapFocus.sequence === lastCustomerFocusSequence.current) return
+    const frame = requestAnimationFrame(() => {
+      lastCustomerFocusSequence.current = customerMapFocus.sequence
+      handlePointSelect(customerMapFocus.id)
+      setPointFocusRequest(current => ({ id: customerMapFocus.id, sequence: (current?.sequence ?? 0) + 1 }))
+      setSideTab('infrastructure')
+      setPanelOpen(true)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [active, customerMapFocus, handlePointSelect])
   const routeDraft = route.draft
   useEffect(() => {
     const id = routeDraft?.id ?? null
@@ -449,10 +466,10 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
           </div>
         )}
         </div>
-        <div hidden={sideTab !== 'customers'}><CustomerPanel
+        <div hidden={sideTab !== 'customers'}><CustomerQuickPanel active={active && sideTab === 'customers'}
           buildingId={editor?.id && editor.kind === 'building' ? editor.id : null}
-          buildings={points.filter(point => point.kind === 'building')} distributions={distributions}
-          onShowBuilding={id => { handlePointSelect(id); setSideTab('infrastructure'); detailsPanelRef.current?.scrollTo({ top: 0 }) }} />
+          buildingName={editor?.id && editor.kind === 'building' ? editor.name : null}
+          onOpenCustomers={onOpenCustomers} />
         </div>
       </aside>
       {spliceOpen && editor?.id && editor.kind === 'chamber' && <OpticalSpliceEditor key={editor.id}
