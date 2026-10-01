@@ -2,6 +2,7 @@ using FiberNetworkStudio.Api;
 using FiberNetworkStudio.Api.CableCatalog;
 using FiberNetworkStudio.Api.BuildingEquipment;
 using FiberNetworkStudio.Api.BuildingDistribution;
+using FiberNetworkStudio.Api.Customers;
 using FiberNetworkStudio.Api.DuctCatalog;
 using FiberNetworkStudio.Api.OpticalSplices;
 using FiberNetworkStudio.Api.RouteInstallations;
@@ -29,6 +30,9 @@ builder.Services.AddSingleton(new BuildingEquipmentStore(equipmentDataPath));
 var distributionDataPath = builder.Configuration["BuildingDistribution:Path"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "building-distribution.json");
 builder.Services.AddSingleton(new BuildingDistributionStore(distributionDataPath));
+var customerDataPath = builder.Configuration["Customers:Path"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "customers.json");
+builder.Services.AddSingleton(new CustomerStore(customerDataPath));
 builder.Services.AddHttpClient<ParcelLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
 var app = builder.Build();
 app.MapCableCatalog();
@@ -38,6 +42,7 @@ app.MapRouteInstallations();
 app.MapOpticalSplices();
 app.MapBuildingEquipment();
 app.MapBuildingDistribution();
+app.MapCustomers();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/parcels/at", async (double latitude, double longitude, ParcelLookup lookup,
@@ -92,7 +97,7 @@ app.MapPut("/api/network-points/{id:guid}", async (Guid id, UpdateNetworkPointRe
 
 app.MapDelete("/api/network-points/{id:guid}", async (Guid id, NetworkPointStore store,
     UndergroundRouteStore routes, OpticalSpliceStore splices, BuildingEquipmentStore equipment,
-    BuildingDistributionStore distribution) =>
+    BuildingDistributionStore distribution, CustomerStore customers) =>
     await routes.ContainsPointAsync(id)
         ? Results.Conflict(new { error = "Bod je koncem podzemní trasy. Nejprve upravte nebo smažte trasu." })
         : await splices.HasSpliceAsync(id)
@@ -101,6 +106,8 @@ app.MapDelete("/api/network-points/{id:guid}", async (Guid id, NetworkPointStore
             ? Results.Conflict(new { error = "V budově je optické vybavení. Nejprve ho odeberte." })
         : await distribution.HasDistributionAsync(id)
             ? Results.Conflict(new { error = "V budově jsou domovní rozvody. Nejprve je odeberte." })
+        : await customers.HasBuildingAsync(id)
+            ? Results.Conflict(new { error = "K budově jsou přiřazení zákazníci. Nejprve je přesuňte nebo odeberte." })
         : await store.DeleteAsync(id) ? Results.NoContent() : Results.NotFound());
 
 app.Run();

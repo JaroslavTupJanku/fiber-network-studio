@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Building2, Cable, CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
+import { Building2, Cable, CircleDot, Copy, Crosshair, House, MapPin, Network, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, Users, X } from 'lucide-react'
+import { CustomerPanel } from '../customers/CustomerPanel'
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
@@ -27,6 +28,7 @@ const countLabel = (count: number, one: string, few: string, many: string) =>
 
 export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpenBudget: (scenario: Scenario) => void }) {
   const [panelOpen, setPanelOpen] = useState(true)
+  const [sideTab, setSideTab] = useState<'infrastructure' | 'customers'>('infrastructure')
   const [spliceOpen, setSpliceOpen] = useState(false)
   const [equipmentOpen, setEquipmentOpen] = useState(false)
   const [distributionOpen, setDistributionOpen] = useState(false)
@@ -105,6 +107,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
     detailsPanelRef.current?.scrollTo({ top: 0 })
   }
   const selectSavedRoute = (id: string) => {
+    setSideTab('infrastructure')
     selectRouteTab('installations')
     setPanelOpen(true)
     handleRouteSelect(id)
@@ -157,20 +160,33 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
           placementActive={activeTool !== null || moving}
           toolsDisabled={loading || loadError}
           onToolChange={handleToolChange}
-          onToolDrop={(kind, location) => { setPanelOpen(true); handleToolDrop(kind, location) }}
-          onLocationClick={(location, lookupParcel) => { setPanelOpen(true); handleLocationClick(location, lookupParcel) }}
-          onPointSelect={id => { setPanelOpen(true); handlePointSelect(id) }}
+          onToolDrop={(kind, location) => { setPanelOpen(true); setSideTab('infrastructure'); handleToolDrop(kind, location) }}
+          onLocationClick={(location, lookupParcel) => { setPanelOpen(true); setSideTab('infrastructure'); handleLocationClick(location, lookupParcel) }}
+          onPointSelect={id => { setPanelOpen(true); if (points.find(point => point.id === id)?.kind !== 'building') setSideTab('infrastructure'); handlePointSelect(id) }}
           onPointMove={(id, location) => { setPanelOpen(true); void relocatePoint(id, location) }}
           onDraftMove={moveDraft}
           onCadastreDisable={clearParcel}
         />
       </section>
 
-      <aside className={`details-panel${panelOpen ? '' : ' collapsed'}`} aria-label="Objekty sítě" ref={detailsPanelRef}>
-        {!panelOpen && <button className="details-rail-toggle" type="button" onClick={togglePanel}
-          aria-label="Rozbalit panel Infrastruktura" title="Rozbalit panel Infrastruktura">
-          <PanelRightOpen size={19} aria-hidden="true" /><span>Infrastruktura</span>
-        </button>}
+      <aside className={`details-panel${panelOpen ? '' : ' collapsed'}`} aria-label="Boční panel" ref={detailsPanelRef}>
+        {!panelOpen && <div className="details-rail-tabs">
+          <button className="details-rail-toggle" type="button" onClick={() => { setSideTab('infrastructure'); setPanelOpen(true) }}
+            aria-label="Rozbalit Infrastrukturu" title="Rozbalit Infrastrukturu">
+            <PanelRightOpen size={19} aria-hidden="true" /><span>Infrastruktura</span></button>
+          <button className="details-rail-toggle" type="button" onClick={() => { setSideTab('customers'); setPanelOpen(true) }}
+            aria-label="Rozbalit Zákazníky" title="Rozbalit Zákazníky">
+            <Users size={19} aria-hidden="true" /><span>Zákazníci</span></button>
+        </div>}
+        {panelOpen && <nav className="side-workspace-tabs" aria-label="Boční pracovní plocha">
+          <button type="button" aria-pressed={sideTab === 'infrastructure'} onClick={() => { setSideTab('infrastructure'); detailsPanelRef.current?.scrollTo({ top: 0 }) }}>
+            <Network size={15} /> Infrastruktura</button>
+          <button type="button" aria-pressed={sideTab === 'customers'} onClick={() => { setSideTab('customers'); detailsPanelRef.current?.scrollTo({ top: 0 }) }}>
+            <Users size={15} /> Zákazníci</button>
+          <button type="button" className="side-workspace-collapse" title="Sbalit panel" aria-label="Sbalit panel" onClick={togglePanel}>
+            <PanelRightClose size={17} /></button>
+        </nav>}
+        <div hidden={sideTab !== 'infrastructure'}>
         <div className="panel-heading">
           <div>
             <span className="section-label">{routeDraft?.id ? 'Podzemní trasa' : selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
@@ -187,8 +203,6 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
                 setActionError('')
               }} title="Zavřít detail" aria-label="Zavřít detail"><X size={18} /></button>
             )}
-            <button className="icon-button" type="button" onClick={togglePanel}
-              title="Sbalit panel Infrastruktura" aria-label="Sbalit panel Infrastruktura"><PanelRightClose size={18} /></button>
           </div>
         </div>
 
@@ -433,6 +447,12 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
             })}</ul></div>}
           </div>
         )}
+        </div>
+        <div hidden={sideTab !== 'customers'}><CustomerPanel
+          buildingId={editor?.id && editor.kind === 'building' ? editor.id : null}
+          buildings={points.filter(point => point.kind === 'building')} distributions={distributions}
+          onShowBuilding={id => { handlePointSelect(id); setSideTab('infrastructure'); detailsPanelRef.current?.scrollTo({ top: 0 }) }} />
+        </div>
       </aside>
       {spliceOpen && editor?.id && editor.kind === 'chamber' && <OpticalSpliceEditor key={editor.id}
         pointId={editor.id} pointName={editor.name} routes={route.routes}
