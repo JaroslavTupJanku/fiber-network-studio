@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { Building2, Check, Link2, Plus, Save, Trash2, X } from 'lucide-react'
 import { fiberEndKey, spliceCableEnds, type FiberEnd } from './opticalSplices'
 import { listBuildingEquipment, loadBuildingEquipment } from './buildingEquipment'
+import { countCzech } from './equipmentPresentation'
 import { listOpticalSplices } from './opticalSplices'
 import { tracePremisePath, type OpticalPath } from './traceOpticalPath'
 import { isConnectedPremise, loadBuildingDistribution, saveBuildingDistribution,
@@ -126,15 +127,15 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
     finally { setTracing(false) }
   }
   const connected = draft?.premises.filter(isConnectedPremise).length ?? 0
-  return createPortal(<dialog ref={dialogRef} className="splice-editor-dialog distribution-dialog"
+  return createPortal(<dialog ref={dialogRef} className="splice-editor-dialog network-structure-dialog distribution-dialog"
     aria-labelledby="distribution-title" onCancel={event => { event.preventDefault(); close() }}>
     <header className="splice-editor-header"><span className="splice-editor-emblem"><Building2 size={23} /></span>
       <div><small>Budova · {pointName}</small><h2 id="distribution-title">Domovní FTTH rozvody</h2></div>
       <button type="button" className="icon-button" onClick={close} aria-label="Zavřít editor"><X size={19} /></button>
     </header>
-    <div className="distribution-summary"><span><strong>{draft?.risers.length ?? 0}</strong> stoupaček</span>
-      <span><strong>{draft?.boxes.length ?? 0}</strong> podlažních boxů</span>
-      <span><strong>{connected}/{draft?.premises.length ?? 0}</strong> připojených HP</span></div>
+    <div className="distribution-summary"><span>{countCzech(draft?.risers.length ?? 0, 'stoupačka', 'stoupačky', 'stoupaček')}</span>
+      <span>{countCzech(draft?.boxes.length ?? 0, 'podlažní box', 'podlažní boxy', 'podlažních boxů')}</span>
+      <span>Připojená HP <strong>{connected}/{draft?.premises.length ?? 0}</strong></span></div>
     <nav className="distribution-mobile-tabs" aria-label="Zobrazení domovního rozvodu">
       <button type="button" aria-pressed={mobileView === 'list'} onClick={() => setMobileView('list')}>Přehled</button>
       <button type="button" aria-pressed={mobileView === 'detail'} disabled={!selection}
@@ -167,9 +168,8 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
       <section className="distribution-detail" aria-label="Detail vybraného prvku">
         {!selection && <div className="distribution-empty"><strong>Vyberte prvek vlevo</strong>
           <p>Stoupačka představuje rozvod v jednom vchodu. Box patří na podlaží a HP je přípojné místo bytu nebo prostoru.</p></div>}
-        {selection && <><div className="distribution-detail-heading"><div><small>VYBRANÝ PRVEK</small>
-          <h3>{selectedRiser ? 'Stoupačka' : selectedBox ? 'Podlažní box' : 'Přípojné místo (HP)'}</h3></div>
-          <button type="button" className="icon-button" onClick={removeSelected} title="Odebrat prvek" aria-label="Odebrat prvek"><Trash2 size={17} /></button></div>
+        {selection && <><div className="distribution-detail-heading"><div><small>VYBRANÝ PRVEK · {selectedRiser ? 'STOUPAČKA' : selectedBox ? 'PODLAŽNÍ BOX' : 'PŘÍPOJNÉ MÍSTO (HP)'}</small>
+          <h3>{selectedRiser?.name ?? selectedBox?.name ?? selectedPremise?.label}</h3></div></div>
           {selectedRiser && <><label className="equipment-field">Označení vchodu nebo stoupačky
             <input maxLength={80} value={selectedRiser.name} onChange={event => setRiser({ ...selectedRiser, name: event.target.value })} /></label>
             <label className="equipment-field">Přívodní kabel končící v budově
@@ -216,6 +216,8 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
               {path.status === 'connected' && <button type="button" className="move-button"
                 onClick={() => onBudget(path)}>Přenést do kalkulačky</button>}
             </div>}</>}
+          <div className="network-structure-remove"><button type="button" onClick={removeSelected}>
+            <Trash2 size={15} /> Odebrat prvek…</button></div>
         </>}
       </section>
     </div>

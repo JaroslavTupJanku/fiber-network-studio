@@ -171,14 +171,14 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .point-dependencies button:hover { background: #eaf5ef; }
 .splice-editor-dialog { width: min(980px, calc(100vw - 24px)); max-width: none; max-height: calc(100dvh - 24px); padding: 0; overflow: hidden; border: 1px solid #b9cec4; border-radius: 15px; background: #fff; color: #29473c; box-shadow: 0 28px 80px rgb(12 37 31 / 35%); }
 .splice-editor-dialog::backdrop { background: rgb(10 32 27 / 61%); }
-.equipment-dialog { width: min(1100px, calc(100vw - 24px)); }
+.equipment-dialog { width: min(1080px, calc(100vw - 24px)); }
 .equipment-mobile-tabs { display: none; }
-.distribution-dialog { width: min(1040px, calc(100vw - 24px)); }
+.distribution-dialog { width: min(1080px, calc(100vw - 24px)); }
 .distribution-mobile-tabs { display: none; }
 .distribution-summary { display: flex; flex-wrap: wrap; gap: 10px; padding: 13px 25px; border-bottom: 1px solid #e0ebe4; background: #fbfdfb; }
 .distribution-summary span { padding: 6px 10px; border-radius: 6px; background: #edf5ef; color: #496b5a; font-size: 12px; }
 .distribution-summary strong { color: #176759; }
-.distribution-layout { display: grid; grid-template-columns: minmax(320px, 1.15fr) minmax(280px, .85fr); min-height: 360px; max-height: calc(100dvh - 230px); overflow: auto; }
+.distribution-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); min-height: 360px; max-height: calc(100dvh - 230px); overflow: auto; }
 .distribution-list { padding: 22px; border-right: 1px solid #dce8e1; background: #f5f9f6; }
 .distribution-detail { padding: 24px; }
 .distribution-list-heading, .distribution-detail-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
@@ -222,7 +222,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
   .distribution-dialog .splice-editor-footer > div { display: grid; grid-template-columns: 1fr 1fr; }
   .distribution-dialog .splice-editor-footer button { min-height: 42px; }
 }
-.equipment-layout { display: grid; grid-template-columns: minmax(320px, 1.1fr) minmax(280px, .9fr); min-height: 370px; max-height: calc(100dvh - 175px); overflow: auto; }
+.equipment-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); min-height: 370px; max-height: calc(100dvh - 230px); overflow: auto; }
 .equipment-tree { padding: 24px; background: #f5f9f6; border-right: 1px solid #dce8e1; }
 .equipment-detail { padding: 28px; }
 .equipment-section-title, .equipment-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 17px; }
@@ -280,6 +280,31 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .splice-editor-header small { color: #688277; }
 .splice-editor-header .icon-button { margin-left: auto; }
 .splice-editor-emblem { display: grid; width: 42px; height: 42px; place-items: center; border-radius: 12px; background: #d9eee4; color: #176759; }
+.network-structure-dialog .splice-editor-header { border-bottom-color: #194b44; background: linear-gradient(110deg, #194b44, #26766b); color: #fff; }
+.network-structure-dialog .splice-editor-header h2 { color: #fff; }
+.network-structure-dialog .splice-editor-header small { color: #cde9df; }
+.network-structure-dialog .splice-editor-emblem { border: 1px solid rgb(255 255 255 / 28%); background: rgb(255 255 255 / 12%); color: #fff; }
+.network-structure-dialog .splice-editor-header .icon-button { border: 0; border-radius: 7px; background: rgb(255 255 255 / 12%); color: #fff; }
+.network-structure-dialog .splice-editor-header .icon-button:hover { background: rgb(255 255 255 / 24%); }
+.network-structure-dialog .distribution-summary { background: #f4faf6; }
+.network-structure-dialog .distribution-list, .network-structure-dialog .equipment-tree { background: linear-gradient(145deg, #f7faf8, #eef5f0); }
+.network-structure-dialog .distribution-detail, .network-structure-dialog .equipment-detail { display: flex; flex-direction: column; align-items: stretch; background: #fff; }
+.network-structure-dialog .distribution-riser, .network-structure-dialog .equipment-rack { border-color: #d3e3d9; border-radius: 12px; box-shadow: 0 4px 13px rgb(25 64 49 / 6%); }
+.network-structure-dialog .distribution-row, .network-structure-dialog .equipment-row { min-height: 45px; }
+.network-structure-dialog .distribution-riser > .distribution-row, .network-structure-dialog .equipment-rack > .equipment-row { border-color: #c7dfd0; background: #eef8f1; font-weight: 700; }
+.network-structure-dialog .distribution-box > .distribution-row, .network-structure-dialog .equipment-shelf > .equipment-row, .network-structure-dialog .equipment-card > .equipment-row { border-color: #d9e7dd; background: #fff; box-shadow: 0 3px 9px rgb(29 70 49 / 5%); }
+.network-structure-dialog .distribution-box, .network-structure-dialog .equipment-shelf { border-left-color: #bbd9c8; }
+.network-structure-dialog .equipment-card { border-left-color: #c2d8e8; }
+.network-structure-dialog .distribution-row:hover, .network-structure-dialog .equipment-row:hover { border-color: #b8d8c9; background: #f6fbf8; }
+.network-structure-dialog .distribution-row.selected, .network-structure-dialog .equipment-row.selected, .network-structure-dialog .distribution-premise.selected, .network-structure-dialog .equipment-port.selected { border-color: #26766b; background: #edf8f2; box-shadow: inset 3px 0 0 #26766b; }
+.network-structure-dialog .distribution-detail-heading, .network-structure-dialog .equipment-detail-heading { margin-bottom: 8px; }
+.network-structure-dialog .distribution-detail-heading h3, .network-structure-dialog .equipment-detail-heading h3 { overflow-wrap: anywhere; font-size: 17px; }
+.network-structure-dialog .equipment-detail > .equipment-empty, .network-structure-dialog .distribution-detail > .distribution-empty { padding: 15px; font-size: 12px; }
+.network-structure-dialog .equipment-detail > .equipment-empty h3 { margin: 8px 0 5px; font-size: 13px; }
+.network-structure-dialog .equipment-detail > .equipment-empty p { margin: 0; }
+.network-structure-remove { margin-top: auto; padding-top: 15px; border-top: 1px solid #e3ebe5; }
+.network-structure-remove button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: 100%; min-height: 35px; padding: 7px 11px; border: 1px solid #edd0ca; border-radius: 6px; background: #fff; color: #9a4439; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+.network-structure-remove button:hover { background: #fff2ef; }
 .splice-editor-body { max-height: calc(100dvh - 180px); overflow: auto; padding: 23px 26px; }
 .splice-location-path { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; color: #56436b; font-size: 11px; font-weight: 650; }
 .splice-location-path span { padding: 6px 9px; border-radius: 5px; background: #f0ebf5; }
