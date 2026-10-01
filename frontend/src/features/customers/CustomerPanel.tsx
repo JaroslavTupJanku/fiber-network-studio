@@ -23,7 +23,6 @@ export function CustomerPanel({ buildingId, buildings, distributions, onShowBuil
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const [saved, setSaved] = useState(false)
   const [query, setQuery] = useState('')
   const [showAllFor, setShowAllFor] = useState<string | null>(null)
   const [detailTab, setDetailTab] = useState<'contacts' | 'messages'>('contacts')
@@ -51,19 +50,19 @@ export function CustomerPanel({ buildingId, buildings, distributions, onShowBuil
 
   const leaveDetail = () => {
     if (dirty && !window.confirm('Zahodit neuložené změny zákazníka?')) return
-    setDraft(null); setDirty(false); setError(''); setSaved(false); setAddingMessage(false)
+    setDraft(null); setDirty(false); setError(''); setAddingMessage(false)
   }
-  const edit = (next: CustomerDraft) => { setDraft(next); setDirty(true); setSaved(false); setError('') }
+  const edit = (next: CustomerDraft) => { setDraft(next); setDirty(true); setError('') }
   const open = (item: CustomerRecord) => {
     if (dirty && !window.confirm('Zahodit neuložené změny zákazníka?')) return
     setDraft({ ...item, contacts: item.contacts.map(contact => ({ ...contact })),
       messages: item.messages.map(message => ({ ...message })) })
-    setDirty(false); setSaved(false); setError(''); setDetailTab('contacts'); setAddingMessage(false)
+    setDirty(false); setError(''); setDetailTab('contacts'); setAddingMessage(false)
   }
   const start = () => {
     if (dirty && !window.confirm('Zahodit neuložené změny zákazníka?')) return
     setDraft(newCustomer(buildingId ?? buildings[0]?.id ?? ''))
-    setDirty(true); setSaved(false); setError(''); setDetailTab('contacts'); setAddingMessage(false)
+    setDirty(true); setError(''); setDetailTab('contacts'); setAddingMessage(false)
   }
   const save = async (value = draft) => {
     if (!value || busy) return
@@ -73,7 +72,7 @@ export function CustomerPanel({ buildingId, buildings, distributions, onShowBuil
     try {
       const updated = await saveCustomer(value)
       setCustomers(items => [...items.filter(item => item.id !== updated.id), updated])
-      setDraft(updated); setDirty(false); setSaved(true)
+      setDraft(updated); setDirty(false)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Záznam se nepodařilo uložit.') }
     finally { setBusy(false) }
   }
@@ -141,7 +140,7 @@ export function CustomerPanel({ buildingId, buildings, distributions, onShowBuil
             <span>{countCzech(customer.contacts.length, 'kontakt', 'kontakty', 'kontaktů')} · {countCzech(customer.messages.length, 'zpráva', 'zprávy', 'zpráv')}{todoCount(customer) > 0 ? ` · ${todoCount(customer)} k vyřízení` : ''}</span></span>
           <ChevronRight size={17} /></button>)}</div>}
     </> : <>
-      <button type="button" className="customer-back" onClick={leaveDetail}><ArrowLeft size={16} /> Zpět na zákazníky</button>
+      <button type="button" className="customer-back" onClick={leaveDetail}><ArrowLeft size={16} /> Seznam zákazníků</button>
       <header className="customer-detail-heading"><span className="section-label">KARTA ZÁKAZNÍKA</span>
         <h1>{draft.name.trim() || 'Nový zákazník'}</h1>
         <span className={`customer-status ${draft.status}`}>{draft.status === 'active' ? 'Aktivní' : 'Zájemce'}</span></header>
@@ -216,8 +215,10 @@ export function CustomerPanel({ buildingId, buildings, distributions, onShowBuil
             <Check size={13} /> {message.status === 'todo' ? 'Označit vyřízené' : 'Vrátit k vyřízení'}</button>
         </article>)}</section>}
       {error && <p className="customer-error" role="alert">{error}</p>}
-      <div className="customer-save-bar"><button type="button" className="primary-button" onClick={() => void save()}
-        disabled={busy || !dirty}><Save size={15} /> {busy ? 'Ukládání…' : saved || !dirty ? 'Uloženo' : 'Uložit zákazníka'}</button>
+      <div className={`customer-save-bar${dirty ? ' is-dirty' : ''}`}>
+        {dirty ? <button type="button" className="primary-button" onClick={() => void save()}
+          disabled={busy}><Save size={15} /> {busy ? 'Ukládání…' : 'Uložit zákazníka'}</button>
+          : <span className="customer-saved"><Check size={15} /> Vše uloženo</span>}
         {draft.id && <button type="button" className="customer-delete" disabled={busy} onClick={() => void remove()}>
           <Trash2 size={15} /> Odebrat zákazníka</button>}</div>
     </>}

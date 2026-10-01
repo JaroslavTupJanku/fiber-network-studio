@@ -136,8 +136,8 @@
 .details-rail-toggle:hover { background: #e7f2ec; }
 .details-rail-toggle svg { flex: none; transform: rotate(90deg); }
 .details-rail-toggle span { transform: rotate(180deg); }
-.side-workspace-tabs { display: grid; grid-template-columns: 1fr 1fr 28px; gap: 4px; margin: -10px 0 19px; padding: 4px; border: 1px solid #d9e7df; border-radius: 9px; background: #f3f8f5; }
-.side-workspace-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 34px; padding: 5px 7px; border: 0; border-radius: 6px; background: transparent; color: #567368; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.side-workspace-tabs { display: grid; grid-template-columns: 1fr 1fr 28px; gap: 4px; margin: -10px 0 22px; padding: 4px; border-radius: 9px; background: #f1f6f2; }
+.side-workspace-tabs button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 0; min-height: 36px; padding: 5px 7px; border: 0; border-radius: 6px; background: transparent; color: #567368; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
 .side-workspace-tabs button[aria-pressed='true'] { background: #fff; color: #176759; box-shadow: 0 1px 5px rgb(24 77 56 / 11%); }
 .side-workspace-tabs button:hover { color: #176759; }
 .side-workspace-tabs .side-workspace-collapse { padding: 4px; }
