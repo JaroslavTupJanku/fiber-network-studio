@@ -28,7 +28,15 @@
 .placement-guide button { flex: none; padding: 5px 8px; border: 1px solid #bfcfca; border-radius: 4px; background: #f7faf8; color: #28574e; font: inherit; cursor: pointer; }
 .placement-guide button:hover { background: #e6f2ee; }
 .placement-guide button:disabled { opacity: .5; cursor: not-allowed; }
-.route-guide { left: 16px; right: auto; flex-wrap: wrap; }
+.route-guide { left: 16px; right: 16px; bottom: 38px; max-width: 760px; padding: 12px 14px; border: 2px solid #b8613e; border-radius: 10px; background: #fffaf5; color: #5b3b2d; box-shadow: 0 8px 28px rgb(39 47 37 / 25%); }
+.route-guide > svg { flex: none; align-self: flex-start; margin-top: 2px; color: #b8613e; }
+.route-guide-copy { display: grid; flex: 1; min-width: 170px; gap: 3px; line-height: 1.35; }
+.route-guide-copy strong { color: #8d432c; font-size: 12px; }
+.route-guide-copy span { font-weight: 650; }
+.route-guide-copy small { color: #735d51; font-size: 11px; font-weight: 500; }
+.route-guide-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.route-guide-actions button { min-height: 32px; border-color: #dec5b7; background: #fff; color: #704b3a; }
+.route-guide-actions button:last-child { border-color: #b8613e; color: #8d432c; }
 .route-guide-error { border-color: #e8b4a9; background: #fff5f2; color: #8d3e32; }
 .map-legend { position: absolute; z-index: 2; bottom: 38px; left: 16px; color: #35554a; font-size: 12px; }
 .map-legend-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 10px; border: 1px solid #d8e2df; border-radius: 7px; background: rgb(255 255 255 / 96%); color: #35554a; box-shadow: 0 2px 9px rgb(20 45 38 / 12%); font: inherit; font-weight: 650; cursor: pointer; }
@@ -395,7 +403,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .route-list-text strong { overflow: hidden; color: #29473c; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .route-list-text small { color: #6c8175; font-size: 11px; }
 .route-tab-context { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 7px; margin: 19px 0 11px; overflow-wrap: anywhere; color: #526a61; font-size: 12px; line-height: 1.4; }
-.route-context-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.route-context-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; width: 100%; margin-left: auto; }
 .route-edit-quick { background: #d9eee6; border-color: #9bcab8; color: #16594b; }
 .route-edit-quick:hover:not(:disabled) { background: #c9e7da; }
 .route-continue-quick { display: inline-flex; align-items: center; gap: 5px; padding: 4px 7px; border: 1px solid #bfd8ce; border-radius: 4px; background: #eff7f3; color: #225f55; font: inherit; font-weight: 650; cursor: pointer; }
@@ -504,16 +512,17 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-drop-target.drop-active { border-color: #d3932c; background: #fff2d8; }
 .installation-drop-target small { color: #678275; font-size: 10px; font-weight: 500; }
 .installation-drop-target:disabled { opacity: .55; cursor: not-allowed; }
-.installation-editor-dialog .installation-selection { align-content: start; min-height: 100%; padding: 21px; border: 0; border-left: 1px solid #d7e4dc; border-radius: 0; background: #fff; }
-.installation-editor-dialog .installation-selection-empty { background: #fbfdfb; }
+.installation-editor-dialog .installation-selection { display: flex; flex-direction: column; align-items: stretch; min-height: 100%; padding: 21px; border: 0; border-left: 1px solid #d7e4dc; border-radius: 0; background: #fff; }
+.installation-editor-dialog .installation-selection-empty { display: grid; align-content: center; background: #fbfdfb; }
 .installation-editor-dialog .installation-selection-heading span { color: #26766b; font-size: 11px; }
 .installation-editor-dialog .installation-selection-heading strong { font-size: 16px; }
 .installation-editor-dialog .installation-selection-heading small { margin-top: 3px; font-size: 11px; }
 .installation-editor-dialog .installation-selection-actions { display: grid; grid-template-columns: 1fr 1fr; margin-top: 10px; }
 .installation-editor-dialog .installation-selection-actions button { justify-content: center; min-height: 34px; font-size: 11px; }
+.installation-editor-dialog .installation-selection-actions button:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .installation-move-unavailable { margin: 3px 0 0; color: #647a70; font-size: 11px; line-height: 1.45; }
-.installation-selection-footer { margin-top: 12px; padding-top: 13px; border-top: 1px solid #e3ebe5; }
-.installation-selection-footer .installation-remove-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 34px; padding: 6px 11px; border: 1px solid #edd0ca; border-radius: 5px; background: #fff; color: #9a4439; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+.installation-selection-footer { margin-top: auto; padding-top: 13px; border-top: 1px solid #e3ebe5; }
+.installation-selection-footer .installation-remove-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; width: 100%; min-height: 34px; padding: 6px 11px; border: 1px solid #edd0ca; border-radius: 5px; background: #fff; color: #9a4439; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
 .installation-selection-footer .installation-remove-button:hover:not(:disabled) { background: #fff2ef; }
 .installation-selection-footer .installation-remove-button:disabled { opacity: .45; cursor: not-allowed; }
 .installation-length { display: grid; gap: 9px; margin-top: 12px; padding: 13px; border: 1px solid #d5e5da; border-radius: 8px; background: #f6faf7; }
@@ -621,5 +630,12 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 @media (max-width: 480px) {
   .map-toolbar:not(.collapsed) { width: min(320px, calc(100% - 20px)); max-height: 55%; }
   .map-toolbar .map-tool, .map-toolbar .map-toolbox-header { min-height: 44px; }
+}
+@media (max-width: 650px) {
+  .route-guide { gap: 8px; padding: 9px 10px; }
+  .route-guide-copy { min-width: 0; }
+  .route-guide-copy small { display: none; }
+  .route-guide-actions { margin-left: auto; }
+  .route-guide-actions button:disabled { display: none; }
 }
 @media (max-width: 650px) { .app-header { gap: 8px; }.app-brand span { display: none; }.workspace-navigation { overflow-x: auto; }.workspace-navigation button { white-space: nowrap; } }
