@@ -174,8 +174,8 @@ export function MapCanvas({ points, routes, installations, splices, installation
     let suppressMapClick = false
     const updateCursor = () => {
       if (interactionRef.current.drawingRoute) {
-        canvas.style.cursor = vertexDrag !== null || dragging ? 'grabbing'
-          : overRouteVertex ? 'grab' : overDraftLine || overPoint ? 'pointer' : 'crosshair'
+        canvas.style.cursor = vertexDrag !== null || pointDrag || dragging ? 'grabbing'
+          : overRouteVertex || overPoint ? 'grab' : overDraftLine ? 'pointer' : 'crosshair'
         return
       }
       if (pointDrag || dragging) { canvas.style.cursor = 'grabbing'; return }
@@ -322,7 +322,11 @@ export function MapCanvas({ points, routes, installations, splices, installation
       map.getSource<GeoJSONSource>(POINT_SOURCE_ID)?.setData(pointData.current)
       map.getSource<GeoJSONSource>(ROUTE_SOURCE_ID)?.setData(routeCollection(
         previewRoutes.filter(route => route.id !== routeDraft?.id), previewPoints, installations))
-      map.getSource<GeoJSONSource>(ROUTE_DRAFT_SOURCE_ID)?.setData(routeDraftCollection(routeDraft, previewPoints, null))
+      const previewDraft = routeDraft ? { ...routeDraft,
+        waypoints: waypointsAfterPointMove(routeDraft, displayedPoints, id, location) } : null
+      map.getSource<GeoJSONSource>(ROUTE_DRAFT_SOURCE_ID)?.setData(routeDraftCollection(previewDraft, previewPoints, null))
+      map.getSource<GeoJSONSource>(ROUTE_VERTEX_SOURCE_ID)?.setData(routeVertexCollection(
+        interactionRef.current.drawingRoute ? previewDraft : null))
     }
     const handlePointMouseMove = (event: MouseEvent) => {
       if (!pointDrag) return
@@ -361,28 +365,28 @@ export function MapCanvas({ points, routes, installations, splices, installation
     const handlePointMouseDown = (event: MapMouseEvent) => {
       if (interactionRef.current.drawingRoute) {
         const hit = draftGeometryHit(event.point)
-        if (hit?.kind !== 'vertex' && featureAt(event.point, POINT_LAYER_ID, 16)) return
-        if (!hit) return
-        event.preventDefault()
-        map.stop()
-        canvas.focus()
-        vertexDragPanEnabled = map.dragPan.isEnabled()
-        if (vertexDragPanEnabled) map.dragPan.disable()
-        vertexDrag = hit.index
-        vertexDragStart = { x: event.originalEvent.clientX, y: event.originalEvent.clientY }
-        vertexDragMoved = false
-        selectVertex(hit.index)
-        setDraggingWaypointIndex(hit.index)
-        if (hit.kind === 'segment') {
-          const location = map.unproject([hit.x, hit.y])
-          interactionRef.current.onRouteWaypointInsert(hit.index,
-            { latitude: location.lat, longitude: location.lng })
+        if (hit?.kind === 'vertex' || (hit && !featureAt(event.point, POINT_LAYER_ID, 16))) {
+          event.preventDefault()
+          map.stop()
+          canvas.focus()
+          vertexDragPanEnabled = map.dragPan.isEnabled()
+          if (vertexDragPanEnabled) map.dragPan.disable()
+          vertexDrag = hit.index
+          vertexDragStart = { x: event.originalEvent.clientX, y: event.originalEvent.clientY }
+          vertexDragMoved = false
+          selectVertex(hit.index)
+          setDraggingWaypointIndex(hit.index)
+          if (hit.kind === 'segment') {
+            const location = map.unproject([hit.x, hit.y])
+            interactionRef.current.onRouteWaypointInsert(hit.index,
+              { latitude: location.lat, longitude: location.lng })
+          }
+          setInsertPreview(null)
+          window.addEventListener('mousemove', handleVertexMouseMove)
+          window.addEventListener('mouseup', handleVertexMouseUp)
+          updateCursor()
+          return
         }
-        setInsertPreview(null)
-        window.addEventListener('mousemove', handleVertexMouseMove)
-        window.addEventListener('mouseup', handleVertexMouseUp)
-        updateCursor()
-        return
       }
       if (interactionRef.current.placementActive && !interactionRef.current.activeTool) return
       const feature = featureAt(event.point, POINT_LAYER_ID, 16)
@@ -392,6 +396,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
       setLegendOpen(false)
       event.preventDefault()
       map.stop()
+      canvas.focus()
       pointDragPanEnabled = map.dragPan.isEnabled()
       if (pointDragPanEnabled) map.dragPan.disable()
       const [longitude, latitude] = renderedPoint.geometry.coordinates
@@ -552,8 +557,9 @@ export function MapCanvas({ points, routes, installations, splices, installation
     const button = document.createElement('button')
     button.type = 'button'
     button.className = 'route-waypoint-remove'
-    button.textContent = '×  Odebrat bod'
+    button.textContent = '×'
     button.setAttribute('aria-label', `Odebrat lomový bod ${index + 1}`)
+    button.title = 'Odebrat lomový bod'
     button.addEventListener('mousedown', event => event.stopPropagation())
     button.addEventListener('click', event => {
       event.stopPropagation()
@@ -562,7 +568,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
       setSelectedWaypointIndex(null)
       setHoveredWaypointIndex(null)
     })
-    const marker = new Marker({ element: button, anchor: 'left', offset: [14, -18] })
+    const marker = new Marker({ element: button, anchor: 'left', offset: [11, -14] })
       .setLngLat([waypoint.longitude, waypoint.latitude]).addTo(map)
     return () => { marker.remove() }
   }, [drawingRoute, routeDraft?.waypoints, selectedWaypointIndex, draggingWaypointIndex, mapGeneration])
@@ -747,9 +753,9 @@ export function MapCanvas({ points, routes, installations, splices, installation
           <div className="route-guide-copy"><strong>{routeDraft?.id ? 'Úprava trasy' : 'Kreslení trasy'}</strong>
             <span>{routeError || (routeDraft?.startPointId
               ? routeDraft.endPointId
-                ? `Spojeno: ${routeStartName} → ${routeEndName}. Úsek táhněte kolem překážky; kliknutím na lomový bod jej můžete odebrat.`
-                : `Začátek: ${routeStartName}. Klikněte na cílovou budovu nebo šachtu.`
-              : 'Klikněte na první budovu nebo šachtu.')}</span>
+                ? `Spojeno: ${routeStartName} → ${routeEndName}. Úsek i objekty můžete přetáhnout; lomový bod kliknutím vyberete.`
+                : `Začátek: ${routeStartName}. Klikněte na cíl; tažením budovu nebo šachtu přesunete.`
+              : 'Klikněte na první budovu nebo šachtu; tažením objekt přesunete.')}</span>
             <small>Běžný výběr objektů se vrátí po dokončení nebo zrušení.</small></div>
           <div className="route-guide-actions">
             <button type="button" onClick={onRouteUndo} disabled={!routeDraft?.startPointId}>Zpět</button>

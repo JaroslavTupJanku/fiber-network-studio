@@ -65,9 +65,12 @@ export function useMapWorkspace() {
       .filter(item => item.waypoints.length > 0)
       .map(original => ({ original, changed: { ...original,
         waypoints: waypointsAfterPointMove(original, points, id, location) } }))
-    route.cancel()
+    const draftBeforeMove = route.drawing ? route.draft : null
+    if (draftBeforeMove) route.setDraft(current => current ? { ...current,
+      waypoints: waypointsAfterPointMove(current, points, id, location) } : current)
+    else route.cancel()
     clearParcel()
-    setEditor(current => current?.id === id ? { ...current, ...location } : { ...point, ...location })
+    if (!draftBeforeMove) setEditor(current => current?.id === id ? { ...current, ...location } : { ...point, ...location })
     setPoints(current => current.map(item => item.id === id ? { ...item, ...location } : item))
     route.setRoutes(current => current.map(item => changedRoutes.find(entry => entry.original.id === item.id)?.changed ?? item))
     setSelectedLocation(null)
@@ -89,7 +92,9 @@ export function useMapWorkspace() {
         try { await saveUndergroundRoute(entry.original) }
         catch { rollbackFailed = true }
       }
-      setEditor(current => current?.id === id
+      if (draftBeforeMove) route.setDraft(current => current ? { ...current,
+        waypoints: draftBeforeMove.waypoints } : current)
+      else setEditor(current => current?.id === id
         ? { ...current, latitude: point.latitude, longitude: point.longitude } : current)
       setPoints(current => current.map(item => item.id === id ? point : item))
       route.setRoutes(current => current.map(item => changedRoutes.find(entry => entry.original.id === item.id)?.original ?? item))

@@ -35,6 +35,9 @@ test('moving an endpoint bends its existing route smoothly without adding a vert
   assert.deepEqual(waypointsAfterPointMove(route, points, 'other', { latitude: 0, longitude: 0 }), route.waypoints)
   assert.deepEqual(waypointsAfterPointMove({ ...route, waypoints: [] }, points, 'a',
     { latitude: 50, longitude: 14.0002 }), [])
+  const unfinished = { ...route, endPointId: null }
+  assert.deepEqual(waypointsAfterPointMove(unfinished, points, 'a',
+    { latitude: 50, longitude: 14.0002 }), unfinished.waypoints)
 })
 
 test('a new bend is inserted in the nearest leg of an already connected route', () => {

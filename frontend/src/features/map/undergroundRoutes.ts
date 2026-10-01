@@ -78,7 +78,7 @@ export function closestRouteSegment(points: { x: number; y: number }[], target: 
 
 // Deform the mapped line smoothly when one of its endpoint objects is moved.
 // Existing waypoints keep their order and count; points nearer the moved end travel farther.
-export function waypointsAfterPointMove(route: UndergroundRoute, points: NetworkPoint[],
+export function waypointsAfterPointMove(route: UndergroundRouteInput, points: NetworkPoint[],
   pointId: string, next: Coordinates): Coordinates[] {
   if (route.startPointId !== pointId && route.endPointId !== pointId) return route.waypoints
   const coordinates = routeCoordinates(route, points)
