@@ -1,9 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Building2, Check, Link2, Plus, Save, Trash2, X } from 'lucide-react'
+import { listCables } from '../cable-catalog/api'
+import type { CableSpecification } from '../cable-catalog/model'
 import { fiberEndKey, spliceCableEnds, type FiberEnd } from './opticalSplices'
 import { listBuildingEquipment, loadBuildingEquipment } from './buildingEquipment'
 import { countCzech } from './equipmentPresentation'
+import { IndoorCableFields } from './IndoorCableFields'
+import { indoorCableError } from './indoorCable'
 import { listOpticalSplices } from './opticalSplices'
 import { tracePremisePath, type OpticalPath } from './traceOpticalPath'
 import { isConnectedPremise, loadBuildingDistribution, saveBuildingDistribution,
@@ -29,6 +33,8 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
   const [error, setError] = useState('')
   const [path, setPath] = useState<OpticalPath | null>(null)
   const [tracing, setTracing] = useState(false)
+  const [catalogCables, setCatalogCables] = useState<CableSpecification[]>([])
+  const [catalogError, setCatalogError] = useState('')
   const cableEnds = useMemo(() => spliceCableEnds(pointId, routes, installations), [pointId, routes, installations])
   useEffect(() => {
     const dialog = dialogRef.current
@@ -38,6 +44,8 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
         setDraft(document)
         setReservedByEquipment(new Set(equipment.ports.filter(port => port.fiber).map(port => fiberEndKey(port.fiber!))))
       }).catch(reason => setError(reason instanceof Error ? reason.message : 'Rozvody se nepodařilo načíst.'))
+    void listCables().then(setCatalogCables)
+      .catch(() => setCatalogError('Katalog kabelů není dostupný.'))
     return () => dialog?.close()
   }, [pointId])
   const close = () => { if (!dirty || window.confirm('Zavřít editor a zahodit neuložené změny?')) onClose() }
@@ -72,7 +80,7 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
   const addPremise = (boxId: string) => {
     if (!draft) return
     const item: HomePremise = { id: crypto.randomUUID(), boxId,
-      label: `HP ${draft.premises.length + 1}`, status: 'planned', fiber: null }
+      label: `HP ${draft.premises.length + 1}`, status: 'planned', fiber: null, indoorCable: null }
     update({ ...draft, premises: [...draft.premises, item] }); select({ kind: 'premise', id: item.id })
   }
   const removeSelected = () => {
@@ -98,6 +106,13 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
     if (missingFiber) {
       select({ kind: 'premise', id: missingFiber.id })
       setError(`U přípojného místa ${missingFiber.label} vyberte konkrétní vlákno přívodního kabelu.`)
+      return
+    }
+    const invalidIndoor = draft.premises.map(premise => ({ premise, problem: premise.indoorCable && indoorCableError(premise.indoorCable) }))
+      .find(item => item.problem)
+    if (invalidIndoor) {
+      select({ kind: 'premise', id: invalidIndoor.premise.id })
+      setError(`${invalidIndoor.premise.label}: ${invalidIndoor.problem}`)
       return
     }
     setBusy(true); setError('')
@@ -160,7 +175,8 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
                 <button type="button" key={premise.id} className={`distribution-premise${selection?.id === premise.id ? ' selected' : ''}${isConnectedPremise(premise) ? ' connected' : ''}`}
                   onClick={() => select({ kind: 'premise', id: premise.id })}>
                   <span className="distribution-status-dot" /><strong>{premise.label}</strong>
-                  <small>{isConnectedPremise(premise) ? 'Připojeno' : premise.status === 'connected' ? 'Vyberte vlákno' : 'Plánováno'}</small></button>)}</div>
+                  <small>{isConnectedPremise(premise) ? premise.indoorCable ? 'Připojeno · domovní přívod' : 'Připojeno'
+                    : premise.status === 'connected' ? 'Vyberte vlákno' : 'Plánováno'}</small></button>)}</div>
             </div>)}
           <button type="button" className="distribution-add" onClick={() => addBox(riser.id)}><Plus size={14} /> Podlažní box</button>
         </div>)}
@@ -203,6 +219,8 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
               {!selectedPremise.fiber && <small>Vyberte vlákno, aby bylo možné HP uložit jako připojené.</small>}</label>}
             {!selectedCable && <p className="equipment-note">Pro připojení nejdříve vyberte přívodní kabel u stoupačky.</p>}
             <p className="equipment-note">HP eviduje cílové místo. Číslo bytu ani jméno obyvatele nemusíte zadávat.</p>
+            <IndoorCableFields run={selectedPremise.indoorCable} cables={catalogCables} catalogError={catalogError}
+              onChange={indoorCable => setPremise({ ...selectedPremise, indoorCable })} />
             <div className="distribution-trace-action"><button type="button" className="move-button"
               onClick={() => void trace()} disabled={dirty || tracing || selectedPremise.status !== 'connected' || !selectedPremise.fiber}>
               <Link2 size={16} /> {tracing ? 'Hledám cestu…' : 'Sledovat cestu k OLT'}</button>

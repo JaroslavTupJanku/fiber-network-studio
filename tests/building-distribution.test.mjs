@@ -69,6 +69,20 @@ test('building distribution keeps apartment identity and valid fiber assignments
     let document = await (await request(path, 'PUT', { version: 0, risers: [riser], boxes: [box], premises: [home] })).json()
     assert.equal(document.version, 1)
     assert.equal(document.premises[0].label, 'Byt 201')
+    assert.equal(document.premises[0].indoorCable, null)
+    const losses = (loss1310, loss1550) => ({ loss1270: null, loss1310, loss1490: null, loss1550, loss1577: null })
+    const indoorCable = { cableName: 'Kabel do bytu', catalogCableId: null, lengthMeters: 16,
+      attenuationDbPerKm: losses(0.4, 0.25), spliceCount: 1, spliceLossDb: losses(0.1, 0.1),
+      connectorPairCount: 0, connectorLossDb: losses(null, null), source: 'Technický list' }
+    assert.equal((await request(path, 'PUT', { ...document,
+      premises: [{ ...home, indoorCable: { ...indoorCable, lengthMeters: -1 } }] })).status, 400)
+    assert.equal((await request(path, 'PUT', { ...document,
+      premises: [{ ...home, indoorCable: { ...indoorCable, spliceCount: null } }] })).status, 400)
+    document = await (await request(path, 'PUT', { ...document,
+      premises: [{ ...home, indoorCable }] })).json()
+    assert.equal(document.version, 2)
+    assert.deepEqual(document.premises[0].indoorCable, indoorCable)
+    assert.deepEqual((await (await request(path)).json()).premises[0].indoorCable, indoorCable)
     assert.equal((await request(path, 'PUT', { ...document, version: 0 })).status, 409)
     assert.equal((await request(`/network-points/${building.id}`, 'DELETE')).status, 409)
     assert.equal((await request(`/route-installations/${route.id}/items/${cableItem.id}?version=${installed.version}`, 'DELETE')).status, 409)

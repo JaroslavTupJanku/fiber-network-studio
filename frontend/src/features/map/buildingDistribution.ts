@@ -1,8 +1,10 @@
 import type { FiberEnd } from './opticalSplices'
+import type { IndoorCableRun } from './indoorCable'
 
 export type BuildingRiser = { id: string; name: string; cableItemId: string | null }
 export type FloorBox = { id: string; riserId: string; name: string; floor: number }
-export type HomePremise = { id: string; boxId: string; label: string; status: 'planned' | 'connected'; fiber: FiberEnd | null }
+export type HomePremise = { id: string; boxId: string; label: string; status: 'planned' | 'connected';
+  fiber: FiberEnd | null; indoorCable?: IndoorCableRun | null }
 export const isConnectedPremise = (premise: HomePremise) => premise.status === 'connected' && premise.fiber !== null
 export type BuildingDistributionDocument = { pointId: string; version: number; risers: BuildingRiser[];
   boxes: FloorBox[]; premises: HomePremise[] }
