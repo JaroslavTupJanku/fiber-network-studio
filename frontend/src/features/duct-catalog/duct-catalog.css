@@ -1,18 +1,25 @@
 .duct-catalog .cc-page-heading { max-width: 1420px; }
 .duct-catalog .cc-layout { max-width: 1420px; }
-.dc-create-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.dc-create-actions { display: flex; gap: var(--ui-action-gap); flex-wrap: wrap; }
 .dc-filters { display: flex; gap: 3px; overflow-x: auto; background: #f2f5f3; border-radius: 6px; padding: 3px; margin: 13px 0 15px; }
 .dc-filters button { flex: 1; white-space: nowrap; background: transparent; border: 0; border-radius: 4px; color: #6d8077; padding: 7px 5px; font-size: 10px; font-weight: 600; cursor: pointer; }
 .dc-filters button[aria-pressed=true] { background: #fff; color: #235e4f; box-shadow: 0 1px 3px #233e3614; }
-.dc-diagram { display: grid; justify-items: center; gap: 13px; padding: 24px 18px 18px; margin: 22px 0; border: 1px solid #dce6df; border-radius: 10px; background: radial-gradient(circle at 50% 25%, #f5fbf7, #eef5f1); overflow-x: auto; }
-.dc-diagram-visual { display: grid; place-items: center; min-height: 180px; width: 100%; }
-.dc-diagram-explanation { display: grid; gap: 5px; max-width: 440px; text-align: center; color: #435e51; font-size: 12px; line-height: 1.45; }
+.dc-diagram { display: grid; grid-template-columns: minmax(150px, 210px) minmax(0, 1fr); align-items: center; gap: 12px 24px; padding: 20px; margin: 22px 0; border: 1px solid #dce6df; border-radius: 10px; background: #f7faf8; }
+.dc-diagram-title { grid-column: 1 / -1; color: #688174; font-size: 10px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
+.dc-diagram-visual { display: grid; place-items: center; min-height: 150px; width: 100%; }
+.dc-diagram-explanation { display: grid; gap: 8px; max-width: 440px; color: #435e51; font-size: 12px; line-height: 1.45; }
+.dc-diagram-key { display: flex; flex-wrap: wrap; gap: 8px 16px; margin: 5px 0; color: #5d7568; font-size: 11px; }
+.dc-diagram-key span { display: inline-flex; align-items: center; gap: 6px; }
+.dc-diagram-key i { width: 12px; height: 12px; border-radius: 50%; box-shadow: inset 0 0 0 1px #24463b44; }
+.dc-diagram-key .dc-diagram-void { background: #fff; }
+.dc-diagram-assembly { grid-template-columns: minmax(0, 1fr); justify-items: center; text-align: center; }
+.dc-diagram-assembly .dc-diagram-title { justify-self: start; }
 .dc-diagram-explanation strong { font-size: 13px; color: #244e3e; }
 .dc-diagram-explanation small { color: #789083; font-size: 10px; }
 .dc-ring { display: grid; place-items: center; width: 42px; aspect-ratio: 1; border-radius: 50%; background: var(--ring); box-shadow: 0 2px 8px #223c3440, inset 0 0 0 1px #ffffff80; }
 .dc-ring::after { content: ''; display: block; width: var(--inner); aspect-ratio: 1; border-radius: 50%; background: #f8fbfa; box-shadow: inset 0 1px 4px #213f3660; }
-.dc-ring-large { width: 170px; }
-.dc-diagram-microduct .dc-ring-large { width: 122px; }
+.dc-ring-large { width: 140px; }
+.dc-diagram-microduct .dc-ring-large { width: 105px; }
 .dc-diagram-grid { display: grid; gap: 12px; max-width: min(100%, 620px); justify-items: center; padding: 20px; border: 2px dashed #9ab8aa; border-radius: 16px; background: #fff; }
 .dc-slot { display: grid; justify-items: center; gap: 4px; min-width: 43px; }
 .dc-slot small { color: #668276; font-size: 10px; }
@@ -26,16 +33,16 @@
 .dc-small-dot { flex: none; width: 12px; height: 12px; border-radius: 50%; border: 1px solid #17382b40; }
 .dc-notes { font-size: 12px; line-height: 1.6; color: #5c7468; }.dc-source { color: #26766b; font-size: 12px; }
 .dc-fit { margin-top: 24px; padding: 18px; border: 1px solid #dce6df; border-radius: 8px; background: #f9fbf9; }
-.dc-fit p { color: #657f70; font-size: 11px; line-height: 1.6; }.dc-fit label { display: grid; gap: 7px; max-width: 420px; color: #567363; font-size: 11px; font-weight: 600; }
-.dc-fit select { width: 100%; padding: 9px 10px; border: 1px solid #cfdcd2; border-radius: 5px; color: #23493c; background: #fff; }
+.dc-fit p { color: #657f70; font-size: 11px; line-height: 1.6; }.dc-fit label { display: grid; gap: var(--ui-field-gap); max-width: 420px; color: #567363; font-size: 11px; font-weight: 600; }
+.dc-fit select { width: 100%; min-height: var(--ui-control-height); padding: 8px 10px; border: 1px solid #cfdcd2; border-radius: 5px; color: #23493c; background: #fff; }
 .dc-fit-result { margin-top: 14px; padding: 12px 14px; border-left: 3px solid #26766b; background: #edf6f0; border-radius: 4px; font-size: 12px; }
 .dc-fit-result p { margin: 7px 0 0; }.dc-fit-result small { display: block; margin-top: 10px; color: #647f6e; }
 .dc-editor fieldset { min-width: 0; border: 0; margin: 0; padding: 0; }
-.dc-editor label { display: grid; gap: 6px; color: #567363; font-size: 11px; font-weight: 600; }.dc-editor label span { font-weight: 400; color: #94a49a; }
-.dc-editor input:not([type=color]), .dc-editor select, .dc-editor textarea { width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #cfdcd2; border-radius: 5px; color: #2b4937; background: #fff; font: inherit; font-size: 12px; }
+.dc-editor label { display: grid; gap: var(--ui-field-gap); color: #567363; font-size: 11px; font-weight: 600; }.dc-editor label span { font-weight: 400; color: #94a49a; }
+.dc-editor input:not([type=color]), .dc-editor select, .dc-editor textarea { width: 100%; min-width: 0; min-height: var(--ui-control-height); padding: 8px 10px; border: 1px solid #cfdcd2; border-radius: 5px; color: #2b4937; background: #fff; font: inherit; font-size: 12px; }
 .dc-editor input:focus, .dc-editor select:focus, .dc-editor textarea:focus { outline: 2px solid #d8ebe0; border-color: #659f7e; }
 .dc-editor input[type=color] { width: 45px; height: 35px; border: 1px solid #cfdcd2; border-radius: 5px; padding: 2px; background: #fff; cursor: pointer; }
-.dc-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: 15px; margin-top: 18px; }
+.dc-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(175px, 1fr)); gap: var(--ui-form-gap); margin-top: 18px; }
 .dc-full { margin-top: 18px; }.dc-editor textarea { resize: vertical; }
 .dc-assembly-edit { margin-top: 24px; padding: 16px; border: 1px solid #dce6df; border-radius: 8px; }
 .dc-assembly-edit > p { font-size: 11px; color: #728677; line-height: 1.6; }
@@ -44,5 +51,6 @@
 .dc-slot-edit { display: grid; grid-template-columns: 22px minmax(100px, 1.4fr) repeat(4, minmax(72px, 1fr)); gap: 8px; align-items: end; padding: 10px; border: 1px solid #e3ece5; border-radius: 6px; background: #fbfcfb; }
 .dc-slot-edit > strong { align-self: center; font-size: 11px; color: #729083; }.dc-slot-edit label { min-width: 0; }
 .dc-error { color: #a04736 !important; }
+@media (max-width: 620px) { .dc-diagram { grid-template-columns: 1fr; justify-items: center; text-align: center; }.dc-diagram-title { justify-self: start; }.dc-diagram-key { justify-content: center; } }
 @media (max-width: 1050px) { .dc-slot-edit { grid-template-columns: repeat(2, minmax(0, 1fr)); }.dc-slot-edit > strong { grid-column: 1 / -1; } }
 @media (max-width: 760px) { .dc-create-actions { width: 100%; }.dc-create-actions button { flex: 1; }.dc-diagram-grid { gap: 7px; padding: 12px; }.dc-slot { min-width: 30px; }.dc-ring { width: 29px; }.dc-ring-large { width: 140px; }.dc-diagram-microduct .dc-ring-large { width: 100px; }.dc-slot-edit { grid-template-columns: repeat(2, minmax(0, 1fr)); }.dc-filters button { font-size: 9px; } }

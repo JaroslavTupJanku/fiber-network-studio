@@ -8,6 +8,7 @@ export function DuctDiagram({ item }: { item: DuctInput }) {
       ? 'Menší kanálek pro zafukovaný optický kabel nebo vlákna.'
       : 'Více samostatných průchodů v jednom uspořádání.'
   return <div className={`dc-diagram dc-diagram-${item.kind}`}>
+    <span className="dc-diagram-title">Schematický průřez</span>
     <div className="dc-diagram-visual" role="img" aria-label={item.kind === 'assembly'
       ? `Schematický průřez: ${item.rows} řad, ${item.columns} sloupců, ${item.slots.length} pozic`
       : `Schematický kruhový průřez: ${kindLabel(item.kind)}`}>
@@ -19,6 +20,7 @@ export function DuctDiagram({ item }: { item: DuctInput }) {
       </div> : <span className="dc-ring dc-ring-large" style={{ '--ring': item.color, '--inner': `${ratio * 100}%` } as React.CSSProperties} />}
     </div>
     <div className="dc-diagram-explanation"><strong>{kindLabel(item.kind)}</strong><span>{description}</span>
+      {item.kind !== 'assembly' && <div className="dc-diagram-key"><span><i style={{ background: item.color }} /> Stěna</span><span><i className="dc-diagram-void" /> Volný průchod</span></div>}
       <small>Ilustrační velikost · {item.outerDiameterMm === null || item.kind === 'assembly' ? 'průměry nejsou v měřítku' : 'poměr vnitřního a vnějšího průměru podle údajů výše'}</small></div>
   </div>
 }

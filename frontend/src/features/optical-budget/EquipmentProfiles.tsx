@@ -66,8 +66,8 @@ export function EquipmentProfiles({ scenario, onChange }: { scenario: Scenario; 
   const options = (kind: EquipmentKind) => catalog.profiles.filter(p => p.kind === kind)
   return <section className="ob-panel ob-equipment" aria-label="Profily zařízení">
     <div className="ob-section-heading"><h2>Zařízení a výkon na přijímači</h2><button disabled={!initial.enabled} onClick={() => { setDraft(newProfile()); setFormError('') }}><Plus size={16} /> Přidat profil</button></div>
-    <p className="ob-muted">Vytvořte profily podle technických listů výrobce. Katalog se ukládá v tomto prohlížeči. Číselné hodnoty se automaticky nedoplňují.</p>
-    <p className="ob-muted">Scénář ukládá výběr zařízení pomocí ID profilů, jejich údaje ale neobsahuje. Při přenosu mezi počítači exportujte zvlášť scénář i tento katalog; nejprve importujte katalog, potom scénář.</p>
+    <p className="ob-muted">Vyberte OLT a ONT pro kontrolu výkonu. Profily vytvořte podle technických listů zařízení.</p>
+    <details className="ob-method ob-equipment-help"><summary>Uložení a přenos profilů</summary><p>Katalog profilů se ukládá v tomto prohlížeči; hodnoty se automaticky nedoplňují. Výpočet si pamatuje výběr profilů, ale neukládá jejich parametry. Při přenosu mezi počítači exportujte výpočet i katalog. Na druhém počítači importujte nejprve katalog, potom výpočet.</p></details>
     <div className="ob-catalog-actions"><button onClick={downloadCatalog}><Download size={15} /> Exportovat katalog profilů</button><button onClick={() => catalogInput.current?.click()} disabled={!initial.enabled}><Upload size={15} /> Importovat katalog profilů</button><input ref={catalogInput} hidden type="file" accept="application/json,.json" aria-label="Soubor katalogu profilů" onChange={async e => { const file = e.target.files?.[0]; e.target.value = ''; if (file) await importCatalog(file) }} /></div>
     {importError && <p className="ob-message" role="alert">{importError}</p>}
     {storageError && <p className="ob-message" role="alert">{storageError}</p>}

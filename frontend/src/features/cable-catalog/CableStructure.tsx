@@ -44,6 +44,6 @@ export function CableStructure({ cable, data, activeTube, onSelect, onChange, on
         </div>)}
       </div>
     </div>
-    <p className="cc-helper">Odstíny a kresba značek jsou schematické. Bezbarvé vlákno znázorňuje šachovnice.</p>
+    <p className="cc-helper">Barvy slouží k rozlišení tub a vláken, nejde o fyzický průřez kabelu. Bezbarvé vlákno znázorňuje šachovnice.</p>
   </div>
 }

@@ -1,4 +1,8 @@
 :root {
+  --ui-control-height: 38px;
+  --ui-field-gap: 6px;
+  --ui-form-gap: 14px;
+  --ui-action-gap: 8px;
   font-family: Inter, 'Segoe UI', Arial, sans-serif;
   color: #1d2b2a;
   background: #ffffff;
