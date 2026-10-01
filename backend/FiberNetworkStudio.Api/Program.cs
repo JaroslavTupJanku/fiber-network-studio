@@ -41,6 +41,8 @@ builder.Services.AddHttpClient<BuildingFootprintLookup>(client => client.Timeout
 var app = builder.Build();
 var splitService = app.Services.GetRequiredService<RouteSplitService>();
 await splitService.RecoverAsync();
+app.UseDefaultFiles();
+app.UseStaticFiles();
 app.Use(async (context, next) =>
 {
     var path = context.Request.Path;
@@ -161,6 +163,8 @@ app.MapDelete("/api/network-points/{id:guid}", async (Guid id, NetworkPointStore
             ? Results.Conflict(new { error = "K budově jsou přiřazení zákazníci. Nejprve je přesuňte nebo odeberte." })
         : await store.DeleteAsync(id) ? Results.NoContent() : Results.NotFound());
 
+app.MapFallback("/api/{**path}", () => Results.NotFound());
+app.MapFallbackToFile("index.html");
 app.Run();
 
 static Dictionary<string, string[]> Validate(string? name, double? latitude, double? longitude)

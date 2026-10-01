@@ -46,6 +46,26 @@ V panelu mapy lze přepnout podklad mezi běžnou mapou a **Ortofotem ČR** od �
 
 API odpovídá na `http://localhost:5291/api/health`; objekty přes `/api/network-points` a parcely přes `/api/parcels/at`.
 
+### Ukázka na jedné adrese
+
+Kontejner sestaví frontend a API do jedné aplikace. Pro místní zákaznický proklik spusťte z kořene projektu:
+
+```sh
+docker build -t fiber-network-studio-preview:local .
+docker volume create fiber-network-studio-demo-data
+docker run --rm -p 127.0.0.1:8080:8080 -v fiber-network-studio-demo-data:/app/App_Data fiber-network-studio-preview:local
+```
+
+Otevřete `http://127.0.0.1:8080`. Mapa, katalogy, zákazníci i API běží pod stejnou adresou;
+obnovení stránky funguje i na vnitřní cestě aplikace. Pojmenovaný svazek uchová backendová data
+po restartu kontejneru. Kalkulačka ztrát a profily zařízení se zatím ukládají lokálně v prohlížeči;
+pro přenos na jiný počítač použijte jejich export. Mapové podklady a kontrola půdorysů vyžadují
+spojení s externími službami.
+
+Zákazník otevírá pouze odkaz, Docker spouští provozovatel. Pro vzdálený přístup je třeba zvolit
+hosting, zajistit trvalý svazek pro `/app/App_Data` a omezit přístup k ukázce; aplikace zatím nemá
+přihlášení a může obsahovat záznamy zákazníků. Tento postup sám nevytváří veřejnou adresu.
+
 Stručné vysvětlení pojmů je v [poznámkách k webovému vývoji](docs/web-vyvoj.md).
 
 ## Katalog kabelů
