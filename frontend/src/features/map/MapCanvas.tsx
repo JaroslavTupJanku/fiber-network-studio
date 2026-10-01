@@ -34,6 +34,7 @@ type MapCanvasProps = {
   routeError: string
   onRouteToolChange: () => void
   onRouteSelect: (id: string) => void
+  onRouteEdit: (id: string) => void
   onRouteWaypointInsert: (segmentIndex: number, location: Coordinates) => void
   onRouteWaypointMove: (index: number, location: Coordinates) => void
   onRouteWaypointRemove: (index: number) => void
@@ -65,14 +66,14 @@ const withPointPosition = (points: NetworkPoint[], id: string, location: Coordin
 setWorkerUrl(workerUrl)
 
 export function MapCanvas({ points, routes, installations, splices, installationLoading, selectedRouteId, tracedRouteIds, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, pointFocusRequest, routeDraft, drawingRoute, routeError, onRouteToolChange,
-  onRouteSelect, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId, onMapPointHoverChange,
+  onRouteSelect, onRouteEdit, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId, onMapPointHoverChange,
   selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop,
   onLocationClick, onPointSelect, onPointMove, onDraftMove, onCadastreDisable }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const readyMapRef = useRef<Map | null>(null)
   const interactionRef = useRef({ placementActive, activeTool, drawingRoute, onLocationClick,
-    onPointSelect, onPointMove, onRouteSelect, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove,
+    onPointSelect, onPointMove, onRouteSelect, onRouteEdit, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove,
     onMapPointHoverChange, onMapRouteHoverChange })
   const pointData = useRef(pointCollection([], null, null))
   const splicePointIds = useMemo(() => new Set(splices.map(splice => splice.pointId)), [splices])
@@ -115,10 +116,10 @@ export function MapCanvas({ points, routes, installations, splices, installation
 
   useEffect(() => {
     interactionRef.current = { placementActive, activeTool, drawingRoute, onLocationClick,
-      onPointSelect, onPointMove, onRouteSelect, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove,
+      onPointSelect, onPointMove, onRouteSelect, onRouteEdit, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove,
       onMapPointHoverChange, onMapRouteHoverChange }
   }, [placementActive, activeTool, drawingRoute, onLocationClick, onPointSelect, onPointMove,
-    onRouteSelect, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove, onMapPointHoverChange, onMapRouteHoverChange])
+    onRouteSelect, onRouteEdit, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove, onMapPointHoverChange, onMapRouteHoverChange])
 
   useEffect(() => {
     geometryRef.current = { displayedPoints, routes, installations, routeDraft, splicePointIds }
@@ -267,6 +268,14 @@ export function MapCanvas({ points, routes, installations, splices, installation
         cadastreActive.current && !cadastreFailed.current, map.getZoom(), CADASTRE_MIN_ZOOM)
       if (result.kind === 'point') onPointSelect(result.id)
       else onLocationClick({ latitude: event.lngLat.lat, longitude: event.lngLat.lng }, result.lookupParcel)
+    }
+    const handleDoubleClick = (event: MapMouseEvent) => {
+      const { placementActive, drawingRoute, onRouteEdit } = interactionRef.current
+      if (placementActive || drawingRoute || pointAt(event.point, false)) return
+      const routeId = featureAt(event.point, ROUTE_LAYER_ID, 8)?.properties?.id
+      if (!routeId) return
+      event.preventDefault()
+      onRouteEdit(String(routeId))
     }
     const handleMouseMove = (event: MapMouseEvent) => {
       const { placementActive, activeTool, drawingRoute } = interactionRef.current
@@ -496,6 +505,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
     })
     map.on('zoomend', () => setZoom(map.getZoom()))
     map.on('click', handleClick)
+    map.on('dblclick', handleDoubleClick)
     map.on('mousedown', handlePointMouseDown)
     map.on('mousemove', handleMouseMove)
     canvas.addEventListener('mouseleave', handleMouseLeave)
