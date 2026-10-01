@@ -67,7 +67,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
     selectedLocation, selectedParcel, parcelStatus, query, visiblePoints,
     buildings, chambers, preview, setQuery, setEditor, setSelectedLocation,
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,
-    clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect,
+    clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect, handleRouteEdit,
     handleLocationClick, handlePointSelect, relocatePoint,
     handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   } = useMapWorkspace()
@@ -120,6 +120,12 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
     selectRouteTab('installations')
     setPanelOpen(true)
     handleRouteSelect(id)
+  }
+  const editSavedRoute = (id: string) => {
+    if (splitActive || splitBusy) return
+    selectRouteTab('route')
+    setPanelOpen(true)
+    handleRouteEdit(id)
   }
   const beginRouteContinuation = (pointId: string) => {
     const started = route.continueFrom(pointId)
@@ -201,6 +207,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
           onRouteSplitCancel={cancelSplit}
           onRouteToolChange={() => { selectRouteTab('route'); handleRouteToolChange() }}
           onRouteSelect={selectSavedRoute}
+          onRouteEdit={editSavedRoute}
           onRouteWaypointInsert={route.insertWaypoint}
           onRouteWaypointMove={route.moveWaypoint}
           onRouteUndo={route.undo}

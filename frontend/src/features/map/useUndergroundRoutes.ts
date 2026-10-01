@@ -56,15 +56,17 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
     setError('')
   }
 
-  const selectRoute = (id: string) => {
+  const selectRoute = (id: string, edit = false) => {
     insertedWaypoints.current = []
     const route = routes.find(item => item.id === id)
     if (!route) return
     setDraft(copyRoute(route))
-    setDrawing(false)
+    setDrawing(edit)
     setContinuationSourceId(null)
     setError('')
   }
+
+  const editRoute = (id: string) => selectRoute(id, true)
 
   const startEditing = () => {
     if (!draft) return
@@ -238,6 +240,6 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   const visibleRoutes = useMemo(() => routes.slice().sort((a, b) => a.name.localeCompare(b.name, 'cs')), [routes])
 
   return { routes, visibleRoutes, draft, drawing, loading, loadError, error, saving, preview,
-    setRoutes, setDraft, setLoading, setReloadVersion, cancel, cancelDrawing, startDrawing, selectRoute, startEditing, continueFrom,
+    setRoutes, setDraft, setLoading, setReloadVersion, cancel, cancelDrawing, startDrawing, selectRoute, editRoute, startEditing, continueFrom,
     addPoint, setEndpoint, addWaypoint, insertWaypoint, moveWaypoint, removeWaypoint, undo, resetGeometry, finish, save, remove }
 }

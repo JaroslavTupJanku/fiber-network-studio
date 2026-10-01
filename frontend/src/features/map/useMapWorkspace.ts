@@ -180,6 +180,16 @@ export function useMapWorkspace() {
     setActionError('')
   }
 
+  const handleRouteEdit = (id: string) => {
+    route.editRoute(id)
+    setActiveTool(null)
+    setMoving(false)
+    setEditor(null)
+    setSelectedLocation(null)
+    clearParcel()
+    setActionError('')
+  }
+
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && (activeTool || moving)) handleToolChange(null)
@@ -267,7 +277,7 @@ export function useMapWorkspace() {
     selectedLocation, selectedParcel, parcelStatus, query, visiblePoints,
     buildings, chambers, preview, setQuery, setEditor, setSelectedLocation,
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,
-    clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect,
+    clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect, handleRouteEdit,
     handleLocationClick, handlePointSelect, relocatePoint,
     handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   }
