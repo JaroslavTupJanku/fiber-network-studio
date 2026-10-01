@@ -21,6 +21,7 @@ export const ROUTE_VERTEX_SOURCE_ID = 'underground-route-vertices'
 export const ROUTE_VERTEX_LAYER_ID = 'underground-route-vertex-dots'
 export const ROUTE_VERTEX_HALO_LAYER_ID = 'underground-route-vertex-halo'
 export const ROUTE_INSERT_SOURCE_ID = 'underground-route-insert-preview'
+export const BUILDING_CROSSING_SOURCE_ID = 'route-building-crossings'
 
 export function routeCollection(routes: UndergroundRoute[], points: NetworkPoint[], installations: RouteInstallationDocument[] | null) {
   const byRoute = new globalThis.Map(installations?.map(document => [document.routeId, installationSummary(document)]) ?? [])
@@ -130,6 +131,11 @@ export function initializeMapLayers(map: Map) {
   map.addLayer({ id: 'underground-route-insert-preview-dot', type: 'circle', source: ROUTE_INSERT_SOURCE_ID,
     paint: { 'circle-radius': 7, 'circle-color': '#fff6e8', 'circle-stroke-color': '#a4532d',
       'circle-stroke-width': 2.5 } })
+  map.addSource(BUILDING_CROSSING_SOURCE_ID, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } })
+  map.addLayer({ id: 'route-building-crossing-fill', type: 'fill', source: BUILDING_CROSSING_SOURCE_ID,
+    paint: { 'fill-color': '#da5643', 'fill-opacity': 0.3 } })
+  map.addLayer({ id: 'route-building-crossing-outline', type: 'line', source: BUILDING_CROSSING_SOURCE_ID,
+    paint: { 'line-color': '#b72b22', 'line-width': 3 } })
   map.addSource(POINT_SOURCE_ID, {
     type: 'geojson',
     data: { type: 'FeatureCollection', features: [] },

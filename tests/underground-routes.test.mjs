@@ -9,6 +9,49 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
 import { closestRouteSegment, routeCoordinates, routeGeometryHit, routeLengthMeters, undoRouteStep,
   waypointsAfterPointMove } from '../frontend/src/features/map/undergroundRoutes.ts'
+import { crossingBuildingFootprints, routeWithinFootprintCoverage } from '../frontend/src/features/map/buildingFootprints.ts'
+
+test('route check rejects another building but allows entry into an endpoint building', () => {
+  const building = (kod, west, east) => ({ type: 'Feature', properties: { kod },
+    geometry: { type: 'Polygon', coordinates: [[
+      [west, 49.9999], [east, 49.9999], [east, 50.0001], [west, 50.0001], [west, 49.9999],
+    ]] } })
+  const points = [
+    { id: 'start', kind: 'building', name: 'Start', latitude: 50, longitude: 14 },
+    { id: 'end', kind: 'building', name: 'Cíl', latitude: 50, longitude: 14.003 },
+  ]
+  const route = { name: 'Přípojka', startPointId: 'start', endPointId: 'end', waypoints: [] }
+  const start = building(1, 13.9999, 14.0001)
+  const middle = building(2, 14.001, 14.002)
+  const end = building(3, 14.0029, 14.0031)
+  assert.deepEqual(crossingBuildingFootprints(route, points, [start, middle, end]).map(item => item.properties.kod), [2])
+  assert.deepEqual(crossingBuildingFootprints(route, [points[0], { ...points[1], kind: 'chamber' }],
+    [start, end]), [])
+  const around = { ...route, waypoints: [
+    { latitude: 50.0003, longitude: 14.0005 }, { latitude: 50.0003, longitude: 14.0025 },
+  ] }
+  assert.deepEqual(crossingBuildingFootprints(around, points, [start, middle, end]), [])
+})
+
+test('route preview rechecks cached nearby buildings as a bend moves', () => {
+  const points = [
+    { id: 'start', latitude: 50, longitude: 14 },
+    { id: 'end', latitude: 50, longitude: 14.003 },
+  ]
+  const building = { type: 'Feature', properties: { kod: 2 }, geometry: { type: 'Polygon', coordinates: [[
+    [14.001, 49.9999], [14.002, 49.9999], [14.002, 50.0001], [14.001, 50.0001], [14.001, 49.9999],
+  ]] } }
+  const clear = { name: 'Trasa', startPointId: 'start', endPointId: 'end', waypoints: [
+    { latitude: 50.0003, longitude: 14.0015 },
+  ] }
+  const crossing = { ...clear, waypoints: [{ latitude: 50, longitude: 14.0015 }] }
+  assert.deepEqual(crossingBuildingFootprints(clear, points, [building]), [])
+  assert.equal(crossingBuildingFootprints(crossing, points, [building]).length, 1)
+  const reference = routeCoordinates(clear, points)
+  assert.equal(routeWithinFootprintCoverage(reference.map((point, index) =>
+    index === 1 ? { ...point, latitude: point.latitude + 0.0001 } : point), reference), true)
+  assert.equal(routeWithinFootprintCoverage(routeCoordinates(crossing, points), reference), false)
+})
 
 test('route geometry follows its endpoint objects and measures only map geometry', () => {
   const points = [

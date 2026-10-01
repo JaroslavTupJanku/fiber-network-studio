@@ -34,6 +34,7 @@ var customerDataPath = builder.Configuration["Customers:Path"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "customers.json");
 builder.Services.AddSingleton(new CustomerStore(customerDataPath));
 builder.Services.AddHttpClient<ParcelLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
+builder.Services.AddHttpClient<BuildingFootprintLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
 var app = builder.Build();
 app.MapCableCatalog();
 app.MapDuctCatalog();
@@ -62,6 +63,29 @@ app.MapGet("/api/parcels/at", async (double latitude, double longitude, ParcelLo
     {
         logger.LogWarning(exception, "Parcel lookup failed");
         return Results.Problem("Katastrální údaje se nepodařilo načíst.", statusCode: 503);
+    }
+});
+app.MapPost("/api/building-footprints/intersecting-route", async (BuildingFootprintRequest request,
+    BuildingFootprintLookup lookup, ILogger<BuildingFootprintLookup> logger,
+    CancellationToken cancellationToken) =>
+{
+    var coordinates = request.Coordinates;
+    if (coordinates is null || coordinates.Count is < 2 or > 202
+        || request.DistanceMeters is double distance && (!double.IsFinite(distance) || distance is < 0 or > 40)
+        || coordinates.Any(point => !double.IsFinite(point.Latitude) || !double.IsFinite(point.Longitude)
+            || point.Latitude is < -90 or > 90 || point.Longitude is < -180 or > 180))
+        return Results.BadRequest(new { error = "Trasa musí obsahovat 2 až 202 platných bodů." });
+
+    try
+    {
+        return Results.Ok(await lookup.FindAlongRouteAsync(coordinates, cancellationToken,
+            request.DistanceMeters ?? 0));
+    }
+    catch (Exception exception) when (!cancellationToken.IsCancellationRequested
+        && exception is HttpRequestException or JsonException or TaskCanceledException)
+    {
+        logger.LogWarning(exception, "Building footprint lookup failed");
+        return Results.Problem("Půdorysy budov se nepodařilo načíst.", statusCode: 503);
     }
 });
 app.MapGet("/api/network-points", async (NetworkPointStore store) =>

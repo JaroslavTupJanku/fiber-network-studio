@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { findParcelAt, type Parcel } from './parcels'
 import { useUndergroundRoutes } from './useUndergroundRoutes'
-import { saveUndergroundRoute, waypointsAfterPointMove } from './undergroundRoutes'
+import { routeCoordinates, saveUndergroundRoute, waypointsAfterPointMove } from './undergroundRoutes'
+import { crossingBuildingFootprints, findBuildingFootprints } from './buildingFootprints'
 import {
   createNetworkPoint,
   deleteNetworkPoint,
@@ -61,6 +62,24 @@ export function useMapWorkspace() {
   const relocatePoint = useCallback(async (id: string, location: Coordinates) => {
     const point = points.find(item => item.id === id)
     if (!point || saving) return
+    setSaving(true)
+    setActionError('')
+    const movedPoints = points.map(item => item.id === id ? { ...item, ...location } : item)
+    try {
+      for (const original of route.routes.filter(item => item.startPointId === id || item.endPointId === id)) {
+        const changed = { ...original, waypoints: waypointsAfterPointMove(original, points, id, location) }
+        const footprints = await findBuildingFootprints(routeCoordinates(changed, movedPoints))
+        if (crossingBuildingFootprints(changed, movedPoints, footprints).length) {
+          setActionError('Přesun by vedl navázanou trasu přes budovu. Nejprve upravte její průběh.')
+          setSaving(false)
+          return
+        }
+      }
+    } catch {
+      setActionError('Půdorysy budov se nepodařilo ověřit. Přesun zkuste znovu.')
+      setSaving(false)
+      return
+    }
     const changedRoutes = route.routes.filter(item => item.startPointId === id || item.endPointId === id)
       .filter(item => item.waypoints.length > 0)
       .map(original => ({ original, changed: { ...original,
@@ -77,7 +96,6 @@ export function useMapWorkspace() {
     setActiveTool(null)
     setMoving(false)
     setActionError('')
-    setSaving(true)
     const changedOnServer: typeof changedRoutes = []
     try {
       for (const entry of changedRoutes) {

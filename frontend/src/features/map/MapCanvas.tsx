@@ -10,10 +10,11 @@ import type { Coordinates, NetworkPoint, NetworkPointKind } from './networkPoint
 import type { Parcel } from './parcels'
 import type { RouteInstallationDocument } from './routeInstallations'
 import type { OpticalSpliceDocument } from './opticalSplices'
+import { crossingBuildingFootprints, type BuildingFootprint } from './buildingFootprints'
 import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollection, routeVertexCollection,
   POINT_SOURCE_ID, POINT_LAYER_ID, SELECTED_LAYER_ID, HOVERED_POINT_LAYER_ID, ROUTE_ENDPOINT_LAYER_ID, PARCEL_SOURCE_ID, PARCEL_FILL_LAYER_ID,
   ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, TRACED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
-  ROUTE_VERTEX_SOURCE_ID, ROUTE_INSERT_SOURCE_ID } from './mapLayers'
+  ROUTE_VERTEX_SOURCE_ID, ROUTE_INSERT_SOURCE_ID, BUILDING_CROSSING_SOURCE_ID } from './mapLayers'
 import { crossedDragThreshold, mapCursor, resolveMapClick } from './interactions'
 import { routeGeometryHit, routeCoordinates, waypointsAfterPointMove, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
 
@@ -32,6 +33,10 @@ type MapCanvasProps = {
   routeDraft: RouteDraft | null
   drawingRoute: boolean
   routeError: string
+  routeBuildingCrossings: BuildingFootprint[]
+  routeNearbyBuildings: BuildingFootprint[]
+  routeCheckingBuildings: boolean
+  pointMoveError: string
   onRouteToolChange: () => void
   onRouteSelect: (id: string) => void
   onRouteEdit: (id: string) => void
@@ -65,7 +70,7 @@ const withPointPosition = (points: NetworkPoint[], id: string, location: Coordin
 
 setWorkerUrl(workerUrl)
 
-export function MapCanvas({ points, routes, installations, splices, installationLoading, selectedRouteId, tracedRouteIds, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, pointFocusRequest, routeDraft, drawingRoute, routeError, onRouteToolChange,
+export function MapCanvas({ points, routes, installations, splices, installationLoading, selectedRouteId, tracedRouteIds, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, pointFocusRequest, routeDraft, drawingRoute, routeError, routeBuildingCrossings, routeNearbyBuildings, routeCheckingBuildings, pointMoveError, onRouteToolChange,
   onRouteSelect, onRouteEdit, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId, onMapPointHoverChange,
   selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop,
   onLocationClick, onPointSelect, onPointMove, onDraftMove, onCadastreDisable }: MapCanvasProps) {
@@ -79,7 +84,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
   const splicePointIds = useMemo(() => new Set(splices.map(splice => splice.pointId)), [splices])
   const displayedPoints = useMemo(() => selectedPointId && preview
     ? withPointPosition(points, selectedPointId, preview) : points, [points, selectedPointId, preview])
-  const geometryRef = useRef({ displayedPoints, routes, installations, routeDraft, splicePointIds })
+  const geometryRef = useRef({ displayedPoints, routes, installations, routeDraft, splicePointIds, routeNearbyBuildings })
   const dragPreviewRef = useRef<{ id: string, location: Coordinates } | null>(null)
   const skipSelectionEase = useRef<string | null>(null)
   const focusedPointId = useRef<string | null>(null)
@@ -122,8 +127,8 @@ export function MapCanvas({ points, routes, installations, splices, installation
     onRouteSelect, onRouteEdit, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove, onMapPointHoverChange, onMapRouteHoverChange])
 
   useEffect(() => {
-    geometryRef.current = { displayedPoints, routes, installations, routeDraft, splicePointIds }
-  }, [displayedPoints, routes, installations, routeDraft, splicePointIds])
+    geometryRef.current = { displayedPoints, routes, installations, routeDraft, splicePointIds, routeNearbyBuildings }
+  }, [displayedPoints, routes, installations, routeDraft, splicePointIds, routeNearbyBuildings])
 
   useEffect(() => {
     if (!drawingRoute) return
@@ -329,7 +334,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
     }
     const setPointPosition = (id: string, location: Coordinates) => {
       dragPreviewRef.current = { id, location }
-      const { displayedPoints, routes, installations, routeDraft, splicePointIds } = geometryRef.current
+      const { displayedPoints, routes, installations, routeDraft, splicePointIds, routeNearbyBuildings } = geometryRef.current
       const previewPoints = withPointPosition(displayedPoints, id, location)
       const previewRoutes = routes.map(route => ({ ...route,
         waypoints: waypointsAfterPointMove(route, displayedPoints, id, location) }))
@@ -342,6 +347,11 @@ export function MapCanvas({ points, routes, installations, splices, installation
       map.getSource<GeoJSONSource>(ROUTE_DRAFT_SOURCE_ID)?.setData(routeDraftCollection(previewDraft, previewPoints, null))
       map.getSource<GeoJSONSource>(ROUTE_VERTEX_SOURCE_ID)?.setData(routeVertexCollection(
         interactionRef.current.drawingRoute ? previewDraft : null))
+      if (interactionRef.current.drawingRoute && previewDraft) {
+        map.getSource<GeoJSONSource>(BUILDING_CROSSING_SOURCE_ID)?.setData({
+          type: 'FeatureCollection', features: crossingBuildingFootprints(previewDraft, previewPoints, routeNearbyBuildings),
+        })
+      }
     }
     const handlePointMouseMove = (event: MouseEvent) => {
       if (!pointDrag) return
@@ -568,6 +578,19 @@ export function MapCanvas({ points, routes, installations, splices, installation
 
   useEffect(() => {
     const map = mapRef.current
+    if (!map || readyMapRef.current !== map) return
+    const drag = dragPreviewRef.current
+    const previewPoints = drag ? withPointPosition(displayedPoints, drag.id, drag.location) : displayedPoints
+    const previewDraft = drag && routeDraft ? { ...routeDraft,
+      waypoints: waypointsAfterPointMove(routeDraft, displayedPoints, drag.id, drag.location) } : routeDraft
+    map.getSource<GeoJSONSource>(BUILDING_CROSSING_SOURCE_ID)?.setData({
+      type: 'FeatureCollection', features: drag && drawingRoute && previewDraft
+        ? crossingBuildingFootprints(previewDraft, previewPoints, routeNearbyBuildings) : routeBuildingCrossings,
+    })
+  }, [routeBuildingCrossings, routeNearbyBuildings, drawingRoute, routeDraft, displayedPoints, mapGeneration, pointMoveError])
+
+  useEffect(() => {
+    const map = mapRef.current
     const index = selectedWaypointIndex
     const waypoint = index === null ? null : routeDraft?.waypoints[index]
     if (!map || !drawingRoute || draggingWaypointIndex !== null || !waypoint || index === null) return
@@ -764,11 +787,13 @@ export function MapCanvas({ points, routes, installations, splices, installation
           <button type="button" onClick={() => onToolChange(null)}>Zrušit · Esc</button>
         </div>
       )}
+      {pointMoveError && !drawingRoute && <div className="map-action-error" role="alert">{pointMoveError}</div>}
       {drawingRoute && (
-        <div className={`placement-guide route-guide${routeError ? ' route-guide-error' : ''}`} role="status">
+        <div className={`placement-guide route-guide${routeError || routeBuildingCrossings.length ? ' route-guide-error' : ''}`} role="status">
           <RouteIcon size={20} aria-hidden="true" />
           <div className="route-guide-copy"><strong>{routeDraft?.id ? 'Úprava trasy' : 'Kreslení trasy'}</strong>
-            <span>{routeError || (routeDraft?.startPointId
+            <span>{routeCheckingBuildings ? 'Ověřuji průchod trasy budovami…' : routeError || pointMoveError || (routeBuildingCrossings.length
+              ? 'Trasa zasahuje do půdorysu budovy. Přesuňte lomový bod nebo zvolte jiný průběh.' : routeDraft?.startPointId
               ? routeDraft.endPointId
                 ? `Spojeno: ${routeStartName} → ${routeEndName}. Úsek i objekty můžete přetáhnout; lomový bod kliknutím vyberete.`
                 : `Začátek: ${routeStartName}. Klikněte na cíl; tažením budovu nebo šachtu přesunete.`
@@ -776,7 +801,8 @@ export function MapCanvas({ points, routes, installations, splices, installation
             <small>Přesun objektu se uloží hned; Zrušit vrátí jen kreslení.</small></div>
           <div className="route-guide-actions">
             <button type="button" onClick={onRouteUndo} disabled={!routeDraft?.startPointId}>Zpět</button>
-            <button type="button" onClick={onRouteFinish} disabled={!routeDraft?.endPointId}>Dokončit</button>
+            <button type="button" onClick={onRouteFinish} disabled={!routeDraft?.endPointId || routeCheckingBuildings}>
+              {routeCheckingBuildings ? 'Kontroluji…' : 'Dokončit'}</button>
             <button type="button" onClick={onRouteCancel}>Zrušit · Esc</button>
           </div>
         </div>
