@@ -55,6 +55,8 @@ test('route hover and click share a generous geometric hit target', () => {
     { kind: 'segment', index: 0, x: 40, y: 0 })
   assert.deepEqual(routeGeometryHit(line, { x: 109, y: 3 }, 12),
     { kind: 'vertex', index: 0 })
+  assert.deepEqual(routeGeometryHit([{ x: 0, y: 0 }, { x: 100, y: 0 }], { x: 100, y: 0 }, 12, true),
+    { kind: 'vertex', index: 0 })
   assert.equal(routeGeometryHit(line, { x: 40, y: 13 }, 12), null)
   assert.equal(routeGeometryHit([], { x: 0, y: 0 }, 12), null)
 })

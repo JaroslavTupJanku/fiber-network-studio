@@ -148,6 +148,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
           onRouteSelect={selectSavedRoute}
           onRouteWaypointInsert={route.insertWaypoint}
           onRouteWaypointMove={route.moveWaypoint}
+          onRouteWaypointRemove={route.removeWaypoint}
           onRouteUndo={route.undo}
           onRouteFinish={route.finish}
           onRouteCancel={route.cancelDrawing}
@@ -264,7 +265,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
             {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
               ? routeDraft.endPointId
-                ? 'Oba konce jsou vybrané. Klikněte přímo na úsek trasy pro nový lomový bod, nebo úsek uchopte a táhněte kolem překážky. Kliknutí mimo trasu ji nezmění. Potom úpravu dokončete a uložte.'
+                ? 'Kliknutím na úsek přidáte lomový bod. Bod můžete přetáhnout; kliknutím jej vyberete k odebrání (funguje i Delete). Potom úpravu dokončete a uložte.'
                 : routeDraft.startPointId
                 ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další budovu nebo šachtu v mapě; kliknutím mimo objekty přidáte lomový bod.`
                 : 'Klikněte na výchozí budovu nebo šachtu v mapě. Konec můžete vybrat i v polích níže.'

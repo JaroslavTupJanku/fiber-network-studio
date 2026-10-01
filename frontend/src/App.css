@@ -38,6 +38,9 @@
 .route-guide-actions button { min-height: 32px; border-color: #dec5b7; background: #fff; color: #704b3a; }
 .route-guide-actions button:last-child { border-color: #b8613e; color: #8d432c; }
 .route-guide-error { border-color: #e8b4a9; background: #fff5f2; color: #8d3e32; }
+.route-waypoint-remove { display: inline-flex; align-items: center; min-height: 34px; padding: 6px 10px; border: 1px solid #d88d61; border-radius: 8px; background: #fffaf5; color: #873e2a; box-shadow: 0 3px 12px rgb(67 44 26 / 24%); font: inherit; font-size: 12px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.route-waypoint-remove:hover { border-color: #b8613e; background: #ffefe2; }
+.route-waypoint-remove:focus-visible { outline: 3px solid #e8a45b; outline-offset: 2px; }
 .map-legend { position: absolute; z-index: 2; bottom: 38px; left: 16px; color: #35554a; font-size: 12px; }
 .map-legend-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 34px; padding: 6px 10px; border: 1px solid #d8e2df; border-radius: 7px; background: rgb(255 255 255 / 96%); color: #35554a; box-shadow: 0 2px 9px rgb(20 45 38 / 12%); font: inherit; font-weight: 650; cursor: pointer; }
 .map-legend-toggle:hover, .map-legend-toggle[aria-expanded='true'] { background: #f0f7f3; }
