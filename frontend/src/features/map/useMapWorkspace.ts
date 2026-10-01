@@ -32,7 +32,7 @@ export function useMapWorkspace() {
   const [parcelStatus, setParcelStatus] = useState<ParcelStatus>('idle')
   const parcelRequest = useRef<AbortController | null>(null)
   const [query, setQuery] = useState('')
-  const route = useUndergroundRoutes(points)
+  const route = useUndergroundRoutes(points, activeTool !== null || Boolean(editor && !editor.id))
 
   useEffect(() => () => parcelRequest.current?.abort(), [])
 
@@ -65,20 +65,22 @@ export function useMapWorkspace() {
     setSaving(true)
     setActionError('')
     const movedPoints = points.map(item => item.id === id ? { ...item, ...location } : item)
-    try {
-      for (const original of route.routes.filter(item => item.startPointId === id || item.endPointId === id)) {
-        const changed = { ...original, waypoints: waypointsAfterPointMove(original, points, id, location) }
-        const footprints = await findBuildingFootprints(routeCoordinates(changed, movedPoints))
-        if (crossingBuildingFootprints(changed, movedPoints, footprints).length) {
-          setActionError('Přesun by vedl navázanou trasu přes budovu. Nejprve upravte její průběh.')
-          setSaving(false)
-          return
+    if (!route.drawing) {
+      try {
+        for (const original of route.routes.filter(item => item.startPointId === id || item.endPointId === id)) {
+          const changed = { ...original, waypoints: waypointsAfterPointMove(original, points, id, location) }
+          const footprints = await findBuildingFootprints(routeCoordinates(changed, movedPoints))
+          if (crossingBuildingFootprints(changed, movedPoints, footprints).length) {
+            setActionError('Přesun by vedl navázanou trasu přes budovu. Nejprve upravte její průběh.')
+            setSaving(false)
+            return
+          }
         }
+      } catch {
+        setActionError('Půdorysy budov se nepodařilo ověřit. Přesun zkuste znovu.')
+        setSaving(false)
+        return
       }
-    } catch {
-      setActionError('Půdorysy budov se nepodařilo ověřit. Přesun zkuste znovu.')
-      setSaving(false)
-      return
     }
     const changedRoutes = route.routes.filter(item => item.startPointId === id || item.endPointId === id)
       .filter(item => item.waypoints.length > 0)
@@ -130,7 +132,7 @@ export function useMapWorkspace() {
     setMoving(false)
     setActionError('')
     if (kind) {
-      route.cancel()
+      if (!route.drawing) route.cancel()
       clearParcel()
       setEditor(null)
       setSelectedLocation(null)
@@ -138,14 +140,18 @@ export function useMapWorkspace() {
   }, [clearParcel, route])
 
   const handleLocationClick = useCallback((location: Coordinates, lookupParcel: boolean) => {
+    if (route.drawing && editor && !editor.id) { setEditor({ ...editor, ...location }); return }
+    if (activeTool) {
+      if (!route.drawing) route.cancel()
+      setEditor({ kind: activeTool, name: '', ...location })
+      setActiveTool(null)
+      setActionError('')
+      return
+    }
     if (route.drawing) { route.addWaypoint(location); return }
     clearParcel()
     setActionError('')
-    if (activeTool) {
-      route.cancel()
-      setEditor({ kind: activeTool, name: '', ...location })
-      setActiveTool(null)
-    } else if (moving && editor) {
+    if (moving && editor) {
       if (editor.id) void relocatePoint(editor.id, location)
       else { setEditor({ ...editor, ...location }); setMoving(false) }
     } else {
@@ -170,6 +176,7 @@ export function useMapWorkspace() {
   }, [activeTool, moving, editor, clearParcel, route, relocatePoint])
 
   const handlePointSelect = useCallback((id: string, location?: Coordinates) => {
+    if (route.drawing && editor && !editor.id) return
     if (route.drawing) { route.addPoint(id); return }
     const point = points.find((item) => item.id === id)
     if (!point) return
@@ -180,9 +187,10 @@ export function useMapWorkspace() {
     setActiveTool(null)
     setMoving(false)
     setActionError('')
-  }, [points, clearParcel, route])
+  }, [points, clearParcel, route, editor])
 
   const handleRouteToolChange = () => {
+    if (route.drawing && activeTool) { setActiveTool(null); return }
     if (route.drawing) { route.cancelDrawing(); return }
     setActiveTool(null)
     setMoving(false)
@@ -215,21 +223,27 @@ export function useMapWorkspace() {
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && route.drawing && editor && !editor.id) {
+        setEditor(null)
+        setMoving(false)
+        setActionError('')
+        return
+      }
       if (event.key === 'Escape' && (activeTool || moving)) handleToolChange(null)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [activeTool, moving, handleToolChange])
+  }, [activeTool, moving, editor, route.drawing, handleToolChange])
 
   const startDraft = (kind: NetworkPointKind, location: Coordinates) => {
-    route.cancel()
+    if (!route.drawing) route.cancel()
     setEditor({ kind, name: '', ...location })
     setSelectedLocation(null)
     setActionError('')
   }
 
   const handleToolDrop = (kind: NetworkPointKind, location: Coordinates) => {
-    route.cancel()
+    if (!route.drawing) route.cancel()
     clearParcel()
     setEditor({ kind, name: '', ...location })
     setSelectedLocation(null)
@@ -254,7 +268,10 @@ export function useMapWorkspace() {
       setPoints((current) => editor.id
         ? current.map((point) => point.id === saved.id ? saved : point)
         : [...current, saved])
-      setEditor(saved)
+      if (route.drawing && !editor.id) {
+        if (!route.draft?.endPointId) route.addPoint(saved.id)
+        setEditor(null)
+      } else setEditor(saved)
       clearParcel()
       setMoving(false)
     } catch {

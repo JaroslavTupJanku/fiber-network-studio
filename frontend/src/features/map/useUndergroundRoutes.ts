@@ -8,7 +8,7 @@ import { deleteUndergroundRoute, listUndergroundRoutes, saveUndergroundRoute,
 const copyRoute = (route: UndergroundRoute): RouteDraft => ({ ...route,
   waypoints: route.waypoints.map(point => ({ ...point })) })
 
-export function useUndergroundRoutes(points: NetworkPoint[]) {
+export function useUndergroundRoutes(points: NetworkPoint[], drawingPaused = false) {
   const [routes, setRoutes] = useState<UndergroundRoute[]>([])
   const [draft, setDraft] = useState<RouteDraft | null>(null)
   const [drawing, setDrawing] = useState(false)
@@ -340,14 +340,14 @@ export function useUndergroundRoutes(points: NetworkPoint[]) {
   }
 
   useEffect(() => {
-    if (!drawing) return
+    if (!drawing || drawingPaused) return
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Escape') return
       cancelDrawing()
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [drawing, cancelDrawing])
+  }, [drawing, drawingPaused, cancelDrawing])
 
   const original = routes.find(route => route.id === draft?.id)
   const preview = draft && (drawing || !draft.id || !original

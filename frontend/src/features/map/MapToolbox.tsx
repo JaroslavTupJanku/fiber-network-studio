@@ -20,6 +20,7 @@ type MapToolboxProps = {
   toolsDisabled: boolean
   onToolChange: (kind: NetworkPointKind | null) => void
   routeDrawing: boolean
+  routePaused: boolean
   canDrawRoute: boolean
   onRouteToolChange: () => void
   onToolDropAt: (kind: NetworkPointKind, clientX: number, clientY: number) => void
@@ -37,7 +38,7 @@ type MapToolboxProps = {
   onZoomToCadastre: () => void
 }
 
-export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolChange, routeDrawing, canDrawRoute, onRouteToolChange, onToolDropAt,
+export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolChange, routeDrawing, routePaused, canDrawRoute, onRouteToolChange, onToolDropAt,
   onDragPointerChange: setDragPointer, mapBounds,
   baseMap, onBaseMapChange, orthophotoStatus, onOrthophotoRetry, cadastreEnabled, cadastreStatus,
   needsZoom, onCadastreChange, onCadastreRetry, onZoomToCadastre }: MapToolboxProps) {
@@ -112,13 +113,15 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
         </section>
         <section className="map-toolbox-section" aria-label="Trasy">
           <h2>Trasy</h2>
-          <button type="button" className={`map-tool route-tool${routeDrawing ? ' active' : ''}`}
+          <button type="button" className={`map-tool route-tool${routeDrawing ? ' active' : ''}${routePaused ? ' route-paused' : ''}`}
             aria-pressed={routeDrawing} disabled={toolsDisabled || !canDrawRoute}
             onClick={handleRouteToolClick} title="Nakreslit podzemní trasu mezi dvěma body sítě">
-            <Route size={18} aria-hidden="true" /> Podzemní trasa
+            <Route size={18} aria-hidden="true" /> {routePaused ? 'Pokračovat v trase' : 'Podzemní trasa'}
           </button>
           <p className="map-toolbox-hint">{canDrawRoute
-            ? routeDrawing
+            ? routePaused
+              ? 'Rozkreslená trasa čeká na nový objekt. Kliknutím sem se vrátíte ke kreslení.'
+              : routeDrawing
               ? 'Vyberte konce trasy. Kliknutím nebo tažením za její úsek přidáte lomový bod.'
               : 'Novou trasu začněte výběrem konců. Existující trasu vyberete kliknutím a upravíte dvojklikem.'
             : 'Pro trasu nejdřív přidejte dva body sítě.'}</p>
