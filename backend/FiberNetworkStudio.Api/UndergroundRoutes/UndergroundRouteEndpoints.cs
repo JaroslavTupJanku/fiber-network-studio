@@ -12,6 +12,19 @@ public static class UndergroundRouteEndpoints
         app.MapGet("/api/underground-routes", async (UndergroundRouteStore store) =>
             Results.Ok(await store.ListAsync()));
 
+        app.MapPost("/api/underground-routes/{id:guid}/split", async (Guid id, SplitRouteRequest request,
+            RouteSplitService split) =>
+        {
+            var result = await split.SplitAsync(id, request);
+            return result.Status switch
+            {
+                200 => Results.Ok(result.Outcome),
+                404 => Results.NotFound(new { error = result.Error }),
+                409 => Results.Conflict(new { error = result.Error }),
+                _ => Results.BadRequest(new { error = result.Error })
+            };
+        });
+
         app.MapPost("/api/underground-routes", async (SaveUndergroundRouteRequest request,
             UndergroundRouteStore store, NetworkPointStore points) =>
         {

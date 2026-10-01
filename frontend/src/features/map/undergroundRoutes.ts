@@ -14,6 +14,20 @@ export type UndergroundRoute = Omit<UndergroundRouteInput, 'startPointId' | 'end
 }
 
 export type RouteDraft = UndergroundRouteInput & { id?: string }
+export type RouteSplitPosition = { segmentIndex: number; fraction: number; location: Coordinates }
+export type RouteSplitOutcome = { chamber: NetworkPoint; firstRoute: UndergroundRoute;
+  secondRoute: UndergroundRoute }
+
+export function routeSplitPosition(route: UndergroundRoute, points: NetworkPoint[],
+  segmentIndex: number, fraction: number): RouteSplitPosition | null {
+  const vertices = routeCoordinates(route, points)
+  if (segmentIndex < 0 || segmentIndex >= vertices.length - 1 || fraction < 0.02 || fraction > 0.98) return null
+  const first = vertices[segmentIndex]; const second = vertices[segmentIndex + 1]
+  return { segmentIndex, fraction, location: {
+    latitude: first.latitude + (second.latitude - first.latitude) * fraction,
+    longitude: first.longitude + (second.longitude - first.longitude) * fraction,
+  } }
+}
 
 export function routeCoordinates(route: UndergroundRouteInput, points: NetworkPoint[]): Coordinates[] {
   const start = points.find(point => point.id === route.startPointId)
@@ -110,7 +124,7 @@ export function undoRouteStep(draft: RouteDraft, insertedWaypointIndex?: number)
 async function expectOk(response: Response) {
   if (!response.ok) {
     const problem = await response.json().catch(() => null)
-    throw new Error(problem?.error ?? `Route API returned ${response.status}`)
+    throw new Error(problem?.error ?? problem?.detail ?? `Route API returned ${response.status}`)
   }
   return response
 }
@@ -126,6 +140,15 @@ export async function saveUndergroundRoute(route: RouteDraft): Promise<Undergrou
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: route.name.trim(), startPointId: route.startPointId,
       endPointId: route.endPointId, waypoints: route.waypoints }),
+  }))).json()
+}
+
+export async function splitUndergroundRoute(route: UndergroundRoute, installationVersion: number,
+  position: RouteSplitPosition, chamberName: string): Promise<RouteSplitOutcome> {
+  return (await expectOk(await fetch(`/api/underground-routes/${route.id}/split`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ expectedRoute: route, installationVersion,
+      segmentIndex: position.segmentIndex, fraction: position.fraction, chamberName: chamberName.trim() }),
   }))).json()
 }
 

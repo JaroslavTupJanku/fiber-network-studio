@@ -483,6 +483,10 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
               aria-invalid={!!lengthError} onChange={event => { setLengthInput(event.target.value); setLengthError('') }} /> m</span>
           </label><button type="submit" className="move-button" disabled={!editable || busy}>Uložit délku</button>
             <p>Zadejte délku kabelu včetně rezerv. Mapa ukazuje jen přibližnou délku trasy.</p>
+            {selectedItem.lengthBeforeSplitMeters != null && <p className="installation-length-note">
+              Před rozdělením měla celá trasa zadanou délku {selectedItem.lengthBeforeSplitMeters.toLocaleString('cs-CZ')} m.
+              Délky obou nových úseků je potřeba změřit nebo doplnit zvlášť; původní součet jsme nikam neodhadovali.
+            </p>}
             {lengthError && <p className="form-error" role="alert">{lengthError}</p>}</form>}
           {generateOpen && openMicroductSlots.length > 0 && <div className="installation-generate-panel" ref={generateRef}>
             <strong>Vyplnit {openMicroductSlots.length} volných pozic</strong>

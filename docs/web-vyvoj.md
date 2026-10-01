@@ -49,6 +49,8 @@ V editoru osazení se přetažením ve stromu mění nadřazený prvek kabelu ne
 
 **Podzemní trasa** propojuje dva uložené mapové body a mezi nimi může mít seřazené lomové body. Po výběru obou konců jen kliknutí nebo uchopení přímo na trase vloží lomový bod do geometricky nejbližšího segmentu; výpočet probíhá v obrazových souřadnicích mapy. Uložená trasa nabízí přímou akci **Upravit průběh trasy**, která otevře režim kreslení. Při kreslení a úpravách vidí uživatel náhled; server dostane změnu až po **Uložit**. Krajní body uchováváme jejich identitou, takže se průběh trasy přizpůsobí přesunu budovy či šachty. Přibližná délka vychází z mapy, ne z evidence skutečně uloženého kabelu. Backend kontroluje koncové body a souřadnice a ukládá trasy do samostatného JSON souboru. Při dokončení i přesunu navázaného bodu frontend požádá API o půdorysy budov z RÚIAN jen podél trasy a označí průchod cizí budovou. Mapové budovy dál ukládáme jako body; tato kontrola nenahrazuje ověření skutečné proveditelnosti výkopu.
 
+**Vložení šachty do osazené trasy** mění několik souvisejících záznamů najednou: bod, dvě trasy, osazení a případné odkazy na vlákna u původního konce. Backend je zapíše přes obnovovací žurnál, aby po přerušení zápisu dokončil stejnou změnu při dalším startu. Identifikátor fyzického vedení zůstane na obou nových úsecích stejný, identifikátory konkrétních instalovaných prvků jsou v každém úseku vlastní. Při přechodu na databázi tuto souborovou ochranu nahradí databázová transakce.
+
 **Optické ztráty** jsou úbytek signálu na kabelu, spojích a rozbočovačích. V aplikaci se
 počítají pro jednu zadanou cestu. **dB** je jednotka ztráty; **dBm** vyjadřuje výkon signálu
 na výstupu nebo vstupu zařízení. Stejné číslo v dB a dBm proto neznamená totéž.

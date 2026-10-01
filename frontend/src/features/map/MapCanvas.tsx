@@ -16,7 +16,8 @@ import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollec
   ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, TRACED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
   ROUTE_VERTEX_SOURCE_ID, ROUTE_INSERT_SOURCE_ID, BUILDING_CROSSING_SOURCE_ID } from './mapLayers'
 import { crossedDragThreshold, mapCursor, resolveMapClick } from './interactions'
-import { routeGeometryHit, routeCoordinates, waypointsAfterPointMove, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
+import { routeGeometryHit, routeCoordinates, routeSplitPosition, waypointsAfterPointMove,
+  type RouteDraft, type RouteSplitPosition, type UndergroundRoute } from './undergroundRoutes'
 
 type MapCanvasProps = {
   points: NetworkPoint[]
@@ -33,6 +34,10 @@ type MapCanvasProps = {
   routeDraft: RouteDraft | null
   drawingRoute: boolean
   routeError: string
+  routeSplitActive: boolean
+  routeSplitSelection: RouteSplitPosition | null
+  onRouteSplitPick: (position: RouteSplitPosition) => void
+  onRouteSplitCancel: () => void
   routeBuildingCrossings: BuildingFootprint[]
   routeNearbyBuildings: BuildingFootprint[]
   routeCheckingBuildings: boolean
@@ -70,14 +75,17 @@ const withPointPosition = (points: NetworkPoint[], id: string, location: Coordin
 
 setWorkerUrl(workerUrl)
 
-export function MapCanvas({ points, routes, installations, splices, installationLoading, selectedRouteId, tracedRouteIds, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, pointFocusRequest, routeDraft, drawingRoute, routeError, routeBuildingCrossings, routeNearbyBuildings, routeCheckingBuildings, pointMoveError, onRouteToolChange,
+export function MapCanvas({ points, routes, installations, splices, installationLoading, selectedRouteId, tracedRouteIds, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, pointFocusRequest, routeDraft, drawingRoute, routeError,
+  routeSplitActive, routeSplitSelection, onRouteSplitPick, onRouteSplitCancel,
+  routeBuildingCrossings, routeNearbyBuildings, routeCheckingBuildings, pointMoveError, onRouteToolChange,
   onRouteSelect, onRouteEdit, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId, onMapPointHoverChange,
   selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop,
   onLocationClick, onPointSelect, onPointMove, onDraftMove, onCadastreDisable }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const readyMapRef = useRef<Map | null>(null)
-  const interactionRef = useRef({ placementActive, activeTool, drawingRoute, onLocationClick,
+  const interactionRef = useRef({ placementActive, activeTool, drawingRoute, routeSplitActive,
+    routeSplitSelection, onRouteSplitPick, onLocationClick,
     onPointSelect, onPointMove, onRouteSelect, onRouteEdit, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove,
     onMapPointHoverChange, onMapRouteHoverChange })
   const pointData = useRef(pointCollection([], null, null))
@@ -120,10 +128,12 @@ export function MapCanvas({ points, routes, installations, splices, installation
   const routeEndName = points.find(point => point.id === routeDraft?.endPointId)?.name ?? 'neznámý bod'
 
   useEffect(() => {
-    interactionRef.current = { placementActive, activeTool, drawingRoute, onLocationClick,
+    interactionRef.current = { placementActive, activeTool, drawingRoute, routeSplitActive,
+      routeSplitSelection, onRouteSplitPick, onLocationClick,
       onPointSelect, onPointMove, onRouteSelect, onRouteEdit, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove,
       onMapPointHoverChange, onMapRouteHoverChange }
-  }, [placementActive, activeTool, drawingRoute, onLocationClick, onPointSelect, onPointMove,
+  }, [placementActive, activeTool, drawingRoute, routeSplitActive, routeSplitSelection, onRouteSplitPick,
+    onLocationClick, onPointSelect, onPointMove,
     onRouteSelect, onRouteEdit, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove, onMapPointHoverChange, onMapRouteHoverChange])
 
   useEffect(() => {
@@ -179,6 +189,10 @@ export function MapCanvas({ points, routes, installations, splices, installation
     let vertexDragPanEnabled = false
     let suppressMapClick = false
     const updateCursor = () => {
+      if (interactionRef.current.routeSplitActive) {
+        canvas.style.cursor = overDraftLine ? 'crosshair' : 'default'
+        return
+      }
       if (interactionRef.current.drawingRoute) {
         canvas.style.cursor = vertexDrag !== null || pointDrag || dragging ? 'grabbing'
           : overRouteVertex || overPoint ? 'grab' : overDraftLine ? 'pointer' : 'crosshair'
@@ -236,6 +250,12 @@ export function MapCanvas({ points, routes, installations, splices, installation
       selectedWaypointRef.current = index
       setSelectedWaypointIndex(index)
     }
+    const routeAt = (point: MapMouseEvent['point']) => {
+      const draft = geometryRef.current.routeDraft
+      if (draft?.id && draftGeometryHit(point)) return draft.id
+      const id = featureAt(point, ROUTE_LAYER_ID, 8)?.properties?.id
+      return id ? String(id) : null
+    }
     const setInsertPreview = (point: { x: number; y: number } | null) => {
       const source = map.getSource<GeoJSONSource>(ROUTE_INSERT_SOURCE_ID)
       if (!source) return
@@ -256,7 +276,22 @@ export function MapCanvas({ points, routes, installations, splices, installation
     const handleClick = (event: MapMouseEvent) => {
       if (suppressMapClick) { suppressMapClick = false; return }
       setLegendOpen(false)
-      const { placementActive, drawingRoute, onLocationClick, onPointSelect, onRouteSelect } = interactionRef.current
+      const { placementActive, drawingRoute, routeSplitActive,
+        onRouteSplitPick, onLocationClick, onPointSelect, onRouteSelect } = interactionRef.current
+      if (routeSplitActive) {
+        const hit = draftGeometryHit(event.point)
+        const saved = geometryRef.current.routes.find(route => route.id === geometryRef.current.routeDraft?.id)
+        if (hit?.kind === 'segment' && saved) {
+          const vertices = routeCoordinates(saved, geometryRef.current.displayedPoints)
+          const first = map.project([vertices[hit.index].longitude, vertices[hit.index].latitude])
+          const second = map.project([vertices[hit.index + 1].longitude, vertices[hit.index + 1].latitude])
+          const dx = second.x - first.x; const dy = second.y - first.y
+          const fraction = (dx || dy) ? ((hit.x - first.x) * dx + (hit.y - first.y) * dy) / (dx * dx + dy * dy) : 0
+          const position = routeSplitPosition(saved, geometryRef.current.displayedPoints, hit.index, fraction)
+          if (position) onRouteSplitPick(position)
+        }
+        return
+      }
       const pointId = pointAt(event.point, drawingRoute)?.properties?.id
       if (drawingRoute) {
         selectVertex(null)
@@ -266,8 +301,8 @@ export function MapCanvas({ points, routes, installations, splices, installation
         return
       }
       if (!placementActive && !pointId) {
-        const routeId = featureAt(event.point, ROUTE_LAYER_ID, 8)?.properties?.id
-        if (routeId) { onRouteSelect(String(routeId)); return }
+        const routeId = routeAt(event.point)
+        if (routeId) { onRouteSelect(routeId); return }
       }
       const result = resolveMapClick(pointId ? String(pointId) : null, placementActive,
         cadastreActive.current && !cadastreFailed.current, map.getZoom(), CADASTRE_MIN_ZOOM)
@@ -275,19 +310,20 @@ export function MapCanvas({ points, routes, installations, splices, installation
       else onLocationClick({ latitude: event.lngLat.lat, longitude: event.lngLat.lng }, result.lookupParcel)
     }
     const handleDoubleClick = (event: MapMouseEvent) => {
-      const { placementActive, drawingRoute, onRouteEdit } = interactionRef.current
-      if (placementActive || drawingRoute || pointAt(event.point, false)) return
-      const routeId = featureAt(event.point, ROUTE_LAYER_ID, 8)?.properties?.id
+      const { placementActive, drawingRoute, routeSplitActive, onRouteEdit } = interactionRef.current
+      if (placementActive || drawingRoute || routeSplitActive
+        || pointAt(event.point, false)) return
+      const routeId = routeAt(event.point)
       if (!routeId) return
       event.preventDefault()
-      onRouteEdit(String(routeId))
+      onRouteEdit(routeId)
     }
     const handleMouseMove = (event: MapMouseEvent) => {
-      const { placementActive, activeTool, drawingRoute } = interactionRef.current
+      const { placementActive, activeTool, drawingRoute, routeSplitActive } = interactionRef.current
       const pointId = pointAt(event.point, drawingRoute)?.properties?.id
       overPoint = Boolean(pointId)
       const routeId = !placementActive && !drawingRoute && !overPoint
-        ? featureAt(event.point, ROUTE_LAYER_ID, 8)?.properties?.id : null
+        ? routeAt(event.point) : null
       overRoute = Boolean(routeId)
       const nextPointId = dragging || pointDrag || vertexDrag !== null || !pointId ? null : String(pointId)
       const nextRouteId = dragging || pointDrag || vertexDrag !== null || !routeId ? null : String(routeId)
@@ -299,11 +335,14 @@ export function MapCanvas({ points, routes, installations, splices, installation
         mapHoverRouteId = nextRouteId
         interactionRef.current.onMapRouteHoverChange(nextRouteId)
       }
-      const draftHit = drawingRoute ? draftGeometryHit(event.point) : null
+      const draftHit = drawingRoute || routeSplitActive ? draftGeometryHit(event.point) : null
       overRouteVertex = !overPoint && draftHit?.kind === 'vertex'
       overDraftLine = !overPoint && draftHit?.kind === 'segment'
       setHoveredWaypointIndex(overRouteVertex && draftHit?.kind === 'vertex' ? draftHit.index : null)
-      setInsertPreview(overDraftLine && draftHit?.kind === 'segment' ? draftHit : null)
+      setInsertPreview(overDraftLine && draftHit?.kind === 'segment' ? draftHit
+        : routeSplitActive && interactionRef.current.routeSplitSelection
+          ? map.project([interactionRef.current.routeSplitSelection.location.longitude,
+            interactionRef.current.routeSplitSelection.location.latitude]) : null)
       overParcel = !placementActive && !overPoint && Boolean(map.getLayer(PARCEL_FILL_LAYER_ID))
         && map.queryRenderedFeatures(event.point, { layers: [PARCEL_FILL_LAYER_ID] }).length > 0
       if (drawingRoute && vertexDrag === null && !pointDrag)
@@ -328,7 +367,9 @@ export function MapCanvas({ points, routes, installations, splices, installation
         interactionRef.current.onMapRouteHoverChange(null)
       }
       setRouteHover(null)
-      setInsertPreview(null)
+      const splitSelection = interactionRef.current.routeSplitSelection
+      setInsertPreview(interactionRef.current.routeSplitActive && splitSelection
+        ? map.project([splitSelection.location.longitude, splitSelection.location.latitude]) : null)
       setPlacementPointer(null)
       updateCursor()
     }
@@ -388,9 +429,11 @@ export function MapCanvas({ points, routes, installations, splices, installation
       updateCursor()
     }
     const handlePointMouseDown = (event: MapMouseEvent) => {
+      if (interactionRef.current.routeSplitActive) return
       const drawingRoute = interactionRef.current.drawingRoute
       const pointFeature = pointAt(event.point, drawingRoute)
       if (drawingRoute) {
+        if (event.originalEvent.detail > 1) return
         const hit = draftGeometryHit(event.point)
         if (hit && !pointFeature) {
           event.preventDefault()
@@ -615,6 +658,18 @@ export function MapCanvas({ points, routes, installations, splices, installation
 
   useEffect(() => {
     const map = mapRef.current
+    if (!map || readyMapRef.current !== map) return
+    map.getSource<GeoJSONSource>(ROUTE_INSERT_SOURCE_ID)?.setData({
+      type: 'FeatureCollection', features: routeSplitActive && routeSplitSelection ? [{
+        type: 'Feature', geometry: { type: 'Point', coordinates: [routeSplitSelection.location.longitude,
+          routeSplitSelection.location.latitude] }, properties: {},
+      }] : [],
+    })
+    refreshCursor.current?.()
+  }, [routeSplitActive, routeSplitSelection, mapGeneration])
+
+  useEffect(() => {
+    const map = mapRef.current
     if (map?.getLayer(SELECTED_ROUTE_LAYER_ID)) {
       map.setFilter(SELECTED_ROUTE_LAYER_ID, ['==', ['get', 'id'], selectedRouteId ?? ''])
     }
@@ -807,6 +862,14 @@ export function MapCanvas({ points, routes, installations, splices, installation
           </div>
         </div>
       )}
+      {routeSplitActive && <div className="placement-guide route-guide" role="status">
+        <RouteIcon size={20} aria-hidden="true" />
+        <div className="route-guide-copy"><strong>Nová šachta na trase</strong>
+          <span>{routeSplitSelection ? 'Místo je vybrané. Pojmenujte šachtu a potvrďte rozdělení v panelu.'
+            : 'Klikněte na vybranou trasu mezi koncovými objekty a lomovými body.'}</span>
+          <small>Chráničky a kabely zůstanou průchozí; délky kabelů po rozdělení doplníte zvlášť.</small></div>
+        <div className="route-guide-actions"><button type="button" onClick={onRouteSplitCancel}>Zrušit</button></div>
+      </div>}
       {(points.length > 0 || routes.length > 0) && !drawingRoute && !placementActive && (
         <div className="map-legend">
           <button type="button" className="map-legend-toggle" aria-expanded={legendOpen}

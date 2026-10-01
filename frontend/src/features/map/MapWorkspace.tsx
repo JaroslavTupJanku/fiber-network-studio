@@ -17,7 +17,7 @@ import { installationSummary } from './routeInstallations'
 import { useRouteInstallations } from './useRouteInstallations'
 import { useMapWorkspace } from './useMapWorkspace'
 import type { NetworkPoint, NetworkPointKind } from './networkPoints'
-import { routeCoordinates, routeLengthMeters } from './undergroundRoutes'
+import { routeCoordinates, routeLengthMeters, splitUndergroundRoute, type RouteSplitPosition } from './undergroundRoutes'
 import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
 
 const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : 'Šachta'
@@ -51,6 +51,11 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
     return () => { live = false }
   }, [])
   const [routeTab, setRouteTab] = useState<'installations' | 'route'>('installations')
+  const [splitActive, setSplitActive] = useState(false)
+  const [splitSelection, setSplitSelection] = useState<RouteSplitPosition | null>(null)
+  const [splitName, setSplitName] = useState('')
+  const [splitBusy, setSplitBusy] = useState(false)
+  const [splitError, setSplitError] = useState('')
   const detailsPanelRef = useRef<HTMLElement>(null)
   const lastRouteId = useRef<string | null>(null)
   const lastCustomerFocusSequence = useRef(0)
@@ -92,10 +97,15 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
       setRouteTab('installations')
       detailsPanelRef.current?.scrollTo({ top: 0 })
     }
+    if (id !== lastRouteId.current) {
+      setSplitActive(false)
+      setSplitSelection(null)
+      setSplitError('')
+    }
     lastRouteId.current = id
   }, [routeDraft?.id])
   const selectedSavedRoute = routeDraft?.id ? route.routes.find(item => item.id === routeDraft.id) : null
-  const activeRouteTab = route.drawing ? 'route' : routeTab
+  const activeRouteTab = route.drawing || splitActive ? 'route' : routeTab
   const installations = useRouteInstallations(routeDraft?.id ?? null)
   const installationByRoute = new Map(installations.documents.map(document => [document.routeId, document]))
   const routeLength = routeDraft?.endPointId
@@ -124,12 +134,15 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
     detailsPanelRef.current?.scrollTo({ top: 0 })
   }
   const selectSavedRoute = (id: string) => {
+    setSplitActive(false)
+    setSplitSelection(null)
     setSideTab('infrastructure')
     selectRouteTab('installations')
     setPanelOpen(true)
     handleRouteSelect(id)
   }
   const editSavedRoute = (id: string) => {
+    if (splitActive || splitBusy) return
     setSideTab('infrastructure')
     selectRouteTab('route')
     setPanelOpen(true)
@@ -140,8 +153,50 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
     selectRouteTab('route')
     if (started) setPointFocusRequest(current => ({ id: pointId, sequence: (current?.sequence ?? 0) + 1 }))
   }
+  const beginSplit = () => {
+    if (!selectedSavedRoute || !routeDraft || route.drawing || splitBusy) return
+    if (routeDraft.name !== selectedSavedRoute.name
+      || routeDraft.startPointId !== selectedSavedRoute.startPointId
+      || routeDraft.endPointId !== selectedSavedRoute.endPointId
+      || JSON.stringify(routeDraft.waypoints) !== JSON.stringify(selectedSavedRoute.waypoints)) {
+      setSplitError('Nejdřív uložte změny trasy. Potom ji můžete rozdělit.')
+      return
+    }
+    setSplitActive(true)
+    setSplitSelection(null)
+    setSplitName('Nová šachta')
+    setSplitError('')
+    selectRouteTab('route')
+  }
+  const cancelSplit = () => { setSplitActive(false); setSplitSelection(null); setSplitError('') }
+  const finishSplit = async () => {
+    if (!selectedSavedRoute || !splitSelection || !splitName.trim() || splitBusy) return
+    setSplitBusy(true)
+    setSplitError('')
+    try {
+      const outcome = await splitUndergroundRoute(selectedSavedRoute, installations.document.version,
+        splitSelection, splitName)
+      route.setRoutes(current => [...current.map(item => item.id === outcome.firstRoute.id ? outcome.firstRoute : item),
+        outcome.secondRoute])
+      route.setDraft({ ...outcome.firstRoute })
+      setReloadVersion(value => value + 1)
+      installations.refresh()
+      void listOpticalSplices().then(setSplices).catch(() => {})
+      void listBuildingEquipment().then(setEquipment).catch(() => {})
+      void listBuildingDistribution().then(setDistributions).catch(() => {})
+      cancelSplit()
+    } catch (reason) {
+      setSplitError(reason instanceof Error ? reason.message : 'Trasu se nepodařilo rozdělit.')
+    } finally { setSplitBusy(false) }
+  }
+  useEffect(() => {
+    if (!splitActive) return
+    const onEscape = (event: globalThis.KeyboardEvent) => { if (event.key === 'Escape') cancelSplit() }
+    window.addEventListener('keydown', onEscape)
+    return () => window.removeEventListener('keydown', onEscape)
+  }, [splitActive])
   const handleRouteTabKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (route.drawing || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+    if (route.drawing || splitActive || !['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
     event.preventDefault()
     const next = event.key === 'Home' ? 'installations' : event.key === 'End' ? 'route'
       : activeRouteTab === 'installations' ? 'route' : 'installations'
@@ -151,7 +206,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
 
   return (
     <main className={`workspace${panelOpen ? '' : ' panel-collapsed'}`} hidden={!active}>
-      <section className={`map-region${route.drawing ? ' route-drawing-mode' : activeTool || moving ? ' point-placement-mode' : ''}`} aria-label="Mapa sítě">
+      <section className={`map-region${route.drawing || splitActive ? ' route-drawing-mode' : activeTool || moving ? ' point-placement-mode' : ''}`} aria-label="Mapa sítě">
         <MapCanvas
           points={points}
           routes={route.routes}
@@ -164,9 +219,13 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           onMapRouteHoverChange={setMapHoveredRouteId}
           routeFocusRequest={routeFocusRequest}
           pointFocusRequest={pointFocusRequest}
-          routeDraft={route.preview}
+          routeDraft={splitActive ? selectedSavedRoute ?? null : route.preview}
           drawingRoute={route.drawing}
           routeError={route.error}
+          routeSplitActive={splitActive}
+          routeSplitSelection={splitSelection}
+          onRouteSplitPick={setSplitSelection}
+          onRouteSplitCancel={cancelSplit}
           routeBuildingCrossings={route.buildingCrossings}
           routeNearbyBuildings={route.nearbyBuildings}
           routeCheckingBuildings={route.checkingBuildings}
@@ -187,7 +246,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           preview={preview}
           activeTool={activeTool}
           placementActive={activeTool !== null || moving}
-          toolsDisabled={loading || loadError}
+          toolsDisabled={loading || loadError || splitActive || splitBusy}
           onToolChange={handleToolChange}
           onToolDrop={(kind, location) => { setPanelOpen(true); setSideTab('infrastructure'); handleToolDrop(kind, location) }}
           onLocationClick={(location, lookupParcel) => { setPanelOpen(true); setSideTab('infrastructure'); handleLocationClick(location, lookupParcel) }}
@@ -224,6 +283,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           <div className="panel-heading-actions">
             {(editor || selectedLocation || routeDraft) && (
               <button className="icon-button" type="button" onClick={() => {
+                cancelSplit()
                 route.cancel()
                 setEditor(null)
                 setSelectedLocation(null)
@@ -263,9 +323,9 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           <div className="route-tab-context">
             <span>{pointName(selectedSavedRoute.startPointId)} → {pointName(selectedSavedRoute.endPointId)}</span>
             {!route.drawing && <div className="route-context-actions"><button type="button" className="route-continue-quick route-edit-quick"
-              disabled={route.saving} onClick={() => { selectRouteTab('route'); route.startEditing() }}>
+              disabled={route.saving || splitActive || splitBusy} onClick={() => { selectRouteTab('route'); route.startEditing() }}>
               <RouteIcon size={14} /> Upravit průběh trasy
-            </button><button type="button" className="route-continue-quick" disabled={route.saving}
+            </button><button type="button" className="route-continue-quick" disabled={route.saving || splitActive || splitBusy}
               onClick={() => beginRouteContinuation(selectedSavedRoute.endPointId)}>
               <RouteIcon size={14} /> Navázat od konce
             </button></div>}
@@ -273,7 +333,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           <div className="route-detail-tabs" role="tablist" aria-label="Detail podzemní trasy" onKeyDown={handleRouteTabKeyDown}>
             <button type="button" id="route-tab-installations" role="tab" aria-controls="route-panel-installations"
               aria-selected={activeRouteTab === 'installations'} tabIndex={activeRouteTab === 'installations' ? 0 : -1}
-              disabled={route.drawing} onClick={() => selectRouteTab('installations')}>Osazení</button>
+              disabled={route.drawing || splitActive} onClick={() => selectRouteTab('installations')}>Osazení</button>
             <button type="button" id="route-tab-route" role="tab" aria-controls="route-panel-route"
               aria-selected={activeRouteTab === 'route'} tabIndex={activeRouteTab === 'route' ? 0 : -1}
               onClick={() => selectRouteTab('route')}>Trasa</button>
@@ -333,6 +393,30 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
                 </button>
               </div>
             </div>}
+            {selectedSavedRoute && !route.drawing && <div className="route-split-card">
+              <strong>Vložit šachtu do této trasy</strong>
+              <p>Vyberte místo přímo na trase. Vzniknou dva navazující úseky; průchozí chráničky a kabely zůstanou propojené.</p>
+              {!splitActive ? <button type="button" className="move-button" disabled={route.saving || splitBusy}
+                onClick={beginSplit}><MapPin size={16} /> Vybrat místo na mapě</button> : <>
+                <label htmlFor="split-chamber-name">Název nové šachty</label>
+                <input id="split-chamber-name" maxLength={80} value={splitName}
+                  onChange={event => setSplitName(event.target.value)}
+                  onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void finishSplit() } }} />
+                {splitSelection ? <p>Vybrané místo: {splitSelection.location.latitude.toFixed(6)}°,
+                  {' '}{splitSelection.location.longitude.toFixed(6)}°. Kliknutím na trasu ho můžete změnit.</p>
+                  : <p className="route-help">Klikněte na některý úsek vybrané trasy v mapě.</p>}
+                {installations.document.items.some(item => item.cable?.name && item.actualLengthMeters != null)
+                  && <p className="route-help">Původní délka kabelu zůstane v evidenci jako údaj před rozdělením.
+                    Délky nových úseků bude potřeba doplnit zvlášť.</p>}
+                {splitError && <p className="form-error" role="alert">{splitError}</p>}
+                <div className="route-continuation-actions">
+                  <button type="button" className="primary-button" disabled={!splitSelection || !splitName.trim() || splitBusy}
+                    onClick={() => void finishSplit()}>{splitBusy ? 'Rozděluji…' : 'Vložit šachtu a rozdělit'}</button>
+                  <button type="button" className="move-button" disabled={splitBusy} onClick={cancelSplit}>Zrušit</button>
+                </div>
+              </>}
+              {!splitActive && splitError && <p className="form-error" role="alert">{splitError}</p>}
+            </div>}
             {routeLength !== null && <p className="route-length">Přibližná délka z mapy: <strong>{Math.round(routeLength).toLocaleString('cs-CZ')} m</strong><small>Není to délka instalovaného kabelu.</small></p>}
             {route.drawing && <>
               <div className="route-drawing-actions">
@@ -351,11 +435,12 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               onKeyDown={event => acceptExampleOnArrowRight(event, name => route.setDraft(current => current ? { ...current, name } : current))}
               title="Šipka doprava převezme šedý příklad"
               placeholder="Např. Šachta S-01 – Dům 12" />
-            {!route.drawing && routeDraft.id && <button type="button" className="move-button" onClick={route.startEditing}><RouteIcon size={16} /> Upravit průběh trasy</button>}
+            {!route.drawing && routeDraft.id && <button type="button" className="move-button"
+              disabled={splitActive || splitBusy} onClick={route.startEditing}><RouteIcon size={16} /> Upravit průběh trasy</button>}
             {route.error && <p className="form-error" role="alert">{route.error}</p>}
             <div className="form-actions">
-              <button className="primary-button" type="submit" disabled={route.drawing || route.saving || !routeDraft.name.trim() || !routeDraft.endPointId}><Save size={16} /> {route.saving ? 'Ukládání…' : 'Uložit'}</button>
-              {routeDraft.id && <button className="danger-button" type="button" disabled={route.saving} onClick={route.remove}><Trash2 size={16} /> Smazat</button>}
+              <button className="primary-button" type="submit" disabled={route.drawing || route.saving || splitActive || splitBusy || !routeDraft.name.trim() || !routeDraft.endPointId}><Save size={16} /> {route.saving ? 'Ukládání…' : 'Uložit'}</button>
+              {routeDraft.id && <button className="danger-button" type="button" disabled={route.saving || splitActive || splitBusy} onClick={route.remove}><Trash2 size={16} /> Smazat</button>}
             </div>
           </form>
           </div>
