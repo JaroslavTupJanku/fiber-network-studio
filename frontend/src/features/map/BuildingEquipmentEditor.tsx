@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Cable, Check, CircleHelp, Link2, Plus, Save, Trash2, X } from 'lucide-react'
+import { Cable, Check, ChevronDown, ChevronRight, CircleHelp, Link2, Plus, Save, Trash2, X } from 'lucide-react'
 import { loadBuildingEquipment, listBuildingEquipment, saveBuildingEquipment,
   type BuildingEquipmentDocument, type EquipmentPort } from './buildingEquipment'
 import { isConnectedPremise, listBuildingDistribution, type BuildingDistributionDocument } from './buildingDistribution'
@@ -12,6 +12,22 @@ import { countCzech, portLocation } from './equipmentPresentation'
 
 type Selection = { kind: 'rack' | 'shelf' | 'card' | 'port'; id: string }
 const id = () => crypto.randomUUID()
+
+function portStatus(port: EquipmentPort): string {
+  if (port.fiber && port.patchPortId) return 'Vlákno a propojka'
+  if (port.fiber) return 'Připojené vlákno'
+  if (port.patchPortId) return 'Propojený'
+  return 'Volný'
+}
+
+function PortButton({ port, document, selected, onSelect }: {
+  port: EquipmentPort; document: BuildingEquipmentDocument; selected: boolean; onSelect: () => void
+}) {
+  const status = portStatus(port)
+  return <button type="button" className={`equipment-port${selected ? ' selected' : ''}${status !== 'Volný' ? ' linked' : ''}`}
+    aria-label={`${portLocation(document, port)} · ${status}`} title={`${portLocation(document, port)} · ${status}`}
+    onClick={onSelect}><strong>P{port.position}</strong><span>{status}</span></button>
+}
 
 export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes, installations, onClose, onSaved, onTrace, onBudget }: {
   pointId: string; pointName: string; routes: UndergroundRoute[]; installations: RouteInstallationDocument[]
@@ -32,12 +48,19 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
   const [dirty, setDirty] = useState(false)
   const [portCount, setPortCount] = useState(8)
   const [portQuery, setPortQuery] = useState('')
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
   const [path, setPath] = useState<OpticalPath | null>(null)
   const [branchSelections, setBranchSelections] = useState<Record<string, number>>({})
   const [targetPremiseId, setTargetPremiseId] = useState('')
   const select = (next: Selection) => {
     setSelection(next); setMobileView('detail'); setPath(null); setBranchSelections({}); setTargetPremiseId(''); onTrace(null)
   }
+  const toggleCollapsed = (itemId: string) => setCollapsedIds(current => {
+    const next = new Set(current)
+    if (next.has(itemId)) next.delete(itemId)
+    else next.add(itemId)
+    return next
+  })
   const cables = useMemo(() => spliceCableEnds(pointId, routes, installations), [pointId, routes, installations])
   useEffect(() => {
     const dialog = dialogRef.current
@@ -73,7 +96,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
   const selectedRack = selection?.kind === 'rack' ? draft?.racks.find(item => item.id === selection.id)
     : draft?.racks.find(item => item.id === selectedShelf?.rackId)
   const selectedLocation = selectedPort && draft ? portLocation(draft, selectedPort)
-    : [selectedRack?.name, selectedShelf ? `${selectedShelf.kind.toUpperCase()} ${selectedShelf.name}` : null,
+    : [selectedRack?.name, selectedShelf?.name,
       selectedCard?.name].filter(Boolean).join(' / ')
   const selectedOdf = selectedPort ? shelfById.get(selectedPort.parentId)?.kind === 'odf' : false
   const selectedOlt = selectedShelf?.kind === 'olt'
@@ -95,12 +118,12 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
   const changePort = (port: EquipmentPort) => update({ ...draft!, ports: draft!.ports.map(item => item.id === port.id ? port : item) })
   const addRack = () => {
     if (!draft) return
-    const rack = { id: id(), name: `ODF/OLT stojan ${draft.racks.length + 1}` }
+    const rack = { id: id(), name: `Stojan ${draft.racks.length + 1}` }
     update({ ...draft, racks: [...draft.racks, rack] }); select({ kind: 'rack', id: rack.id })
   }
   const addShelf = (rackId: string, kind: 'odf' | 'olt') => {
     if (!draft) return
-    const shelf = { id: id(), rackId, kind, name: `Police ${draft.shelves.filter(item => item.rackId === rackId && item.kind === kind).length + 1}` }
+    const shelf = { id: id(), rackId, kind, name: `${kind.toUpperCase()} ${draft.shelves.filter(item => item.rackId === rackId && item.kind === kind).length + 1}` }
     update({ ...draft, shelves: [...draft.shelves, shelf] }); select({ kind: 'shelf', id: shelf.id })
   }
   const addCard = (shelfId: string) => {
@@ -176,12 +199,28 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
       : selection.kind === 'card' ? 'cards' : 'ports'
     update({ ...draft, [listKey]: draft[listKey].map(item => item.id === selection.id ? { ...item, [key]: name } : item) })
   }
-  const visiblePort = (port: EquipmentPort) => !portQuery.trim() || !!draft && portLocation(draft, port)
-    .toLocaleLowerCase('cs').includes(portQuery.trim().toLocaleLowerCase('cs'))
-  const visibleRack = (rackId: string) => !portQuery.trim() || !!draft && draft.ports.some(port => {
-    const shelf = shelfById.get(draft.cards.find(card => card.id === port.parentId)?.shelfId ?? port.parentId)
-    return shelf?.rackId === rackId && visiblePort(port)
-  })
+  const searchTerm = portQuery.trim().toLocaleLowerCase('cs')
+  const matches = (value: string) => value.toLocaleLowerCase('cs').includes(searchTerm)
+  const visiblePort = (port: EquipmentPort) => !searchTerm || !!draft
+    && (matches(portLocation(draft, port)) || matches(portStatus(port)))
+  const visibleCard = (cardId: string, parentMatches = false) => !searchTerm || !!draft
+    && (parentMatches || matches(draft.cards.find(card => card.id === cardId)?.name ?? '')
+      || draft.ports.some(port => port.parentId === cardId && visiblePort(port)))
+  const visibleShelf = (shelfId: string, parentMatches = false) => !searchTerm || !!draft && (() => {
+    const shelf = shelfById.get(shelfId)
+    return !!shelf && (parentMatches || matches(`${shelf.kind} ${shelf.name}`)
+      || draft.cards.some(card => card.shelfId === shelfId && visibleCard(card.id))
+      || draft.ports.some(port => port.parentId === shelfId && visiblePort(port)))
+  })()
+  const visibleRack = (rackId: string) => !searchTerm || !!draft
+    && (matches(draft.racks.find(rack => rack.id === rackId)?.name ?? '')
+      || draft.shelves.some(shelf => shelf.rackId === rackId && visibleShelf(shelf.id)))
+  const isExpanded = (itemId: string) => !!searchTerm || !collapsedIds.has(itemId)
+  const odfCount = draft?.shelves.filter(shelf => shelf.kind === 'odf').length ?? 0
+  const oltCount = draft?.shelves.filter(shelf => shelf.kind === 'olt').length ?? 0
+  const portParentId = selection?.kind === 'card' || selection?.kind === 'shelf' && selectedShelf?.kind === 'odf'
+    ? selection.id : null
+  const portParentCount = draft?.ports.filter(port => port.parentId === portParentId).length ?? 0
   return createPortal(<dialog ref={dialogRef} className="splice-editor-dialog network-structure-dialog equipment-dialog"
     aria-labelledby="equipment-title" onCancel={event => { event.preventDefault(); close() }}>
     <header className="splice-editor-header"><span className="splice-editor-emblem"><Cable size={23} /></span>
@@ -189,68 +228,93 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
       <button type="button" className="icon-button" onClick={close} aria-label="Zavřít editor"><X size={19} /></button>
     </header>
     <div className="distribution-summary"><span>{countCzech(draft?.racks.length ?? 0, 'stojan', 'stojany', 'stojanů')}</span>
-      <span>{countCzech(draft?.shelves.length ?? 0, 'police', 'police', 'polic')}</span>
+      <span>{odfCount} ODF</span><span>{oltCount} OLT</span>
       <span>{countCzech(draft?.ports.length ?? 0, 'port', 'porty', 'portů')}</span></div>
     <nav className="equipment-mobile-tabs" aria-label="Zobrazení optického vybavení">
-      <button type="button" aria-pressed={mobileView === 'list'} onClick={() => setMobileView('list')}>Stojany a porty</button>
+      <button type="button" aria-pressed={mobileView === 'list'} onClick={() => setMobileView('list')}>Přehled</button>
       <button type="button" aria-pressed={mobileView === 'detail'} disabled={!selection}
         onClick={() => setMobileView('detail')}>Detail prvku</button>
     </nav>
     <div className="equipment-layout" data-mobile-view={mobileView}>
-      <div className="equipment-tree"><div className="equipment-section-title"><div><small>UMÍSTĚNÍ</small><h3>Stojany a porty</h3></div>
+      <div className="equipment-tree"><div className="equipment-section-title"><div><small>VYBAVENÍ V BUDOVĚ</small><h3>Stojany a zařízení</h3></div>
         <button type="button" className="move-button" onClick={addRack}><Plus size={15} /> Stojan</button></div>
         {!draft && !error && <p>Načítání vybavení…</p>}
-        {draft?.racks.length === 0 && <p className="equipment-empty">Začněte stojanem. Do něj vložíte ODF nebo OLT polici.</p>}
-        {(draft?.ports.length ?? 0) > 16 && <label className="equipment-search">Najít port
+        {draft?.racks.length === 0 && <p className="equipment-empty">Začněte stojanem. Do něj vložíte ODF nebo OLT.</p>}
+        {draft && <label className="equipment-search">Hledat ve vybavení
           <input type="search" value={portQuery} onChange={event => setPortQuery(event.target.value)}
-            placeholder="Stojan, police, karta nebo port" /></label>}
-        {portQuery && draft && !draft.ports.some(visiblePort) && <p className="equipment-empty">Žádný port neodpovídá hledání.</p>}
-        {draft?.racks.filter(rack => visibleRack(rack.id)).map(rack => <div className="equipment-rack" key={rack.id}>
-          <button type="button" className={selection?.id === rack.id ? 'equipment-row selected' : 'equipment-row'}
-            onClick={() => select({ kind: 'rack', id: rack.id })}><strong>{rack.name}</strong></button>
-          {draft.shelves.filter(shelf => shelf.rackId === rack.id && (!portQuery || draft.ports.some(port =>
-            (port.parentId === shelf.id || draft.cards.some(card => card.id === port.parentId && card.shelfId === shelf.id)) && visiblePort(port))))
-            .map(shelf => <div className="equipment-shelf" key={shelf.id}>
-            <button type="button" className={selection?.id === shelf.id ? 'equipment-row selected' : 'equipment-row'}
-              onClick={() => select({ kind: 'shelf', id: shelf.id })}><span className="equipment-kind">{shelf.kind.toUpperCase()}</span> {shelf.name}</button>
-            {shelf.kind === 'olt' && draft.cards.filter(card => card.shelfId === shelf.id && (!portQuery || draft.ports.some(port =>
-              port.parentId === card.id && visiblePort(port)))).map(card =>
-              <div className="equipment-card" key={card.id}>
-                <button type="button" className={selection?.id === card.id ? 'equipment-row selected' : 'equipment-row'}
-                  onClick={() => select({ kind: 'card', id: card.id })}>{card.name}</button>
-                <div className="equipment-ports">{draft.ports.filter(port => port.parentId === card.id && visiblePort(port)).map(port =>
-                  <button type="button" key={port.id} className={`equipment-port${selection?.id === port.id ? ' selected' : ''}${port.patchPortId ? ' linked' : ''}`}
-                    aria-label={`${portLocation(draft, port)} · ${port.patchPortId ? 'propojeno' : 'volný port'}`}
-                    title={`${portLocation(draft, port)} · ${port.patchPortId ? 'propojeno' : 'volný port'}`}
-                    onClick={() => select({ kind: 'port', id: port.id })}>P{port.position}{port.patchPortId && <span className="equipment-port-status" aria-hidden="true" />}</button>)}</div>
-              </div>)}
-            {shelf.kind === 'odf' && <div className="equipment-ports">{draft.ports.filter(port => port.parentId === shelf.id && visiblePort(port)).map(port =>
-              <button type="button" key={port.id} className={`equipment-port${selection?.id === port.id ? ' selected' : ''}${port.fiber || port.patchPortId ? ' linked' : ''}`}
-                aria-label={`${portLocation(draft, port)} · ${port.fiber ? 'vlákno připojeno' : 'bez vlákna'}${port.patchPortId ? ', propojeno s OLT' : ''}`}
-                title={`${portLocation(draft, port)} · ${port.fiber ? 'vlákno připojeno' : 'bez vlákna'}${port.patchPortId ? ', propojeno s OLT' : ''}`}
-                onClick={() => select({ kind: 'port', id: port.id })}>P{port.position}{(port.fiber || port.patchPortId) && <span className="equipment-port-status" aria-hidden="true" />}</button>)}</div>}
-          </div>)}
-        </div>)}
-        {(draft?.ports.length ?? 0) > 0 && <p className="equipment-tree-hint">Zelená tečka označuje využitý port. Kliknutím zobrazíte vlákno a propojku.</p>}
+            placeholder="Stojan, ODF, OLT, karta nebo port" /></label>}
+        {portQuery && draft && !draft.racks.some(rack => visibleRack(rack.id))
+          && <p className="equipment-empty">Žádný prvek neodpovídá hledání.</p>}
+        {draft?.racks.filter(rack => visibleRack(rack.id)).map(rack => {
+          const rackMatches = !!searchTerm && matches(rack.name)
+          const shelves = draft.shelves.filter(shelf => shelf.rackId === rack.id && visibleShelf(shelf.id, rackMatches))
+          return <section className="equipment-rack" key={rack.id}>
+            <div className="equipment-node-heading"><button type="button" className={`equipment-row${selection?.id === rack.id ? ' selected' : ''}`}
+              onClick={() => select({ kind: 'rack', id: rack.id })}><strong>{rack.name}</strong>
+                <small>{countCzech(draft.shelves.filter(shelf => shelf.rackId === rack.id).length, 'zařízení', 'zařízení', 'zařízení')}</small></button>
+              {!searchTerm && shelves.length > 0 && <button type="button" className="equipment-toggle" onClick={() => toggleCollapsed(rack.id)}
+                aria-expanded={isExpanded(rack.id)} aria-label={`${isExpanded(rack.id) ? 'Sbalit' : 'Rozbalit'} ${rack.name}`}>
+                {isExpanded(rack.id) ? <ChevronDown size={17} /> : <ChevronRight size={17} />}</button>}</div>
+            {isExpanded(rack.id) && shelves.map(shelf => {
+              const shelfMatches = rackMatches || !!searchTerm && matches(`${shelf.kind} ${shelf.name}`)
+              const cards = draft.cards.filter(card => card.shelfId === shelf.id && visibleCard(card.id, shelfMatches))
+              const shelfPorts = draft.ports.filter(port => port.parentId === shelf.id && visiblePort(port))
+              const childCount = shelf.kind === 'odf' ? shelfPorts.length : cards.length
+              return <div className="equipment-shelf" key={shelf.id}>
+                <div className="equipment-node-heading"><button type="button" className={`equipment-row${selection?.id === shelf.id ? ' selected' : ''}`}
+                  onClick={() => select({ kind: 'shelf', id: shelf.id })}><span className="equipment-kind">{shelf.kind.toUpperCase()}</span>
+                  <span className="equipment-row-copy"><strong>{shelf.name}</strong><small>{shelf.kind === 'odf'
+                    ? countCzech(draft.ports.filter(port => port.parentId === shelf.id).length, 'port', 'porty', 'portů')
+                    : countCzech(draft.cards.filter(card => card.shelfId === shelf.id).length, 'karta', 'karty', 'karet')}</small></span></button>
+                  {!searchTerm && childCount > 0 && <button type="button" className="equipment-toggle" onClick={() => toggleCollapsed(shelf.id)}
+                    aria-expanded={isExpanded(shelf.id)} aria-label={`${isExpanded(shelf.id) ? 'Sbalit' : 'Rozbalit'} ${shelf.name}`}>
+                    {isExpanded(shelf.id) ? <ChevronDown size={17} /> : <ChevronRight size={17} />}</button>}</div>
+                {isExpanded(shelf.id) && shelf.kind === 'odf' && shelfPorts.length > 0 &&
+                  <div className="equipment-ports">{shelfPorts.map(port => <PortButton key={port.id} port={port} document={draft}
+                    selected={selection?.id === port.id} onSelect={() => select({ kind: 'port', id: port.id })} />)}</div>}
+                {isExpanded(shelf.id) && shelf.kind === 'olt' && cards.map(card => {
+                  const ports = draft.ports.filter(port => port.parentId === card.id && visiblePort(port))
+                  return <div className="equipment-card" key={card.id}>
+                    <div className="equipment-node-heading"><button type="button" className={`equipment-row${selection?.id === card.id ? ' selected' : ''}`}
+                      onClick={() => select({ kind: 'card', id: card.id })}><span className="equipment-row-copy"><strong>{card.name}</strong>
+                        <small>{countCzech(draft.ports.filter(port => port.parentId === card.id).length, 'port', 'porty', 'portů')}</small></span></button>
+                      {!searchTerm && ports.length > 0 && <button type="button" className="equipment-toggle" onClick={() => toggleCollapsed(card.id)}
+                        aria-expanded={isExpanded(card.id)} aria-label={`${isExpanded(card.id) ? 'Sbalit' : 'Rozbalit'} ${card.name}`}>
+                        {isExpanded(card.id) ? <ChevronDown size={17} /> : <ChevronRight size={17} />}</button>}</div>
+                    {isExpanded(card.id) && ports.length > 0 && <div className="equipment-ports">{ports.map(port =>
+                      <PortButton key={port.id} port={port} document={draft} selected={selection?.id === port.id}
+                        onSelect={() => select({ kind: 'port', id: port.id })} />)}</div>}
+                  </div>
+                })}
+              </div>
+            })}
+          </section>
+        })}
       </div>
       <div className="equipment-detail">
         {!selected && <div className="equipment-empty"><CircleHelp size={25} /><h3>Vyberte prvek vlevo</h3>
-          <p>Stojan obsahuje police. ODF police ukončuje vlákna kabelu, OLT police obsahuje karty a jejich porty.</p></div>}
+          <p>Vyberte stojan, ODF, OLT, kartu nebo port. V detailu uvidíte jeho umístění a dostupné akce.</p></div>}
         {cables.length === 0 && <p className="equipment-note">Do budovy zatím nevede koncový kabel. Porty můžete připravit; vlákno připojíte po osazení trasy.</p>}
-        {selected && draft && <><div className="equipment-detail-heading"><div><small>VYBRANÝ PRVEK · {selection?.kind === 'port' ? 'PORT' : selection?.kind === 'card' ? 'OLT KARTA' : selection?.kind === 'shelf' ? `${selectedShelf?.kind.toUpperCase()} POLICE` : 'STOJAN'}</small>
+        {selected && draft && <><div className="equipment-detail-heading"><div><small>VYBRANÝ PRVEK · {selection?.kind === 'port' ? `${selectedOdf ? 'ODF' : 'OLT'} PORT` : selection?.kind === 'card' ? 'OLT KARTA' : selection?.kind === 'shelf' ? selectedShelf?.kind.toUpperCase() : 'STOJAN'}</small>
           <h3>{'label' in selected ? selected.label : selected.name}</h3></div></div>
           <p className="equipment-location" aria-label="Umístění vybraného prvku">{selectedLocation}</p>
-          <label className="equipment-field">Název<input maxLength={80} value={'label' in selected ? selected.label : selected.name}
+          <label className="equipment-field">Označení<input maxLength={80} value={'label' in selected ? selected.label : selected.name}
             onChange={event => rename(event.target.value)} /></label>
-          {selection?.kind === 'rack' && <div className="equipment-actions"><button type="button" className="move-button" onClick={() => addShelf(selection.id, 'odf')}><Plus size={15} /> ODF police</button>
-            <button type="button" className="move-button" onClick={() => addShelf(selection.id, 'olt')}><Plus size={15} /> OLT police</button></div>}
-          {selection?.kind === 'shelf' && shelfById.get(selection.id)?.kind === 'olt' &&
-            <button type="button" className="move-button" onClick={() => addCard(selection.id)}><Plus size={15} /> OLT karta</button>}
-          {(selection?.kind === 'card' || selection?.kind === 'shelf' && shelfById.get(selection.id)?.kind === 'odf') &&
-            <div className="equipment-generate"><label>Počet nových portů<input type="number" min="1" max="48" value={portCount}
+          {selection?.kind === 'rack' && <section className="equipment-add-section"><h4>Vložit do stojanu</h4>
+            <div className="equipment-actions"><button type="button" className="move-button" onClick={() => addShelf(selection.id, 'odf')}><Plus size={15} /> ODF</button>
+              <button type="button" className="move-button" onClick={() => addShelf(selection.id, 'olt')}><Plus size={15} /> OLT</button></div></section>}
+          {selection?.kind === 'shelf' && selectedShelf?.kind === 'olt' && <section className="equipment-add-section"><h4>Karty v OLT</h4>
+            <p>{countCzech(draft.cards.filter(card => card.shelfId === selection.id).length, 'karta', 'karty', 'karet')} v tomto zařízení.</p>
+            <button type="button" className="move-button" onClick={() => addCard(selection.id)}><Plus size={15} /> Přidat kartu</button></section>}
+          {portParentId && <section className="equipment-add-section"><h4>Porty</h4>
+            <p>{countCzech(portParentCount, 'port', 'porty', 'portů')} v tomto prvku. Nové porty přibudou za stávající.</p>
+            <div className="equipment-generate"><label>Počet přidávaných portů<input type="number" min="1" max="48" value={portCount}
               onChange={event => setPortCount(Number(event.target.value))} /></label>
-              <button type="button" className="move-button" onClick={() => addPorts(selection.id)} disabled={portCount < 1 || portCount > 48}><Plus size={15} /> Vytvořit porty</button></div>}
-          {selectedPort && <><p className="equipment-note">Pozice {selectedPort.position}. {selectedOdf
+              <button type="button" className="move-button" onClick={() => addPorts(portParentId)} disabled={!Number.isInteger(portCount) || portCount < 1 || portCount > 48}>
+                <Plus size={15} /> Přidat {countCzech(portCount, 'port', 'porty', 'portů')}</button></div></section>}
+          {selectedPort && <><p className={`equipment-port-detail-status${portStatus(selectedPort) === 'Volný' ? '' : ' linked'}`}>
+            {selectedOdf ? 'ODF' : 'OLT'} · P{selectedPort.position} · {portStatus(selectedPort)}</p>
+            <p className="equipment-note">Pozice {selectedPort.position}. {selectedOdf
             ? 'Tento ODF port může ukončit jedno vlákno přivedeného kabelu.'
             : 'Tento OLT port můžete propojit s jedním ODF portem.'}</p>
             {selectedOdf && <label className="equipment-field">Ukončené vlákno<select value={selectedPort.fiber ? fiberEndKey(selectedPort.fiber) : ''}
@@ -297,10 +361,9 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
       </div>
     </div>
     {error && <p className="form-error equipment-message" role="alert">{error}</p>}
-    {saved && <p className="installation-saved equipment-message" role="status"><Check size={15} /> Vybavení uloženo.</p>}
-    <footer className="splice-editor-footer"><span>{draft ? `${countCzech(draft.racks.length, 'stojan', 'stojany', 'stojanů')} · ${countCzech(draft.ports.length, 'port', 'porty', 'portů')}` : ''}</span><div>
+    <footer className="splice-editor-footer"><span>{saved ? <><Check size={15} /> Uloženo</> : dirty ? 'Neuložené změny' : 'Přehled optického vybavení'}</span><div>
       <button type="button" className="move-button" onClick={close}>Zavřít</button>
-      <button type="button" className="primary-button" onClick={() => void save()} disabled={!draft || busy}><Save size={16} /> {busy ? 'Ukládání…' : 'Uložit vybavení'}</button>
+      <button type="button" className="primary-button" onClick={() => void save()} disabled={!draft || !dirty || busy}><Save size={16} /> {busy ? 'Ukládání…' : 'Uložit vybavení'}</button>
     </div></footer>
   </dialog>, globalThis.document.body)
 }

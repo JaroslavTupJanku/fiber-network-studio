@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { Building2, Cable, CircleDot, Copy, Crosshair, House, MapPin, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
+import { Building2, Cable, CircleDot, Copy, Crosshair, House, MapPin, Network, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, Users, X } from 'lucide-react'
+import { CustomerQuickPanel } from '../customers/CustomerQuickPanel'
 import { MapCanvas } from './MapCanvas'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
@@ -25,8 +26,14 @@ const pointKindLabel = (point: Pick<NetworkPoint, 'kind' | 'buildingType'>) =>
 const countLabel = (count: number, one: string, few: string, many: string) =>
   `${count} ${count === 1 ? one : count >= 2 && count <= 4 ? few : many}`
 
-export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpenBudget: (scenario: Scenario) => void }) {
+export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpenBudget }: {
+  active: boolean
+  customerMapFocus: { id: string; sequence: number } | null
+  onOpenCustomers: (buildingId: string | null) => void
+  onOpenBudget: (scenario: Scenario) => void
+}) {
   const [panelOpen, setPanelOpen] = useState(true)
+  const [sideTab, setSideTab] = useState<'infrastructure' | 'customers'>('infrastructure')
   const [spliceOpen, setSpliceOpen] = useState(false)
   const [equipmentOpen, setEquipmentOpen] = useState(false)
   const [distributionOpen, setDistributionOpen] = useState(false)
@@ -51,6 +58,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
   const [splitError, setSplitError] = useState('')
   const detailsPanelRef = useRef<HTMLElement>(null)
   const lastRouteId = useRef<string | null>(null)
+  const lastCustomerFocusSequence = useRef(0)
   const [listHoveredPointId, setListHoveredPointId] = useState<string | null>(null)
   const [listHoveredRouteId, setListHoveredRouteId] = useState<string | null>(null)
   const [mapHoveredPointId, setMapHoveredPointId] = useState<string | null>(null)
@@ -71,6 +79,17 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
     handleLocationClick, handlePointSelect, relocatePoint,
     handleToolDrop, moveDraft, savePoint, removePoint, copyCoordinates, startDraft,
   } = useMapWorkspace()
+  useEffect(() => {
+    if (!active || !customerMapFocus || customerMapFocus.sequence === lastCustomerFocusSequence.current) return
+    const frame = requestAnimationFrame(() => {
+      lastCustomerFocusSequence.current = customerMapFocus.sequence
+      handlePointSelect(customerMapFocus.id)
+      setPointFocusRequest(current => ({ id: customerMapFocus.id, sequence: (current?.sequence ?? 0) + 1 }))
+      setSideTab('infrastructure')
+      setPanelOpen(true)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [active, customerMapFocus, handlePointSelect])
   const routeDraft = route.draft
   useEffect(() => {
     const id = routeDraft?.id ?? null
@@ -117,12 +136,14 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
   const selectSavedRoute = (id: string) => {
     setSplitActive(false)
     setSplitSelection(null)
+    setSideTab('infrastructure')
     selectRouteTab('installations')
     setPanelOpen(true)
     handleRouteSelect(id)
   }
   const editSavedRoute = (id: string) => {
     if (splitActive || splitBusy) return
+    setSideTab('infrastructure')
     selectRouteTab('route')
     setPanelOpen(true)
     handleRouteEdit(id)
@@ -205,11 +226,16 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
           routeSplitSelection={splitSelection}
           onRouteSplitPick={setSplitSelection}
           onRouteSplitCancel={cancelSplit}
+          routeBuildingCrossings={route.buildingCrossings}
+          routeNearbyBuildings={route.nearbyBuildings}
+          routeCheckingBuildings={route.checkingBuildings}
+          pointMoveError={actionError}
           onRouteToolChange={() => { selectRouteTab('route'); handleRouteToolChange() }}
           onRouteSelect={selectSavedRoute}
           onRouteEdit={editSavedRoute}
           onRouteWaypointInsert={route.insertWaypoint}
           onRouteWaypointMove={route.moveWaypoint}
+          onRouteWaypointRemove={route.removeWaypoint}
           onRouteUndo={route.undo}
           onRouteFinish={route.finish}
           onRouteCancel={route.cancelDrawing}
@@ -222,20 +248,33 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
           placementActive={activeTool !== null || moving}
           toolsDisabled={loading || loadError || splitActive || splitBusy}
           onToolChange={handleToolChange}
-          onToolDrop={(kind, location) => { setPanelOpen(true); handleToolDrop(kind, location) }}
-          onLocationClick={(location, lookupParcel) => { setPanelOpen(true); handleLocationClick(location, lookupParcel) }}
-          onPointSelect={id => { setPanelOpen(true); handlePointSelect(id) }}
+          onToolDrop={(kind, location) => { setPanelOpen(true); setSideTab('infrastructure'); handleToolDrop(kind, location) }}
+          onLocationClick={(location, lookupParcel) => { setPanelOpen(true); setSideTab('infrastructure'); handleLocationClick(location, lookupParcel) }}
+          onPointSelect={id => { setPanelOpen(true); if (points.find(point => point.id === id)?.kind !== 'building') setSideTab('infrastructure'); handlePointSelect(id) }}
           onPointMove={(id, location) => { setPanelOpen(true); void relocatePoint(id, location) }}
           onDraftMove={moveDraft}
           onCadastreDisable={clearParcel}
         />
       </section>
 
-      <aside className={`details-panel${panelOpen ? '' : ' collapsed'}`} aria-label="Objekty sítě" ref={detailsPanelRef}>
-        {!panelOpen && <button className="details-rail-toggle" type="button" onClick={togglePanel}
-          aria-label="Rozbalit panel Infrastruktura" title="Rozbalit panel Infrastruktura">
-          <PanelRightOpen size={19} aria-hidden="true" /><span>Infrastruktura</span>
-        </button>}
+      <aside className={`details-panel${panelOpen ? '' : ' collapsed'}`} aria-label="Boční panel" ref={detailsPanelRef}>
+        {!panelOpen && <div className="details-rail-tabs">
+          <button className="details-rail-toggle" type="button" onClick={() => { setSideTab('infrastructure'); setPanelOpen(true) }}
+            aria-label="Rozbalit Infrastrukturu" title="Rozbalit Infrastrukturu">
+            <PanelRightOpen size={19} aria-hidden="true" /><span>Infrastruktura</span></button>
+          <button className="details-rail-toggle" type="button" onClick={() => { setSideTab('customers'); setPanelOpen(true) }}
+            aria-label="Rozbalit Zákazníky" title="Rozbalit Zákazníky">
+            <Users size={19} aria-hidden="true" /><span>Zákazníci</span></button>
+        </div>}
+        {panelOpen && <nav className="side-workspace-tabs" aria-label="Boční pracovní plocha">
+          <button type="button" aria-pressed={sideTab === 'infrastructure'} onClick={() => { setSideTab('infrastructure'); detailsPanelRef.current?.scrollTo({ top: 0 }) }}>
+            <Network size={15} /> Infrastruktura</button>
+          <button type="button" aria-pressed={sideTab === 'customers'} onClick={() => { setSideTab('customers'); detailsPanelRef.current?.scrollTo({ top: 0 }) }}>
+            <Users size={15} /> Zákazníci</button>
+          <button type="button" className="side-workspace-collapse" title="Sbalit panel" aria-label="Sbalit panel" onClick={togglePanel}>
+            <PanelRightClose size={17} /></button>
+        </nav>}
+        <div hidden={sideTab !== 'infrastructure'}>
         <div className="panel-heading">
           <div>
             <span className="section-label">{routeDraft?.id ? 'Podzemní trasa' : selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
@@ -253,8 +292,6 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
                 setActionError('')
               }} title="Zavřít detail" aria-label="Zavřít detail"><X size={18} /></button>
             )}
-            <button className="icon-button" type="button" onClick={togglePanel}
-              title="Sbalit panel Infrastruktura" aria-label="Sbalit panel Infrastruktura"><PanelRightClose size={18} /></button>
           </div>
         </div>
 
@@ -316,7 +353,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
             {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
             <p className="route-help">{route.drawing
               ? routeDraft.endPointId
-                ? 'Oba konce jsou vybrané. Klikněte přímo na úsek trasy pro nový lomový bod, nebo úsek uchopte a táhněte kolem překážky. Kliknutí mimo trasu ji nezmění. Potom úpravu dokončete a uložte.'
+                ? 'Kliknutím na úsek přidáte lomový bod. Bod můžete přetáhnout nebo kliknutím vybrat k odebrání (funguje i Delete). Budovu či šachtu také přesunete tažením. Potom úpravu dokončete a uložte.'
                 : routeDraft.startPointId
                 ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další budovu nebo šachtu v mapě; kliknutím mimo objekty přidáte lomový bod.`
                 : 'Klikněte na výchozí budovu nebo šachtu v mapě. Konec můžete vybrat i v polích níže.'
@@ -386,7 +423,7 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
                 <button type="button" className="move-button" onClick={route.undo} disabled={!routeDraft.startPointId}><Undo2 size={16} /> Zpět</button>
                 <button type="button" className="move-button" onClick={route.resetGeometry}>Začít znovu</button>
               </div>
-              <p className="route-help">Klikněte nebo táhněte přímo za úsek trasy. Lomový bod můžete později znovu přetáhnout; mění jen průběh trasy, není samostatným objektem sítě. Budovy jsou zde zatím vedené jako body; jejich skutečný půdorys aplikace neověřuje.</p>
+              <p className="route-help">Klikněte nebo táhněte přímo za úsek trasy. Lomový bod můžete později znovu přetáhnout; mění jen průběh trasy, není samostatným objektem sítě. Dotčené budovy se při úpravě zvýrazní červeně. Při dokončení průchod znovu ověříme podle RÚIAN.</p>
               {routeDraft.waypoints.length > 0 && <div className="route-waypoints"><strong>Lomové body</strong>{routeDraft.waypoints.map((point, index) =>
                 <div key={index}><span>{index + 1}. {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}</span>
                   <button type="button" className="icon-button" onClick={() => route.removeWaypoint(index)} aria-label={`Odebrat lomový bod ${index + 1}`}><X size={14} /></button></div>)}</div>}
@@ -524,6 +561,12 @@ export function MapWorkspace({ active, onOpenBudget }: { active: boolean; onOpen
             })}</ul></div>}
           </div>
         )}
+        </div>
+        <div hidden={sideTab !== 'customers'}><CustomerQuickPanel active={active && sideTab === 'customers'}
+          buildingId={editor?.id && editor.kind === 'building' ? editor.id : null}
+          buildingName={editor?.id && editor.kind === 'building' ? editor.name : null}
+          onOpenCustomers={onOpenCustomers} />
+        </div>
       </aside>
       {spliceOpen && editor?.id && editor.kind === 'chamber' && <OpticalSpliceEditor key={editor.id}
         pointId={editor.id} pointName={editor.name} routes={route.routes}

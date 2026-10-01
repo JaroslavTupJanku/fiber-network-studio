@@ -1,4 +1,5 @@
 using FiberNetworkStudio.Api.BuildingEquipment;
+using FiberNetworkStudio.Api.Customers;
 using FiberNetworkStudio.Api.RouteInstallations;
 using FiberNetworkStudio.Api.UndergroundRoutes;
 
@@ -17,10 +18,14 @@ public static class BuildingDistributionEndpoints
                 : Results.NotFound(new { error = "Budova neexistuje." }));
         app.MapPut("/api/building-distribution/{pointId:guid}", async (Guid pointId,
             SaveBuildingDistributionRequest request, NetworkPointStore points, BuildingDistributionStore store,
-            UndergroundRouteStore routes, RouteInstallationStore installations, BuildingEquipmentStore equipment) =>
+            UndergroundRouteStore routes, RouteInstallationStore installations, BuildingEquipmentStore equipment,
+            CustomerStore customers) =>
         {
             if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind == "building"))
                 return Results.NotFound(new { error = "Rozvod lze umístit jen do budovy." });
+            if (request.Premises is not null && await customers.ReferencesRemovedPremiseAsync(pointId,
+                request.Premises.Where(item => item is not null).Select(item => item.Id)))
+                return Results.Conflict(new { error = "Na přípojné místo je navázaný zákazník. Nejdříve upravte jeho vazbu." });
             var result = await store.SaveAsync(pointId, request, await routes.ListAsync(),
                 await installations.ListAsync(), await equipment.GetAsync(pointId));
             return result.Status switch

@@ -2,6 +2,7 @@ using FiberNetworkStudio.Api;
 using FiberNetworkStudio.Api.CableCatalog;
 using FiberNetworkStudio.Api.BuildingEquipment;
 using FiberNetworkStudio.Api.BuildingDistribution;
+using FiberNetworkStudio.Api.Customers;
 using FiberNetworkStudio.Api.DuctCatalog;
 using FiberNetworkStudio.Api.OpticalSplices;
 using FiberNetworkStudio.Api.RouteInstallations;
@@ -32,7 +33,11 @@ builder.Services.AddSingleton(new BuildingDistributionStore(distributionDataPath
 builder.Services.AddSingleton(new RouteSplitService(dataPath, routeDataPath, installationDataPath,
     spliceDataPath, equipmentDataPath, distributionDataPath));
 builder.Services.AddSingleton(new SemaphoreSlim(1, 1));
+var customerDataPath = builder.Configuration["Customers:Path"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "customers.json");
+builder.Services.AddSingleton(new CustomerStore(customerDataPath));
 builder.Services.AddHttpClient<ParcelLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
+builder.Services.AddHttpClient<BuildingFootprintLookup>(client => client.Timeout = TimeSpan.FromSeconds(12));
 var app = builder.Build();
 var splitService = app.Services.GetRequiredService<RouteSplitService>();
 await splitService.RecoverAsync();
@@ -65,6 +70,7 @@ app.MapRouteInstallations();
 app.MapOpticalSplices();
 app.MapBuildingEquipment();
 app.MapBuildingDistribution();
+app.MapCustomers();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
 app.MapGet("/api/parcels/at", async (double latitude, double longitude, ParcelLookup lookup,
@@ -84,6 +90,29 @@ app.MapGet("/api/parcels/at", async (double latitude, double longitude, ParcelLo
     {
         logger.LogWarning(exception, "Parcel lookup failed");
         return Results.Problem("Katastrální údaje se nepodařilo načíst.", statusCode: 503);
+    }
+});
+app.MapPost("/api/building-footprints/intersecting-route", async (BuildingFootprintRequest request,
+    BuildingFootprintLookup lookup, ILogger<BuildingFootprintLookup> logger,
+    CancellationToken cancellationToken) =>
+{
+    var coordinates = request.Coordinates;
+    if (coordinates is null || coordinates.Count is < 2 or > 202
+        || request.DistanceMeters is double distance && (!double.IsFinite(distance) || distance is < 0 or > 40)
+        || coordinates.Any(point => !double.IsFinite(point.Latitude) || !double.IsFinite(point.Longitude)
+            || point.Latitude is < -90 or > 90 || point.Longitude is < -180 or > 180))
+        return Results.BadRequest(new { error = "Trasa musí obsahovat 2 až 202 platných bodů." });
+
+    try
+    {
+        return Results.Ok(await lookup.FindAlongRouteAsync(coordinates, cancellationToken,
+            request.DistanceMeters ?? 0));
+    }
+    catch (Exception exception) when (!cancellationToken.IsCancellationRequested
+        && exception is HttpRequestException or JsonException or TaskCanceledException)
+    {
+        logger.LogWarning(exception, "Building footprint lookup failed");
+        return Results.Problem("Půdorysy budov se nepodařilo načíst.", statusCode: 503);
     }
 });
 app.MapGet("/api/network-points", async (NetworkPointStore store) =>
@@ -119,7 +148,7 @@ app.MapPut("/api/network-points/{id:guid}", async (Guid id, UpdateNetworkPointRe
 
 app.MapDelete("/api/network-points/{id:guid}", async (Guid id, NetworkPointStore store,
     UndergroundRouteStore routes, OpticalSpliceStore splices, BuildingEquipmentStore equipment,
-    BuildingDistributionStore distribution) =>
+    BuildingDistributionStore distribution, CustomerStore customers) =>
     await routes.ContainsPointAsync(id)
         ? Results.Conflict(new { error = "Bod je koncem podzemní trasy. Nejprve upravte nebo smažte trasu." })
         : await splices.HasSpliceAsync(id)
@@ -128,6 +157,8 @@ app.MapDelete("/api/network-points/{id:guid}", async (Guid id, NetworkPointStore
             ? Results.Conflict(new { error = "V budově je optické vybavení. Nejprve ho odeberte." })
         : await distribution.HasDistributionAsync(id)
             ? Results.Conflict(new { error = "V budově jsou domovní rozvody. Nejprve je odeberte." })
+        : await customers.HasBuildingAsync(id)
+            ? Results.Conflict(new { error = "K budově jsou přiřazení zákazníci. Nejprve je přesuňte nebo odeberte." })
         : await store.DeleteAsync(id) ? Results.NoContent() : Results.NotFound());
 
 app.Run();
