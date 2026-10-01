@@ -234,8 +234,9 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .equipment-row { display: block; width: 100%; padding: 9px 10px; border: 1px solid transparent; border-radius: 7px; background: transparent; color: #294d40; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
 .equipment-row:hover, .equipment-row.selected { border-color: #89c4ad; background: #eaf6ef; }
 .equipment-kind { display: inline-block; padding: 2px 5px; border-radius: 4px; background: #e7eef7; color: #37618a; font-size: 10px; font-weight: 750; }
-.equipment-ports { display: flex; flex-wrap: wrap; gap: 5px; padding: 6px 0 5px 11px; }
-.equipment-port { min-width: 34px; min-height: 34px; border: 1px solid #b9cec4; border-radius: 7px; background: #fff; color: #355d4d; cursor: pointer; }
+.equipment-ports { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 0 6px 11px; }
+.equipment-port { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 46px; min-height: 38px; padding: 4px 7px; border: 1px solid #b9cec4; border-radius: 7px; background: #fff; color: #355d4d; font: inherit; font-size: 11px; font-weight: 700; cursor: pointer; }
+.equipment-port-status { width: 6px; height: 6px; border-radius: 50%; background: #2b9870; }
 .equipment-port:hover, .equipment-port.selected { border-color: #176759; background: #dff2e8; }
 .equipment-port.linked { border-color: #8abfa6; background: #edf8f0; }
 .equipment-port.linked.selected { border-color: #176759; background: #dff2e8; }
@@ -245,11 +246,11 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .equipment-location { margin: -5px 0 16px; padding: 9px 11px; border-radius: 6px; background: #eff5f1; color: #4c7062; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
 .equipment-search { display: grid; gap: 6px; margin: 0 0 15px; color: #496d5e; font-size: 12px; font-weight: 650; }
 .equipment-search input { min-height: 37px; padding: 7px 10px; border: 1px solid #b9cec4; border-radius: 6px; background: #fff; color: #24483b; font: inherit; }
-.equipment-field, .equipment-generate label { display: grid; gap: 6px; margin: 15px 0; color: #446459; font-size: 12px; font-weight: 650; }
+.equipment-field, .equipment-generate label { display: grid; gap: 6px; margin: 10px 0 0; color: #446459; font-size: 12px; font-weight: 650; }
 .equipment-field input, .equipment-field select, .equipment-generate input { width: 100%; min-width: 0; min-height: 38px; padding: 7px 9px; border: 1px solid #b9cec4; border-radius: 6px; background: #fff; color: #24483b; font: inherit; font-size: 13px; }
-.equipment-actions, .equipment-generate { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; margin-top: 18px; }
+.equipment-actions, .equipment-generate { display: flex; align-items: end; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .equipment-generate input { width: 90px; }
-.equipment-note { color: #668075; font-size: 12px; line-height: 1.6; }
+.equipment-note { margin: 8px 0 0; color: #668075; font-size: 12px; line-height: 1.5; }
 .equipment-path { margin-top: 19px; padding: 14px; border: 1px solid #bedbd0; border-radius: 8px; background: #f0f8f3; color: #315b48; font-size: 12px; }
 .equipment-path.open, .equipment-path.ambiguous { border-color: #e6c998; background: #fff9ee; color: #725320; }
 .equipment-path p { margin: 5px 0; line-height: 1.5; }
@@ -299,6 +300,8 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .network-structure-dialog .distribution-row.selected, .network-structure-dialog .equipment-row.selected, .network-structure-dialog .distribution-premise.selected, .network-structure-dialog .equipment-port.selected { border-color: #26766b; background: #edf8f2; box-shadow: inset 3px 0 0 #26766b; }
 .network-structure-dialog .distribution-detail-heading, .network-structure-dialog .equipment-detail-heading { margin-bottom: 8px; }
 .network-structure-dialog .distribution-detail-heading h3, .network-structure-dialog .equipment-detail-heading h3 { overflow-wrap: anywhere; font-size: 17px; }
+.network-structure-dialog .equipment-location { margin: 0 0 3px; }
+.network-structure-dialog .equipment-detail > .move-button { margin-top: 12px; }
 .network-structure-dialog .equipment-detail > .equipment-empty, .network-structure-dialog .distribution-detail > .distribution-empty { padding: 15px; font-size: 12px; }
 .network-structure-dialog .equipment-detail > .equipment-empty h3 { margin: 8px 0 5px; font-size: 13px; }
 .network-structure-dialog .equipment-detail > .equipment-empty p { margin: 0; }

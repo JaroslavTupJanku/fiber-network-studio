@@ -222,16 +222,16 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
                   <button type="button" key={port.id} className={`equipment-port${selection?.id === port.id ? ' selected' : ''}${port.patchPortId ? ' linked' : ''}`}
                     aria-label={`${portLocation(draft, port)} · ${port.patchPortId ? 'propojeno' : 'volný port'}`}
                     title={`${portLocation(draft, port)} · ${port.patchPortId ? 'propojeno' : 'volný port'}`}
-                    onClick={() => select({ kind: 'port', id: port.id })}>{port.position}{port.patchPortId ? ' ·' : ''}</button>)}</div>
+                    onClick={() => select({ kind: 'port', id: port.id })}>P{port.position}{port.patchPortId && <span className="equipment-port-status" aria-hidden="true" />}</button>)}</div>
               </div>)}
             {shelf.kind === 'odf' && <div className="equipment-ports">{draft.ports.filter(port => port.parentId === shelf.id && visiblePort(port)).map(port =>
               <button type="button" key={port.id} className={`equipment-port${selection?.id === port.id ? ' selected' : ''}${port.fiber || port.patchPortId ? ' linked' : ''}`}
                 aria-label={`${portLocation(draft, port)} · ${port.fiber ? 'vlákno připojeno' : 'bez vlákna'}${port.patchPortId ? ', propojeno s OLT' : ''}`}
                 title={`${portLocation(draft, port)} · ${port.fiber ? 'vlákno připojeno' : 'bez vlákna'}${port.patchPortId ? ', propojeno s OLT' : ''}`}
-                onClick={() => select({ kind: 'port', id: port.id })}>{port.position}{port.fiber || port.patchPortId ? ' ·' : ''}</button>)}</div>}
+                onClick={() => select({ kind: 'port', id: port.id })}>P{port.position}{(port.fiber || port.patchPortId) && <span className="equipment-port-status" aria-hidden="true" />}</button>)}</div>}
           </div>)}
         </div>)}
-        {(draft?.ports.length ?? 0) > 0 && <p className="equipment-tree-hint">Tečka označuje port s připojeným vláknem nebo propojkou.</p>}
+        {(draft?.ports.length ?? 0) > 0 && <p className="equipment-tree-hint">Zelená tečka označuje využitý port. Kliknutím zobrazíte vlákno a propojku.</p>}
       </div>
       <div className="equipment-detail">
         {!selected && <div className="equipment-empty"><CircleHelp size={25} /><h3>Vyberte prvek vlevo</h3>
