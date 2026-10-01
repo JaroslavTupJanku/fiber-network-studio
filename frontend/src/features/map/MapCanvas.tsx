@@ -756,7 +756,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
                 ? `Spojeno: ${routeStartName} → ${routeEndName}. Úsek i objekty můžete přetáhnout; lomový bod kliknutím vyberete.`
                 : `Začátek: ${routeStartName}. Klikněte na cíl; tažením budovu nebo šachtu přesunete.`
               : 'Klikněte na první budovu nebo šachtu; tažením objekt přesunete.')}</span>
-            <small>Běžný výběr objektů se vrátí po dokončení nebo zrušení.</small></div>
+            <small>Přesun objektu se uloží hned; Zrušit vrátí jen kreslení.</small></div>
           <div className="route-guide-actions">
             <button type="button" onClick={onRouteUndo} disabled={!routeDraft?.startPointId}>Zpět</button>
             <button type="button" onClick={onRouteFinish} disabled={!routeDraft?.endPointId}>Dokončit</button>

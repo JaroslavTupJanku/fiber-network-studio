@@ -688,7 +688,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 @media (max-width: 650px) {
   .route-guide { gap: 8px; padding: 9px 10px; }
   .route-guide-copy { min-width: 0; }
-  .route-guide-copy small { display: none; }
+  .route-guide-copy small { display: block; }
   .route-guide-actions { margin-left: auto; }
   .route-guide-actions button:disabled { display: none; }
 }
