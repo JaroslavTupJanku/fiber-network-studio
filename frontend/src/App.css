@@ -462,34 +462,38 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-editor-panel .installation-view-switch { display: inline-flex; width: fit-content; padding: 3px; gap: 3px; }
 .installation-editor-panel .installation-view-switch button { min-width: 106px; padding: 0 10px; }
 .installation-editor-dialog .installation-diagram-view { display: grid; grid-template-columns: minmax(0, 1fr) 300px; min-height: 320px; gap: 0; padding: 0; overflow: hidden; border: 1px solid #d7e4dc; border-radius: 10px; background: #f5f8f6; }
-.installation-canvas { min-width: 0; padding: 19px; background-image: radial-gradient(#d8e5de 0.65px, transparent 0.65px); background-size: 16px 16px; }
-.installation-canvas-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; color: #527064; font-size: 11px; font-weight: 700; }
+.installation-canvas { min-width: 0; padding: 20px 22px 25px; background: linear-gradient(145deg, #f7faf8, #eef5f0); }
+.installation-canvas-heading { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 0 0 14px; color: #527064; font-size: 11px; font-weight: 700; }
 .installation-canvas-heading small { color: #7b9186; font-size: 10px; font-weight: 500; }
-.installation-breadcrumbs { display: flex; align-items: center; flex-wrap: wrap; gap: 3px; margin-bottom: 15px; }
-.installation-breadcrumbs > span { display: inline-flex; align-items: center; gap: 3px; }
-.installation-breadcrumbs button { min-height: 27px; padding: 4px 8px; border: 0; border-radius: 5px; background: transparent; color: #527064; font: inherit; font-size: 11px; cursor: pointer; }
-.installation-breadcrumbs button:hover { background: #e7f2eb; }
-.installation-breadcrumbs button[aria-current=page] { background: #e0f1e8; color: #195d4c; font-weight: 700; }
-.installation-board { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); align-items: start; gap: 12px; }
-.installation-board-card { min-width: 0; overflow: hidden; border: 1px solid #ccded3; border-radius: 10px; background: #fff; box-shadow: 0 5px 14px rgb(23 65 48 / 7%); }
-.installation-board-card:hover { border-color: #8cbba8; }
-.installation-board-card.drop-active, .installation-board-slot.drop-active { border-color: #d3932c; background: #fff9e9; box-shadow: 0 0 0 3px rgb(221 168 64 / 19%); }
-.installation-board-select { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 99px; padding: 10px; border: 0; border-left: 4px solid var(--install-color); background: transparent; color: #29473c; font: inherit; text-align: left; cursor: grab; }
-.installation-board-select:active { cursor: grabbing; }
-.installation-board-select[aria-pressed=true] { background: #eff8f2; }
-.installation-board-select:focus-visible, .installation-board-open:focus-visible { outline: 2px solid #26766b; outline-offset: -2px; }
-.installation-board-select > svg:last-child { flex: none; color: #a0b3a9; }
-.install-illustration { flex: none; width: 76px; height: 64px; }
-.installation-board-text { display: grid; flex: 1; min-width: 0; gap: 3px; }
-.installation-board-text small { color: #6c8175; font-size: 10px; }
-.installation-board-text strong { overflow-wrap: anywhere; font-size: 12px; line-height: 1.25; }
-.installation-board-text > span { color: #6c8175; font-size: 10px; }
-.installation-board-open { display: flex; align-items: center; justify-content: space-between; width: 100%; min-height: 31px; padding: 4px 12px; border: 0; border-top: 1px solid #e6eee9; background: #f9fcfa; color: #26766b; font: inherit; font-size: 10px; font-weight: 700; cursor: pointer; }
-.installation-board-open:hover { background: #eaf5ed; }
-.installation-board-slot { display: grid; align-content: center; gap: 4px; min-height: 105px; padding: 15px; border: 1px dashed #c5d9cb; border-radius: 10px; background: #f8fbf8; }
-.installation-board-slot small { color: #6c8175; font-size: 10px; }
-.installation-board-slot strong { color: #7d9688; font-size: 12px; }
-.installation-board-empty { grid-column: 1 / -1; margin: 0; padding: 25px; border: 1px dashed #c9dbce; border-radius: 9px; background: #fff; color: #688274; font-size: 12px; text-align: center; }
+.installation-flow { display: grid; max-width: 690px; margin: 0 auto; }
+.installation-flow-route { display: flex; align-items: center; gap: 12px; min-height: 63px; padding: 11px 15px; border: 1px solid #b8d8c9; border-radius: 12px; background: linear-gradient(110deg, #e8f4ec, #f8fcf8); color: #215b4b; }
+.installation-flow-route > svg { flex: none; }
+.installation-flow-route > span { display: grid; flex: 1; gap: 2px; }
+.installation-flow-route strong { font-size: 13px; }
+.installation-flow-route small { color: #648173; font-size: 10px; }
+.installation-flow-route em { color: #8a5b17; font-size: 10px; font-style: normal; font-weight: 700; }
+.installation-flow-forest, .installation-flow-children { display: grid; align-content: start; gap: 9px; margin-left: 24px; padding: 12px 0 0 20px; border-left: 2px solid #c8ded1; }
+.installation-flow-node, .installation-flow-slot { position: relative; min-width: 0; }
+.installation-flow-node::before, .installation-flow-slot::before { position: absolute; top: 31px; left: -20px; width: 20px; height: 2px; background: #c8ded1; content: ''; }
+.installation-flow-card { display: flex; align-items: stretch; min-width: 0; overflow: hidden; border: 1px solid #d2e2d8; border-radius: 11px; background: #fff; box-shadow: 0 4px 13px rgb(26 70 51 / 6%); transition: border-color .15s, box-shadow .15s, transform .15s; }
+.installation-flow-card::before { flex: none; width: 4px; background: var(--install-color); content: ''; }
+.installation-flow-card:hover { border-color: #8bbba4; transform: translateY(-1px); box-shadow: 0 7px 18px rgb(26 70 51 / 11%); }
+.installation-flow-card.selected { border-color: #25806b; box-shadow: 0 0 0 2px rgb(38 118 107 / 14%), 0 7px 18px rgb(26 70 51 / 9%); }
+.installation-flow-card.drop-active, .installation-flow-route.drop-active, .installation-flow-slot.drop-active { border-color: #d3932c; background: #fff7e7; box-shadow: 0 0 0 3px rgb(221 168 64 / 19%); }
+.installation-flow-select { display: flex; align-items: center; gap: 11px; flex: 1; min-width: 0; min-height: 70px; padding: 7px 11px; border: 0; background: transparent; color: #29473c; font: inherit; text-align: left; cursor: grab; }
+.installation-flow-select:active { cursor: grabbing; }
+.installation-flow-select:focus-visible, .installation-flow-toggle:focus-visible { outline: 2px solid #26766b; outline-offset: -3px; }
+.installation-flow-select > svg:last-child { flex: none; color: #8eaa9a; }
+.install-illustration { flex: none; width: 58px; height: 51px; }
+.installation-flow-text { display: grid; flex: 1; min-width: 0; gap: 3px; }
+.installation-flow-text small { color: #6c8175; font-size: 10px; }
+.installation-flow-text strong { overflow-wrap: anywhere; font-size: 12px; line-height: 1.25; }
+.installation-flow-text > span { color: #6c8175; font-size: 10px; }
+.installation-flow-toggle { display: grid; place-items: center; flex: none; align-self: center; width: 31px; height: 31px; margin-right: 10px; padding: 0; border: 1px solid #dfebe3; border-radius: 8px; background: #f7faf8; color: #426b58; cursor: pointer; }
+.installation-flow-toggle:hover { background: #e7f3ea; }
+.installation-flow-drop-hint { align-self: center; margin-right: 10px; color: #996717; font-size: 10px; font-weight: 700; white-space: nowrap; }
+.installation-flow-slot { display: flex; align-items: center; justify-content: space-between; gap: 8px; min-height: 37px; padding: 7px 12px; border: 1px dashed #b7d3c3; border-radius: 8px; background: #f8fbf8; color: #658271; font-size: 10px; }
+.installation-flow-slot strong { color: #2d775c; }
 .installation-move-panel { display: grid; align-content: start; gap: 8px; margin-top: 12px; padding: 12px; border: 1px solid #d1e4d8; border-radius: 8px; background: #f4faf6; }
 .installation-move-panel > strong { color: #205b4c; font-size: 13px; }
 .installation-move-panel p { margin: 0; color: #657d70; font-size: 11px; line-height: 1.4; }
@@ -539,6 +543,12 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 @media (max-width: 700px) {
   .installation-editor-dialog .installation-diagram-view { grid-template-columns: 1fr; }
   .installation-editor-dialog .installation-selection { border-top: 1px solid #d7e4dc; border-left: 0; }
+  .installation-canvas { padding: 14px 12px 18px; }
+  .installation-flow-forest, .installation-flow-children { margin-left: 12px; padding-left: 12px; }
+  .installation-flow-node::before, .installation-flow-slot::before { left: -12px; width: 12px; }
+  .installation-flow-select { gap: 7px; min-height: 62px; padding: 6px; }
+  .installation-flow-select .install-illustration { width: 43px; height: 40px; }
+  .installation-flow-drop-hint { display: none; }
   .installation-editor-header { padding: 14px; }
   .installation-editor-header .installation-overview { padding: 8px 10px; }
   .installation-editor-scroll { padding: 14px; }
@@ -593,9 +603,10 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-generate-panel .primary-button { justify-self: start; min-height: 31px; padding: 6px 9px; font-size: 11px; }
 .installation-tree, .installation-tree ul { margin: 0; padding: 0; list-style: none; }
 .installation-tree { display: grid; gap: 7px; }
-.install-tree-item { min-width: 0; padding: 8px; border: 1px solid #e0e9e4; border-radius: 6px; background: #fff; }
-.install-tree-item .install-tree-item { margin-top: 7px; background: #f8fbf9; }
-.install-item-head { display: flex; align-items: flex-start; gap: 7px; }
+.install-tree-item { min-width: 0; }
+.install-tree-item + .install-tree-item { margin-top: 7px; }
+.install-tree-item > ul { margin: 8px 0 0 19px; padding-left: 16px; border-left: 2px solid #d3e5d9; }
+.install-item-head { display: flex; align-items: flex-start; gap: 7px; padding: 9px; border: 1px solid #dce8e0; border-radius: 8px; background: #fff; box-shadow: 0 3px 9px rgb(29 70 49 / 5%); }
 .install-item-dot { flex: none; width: 11px; height: 11px; margin-top: 4px; border: 1px solid #fff; border-radius: 50%; box-shadow: 0 0 0 1px #a8bdb2; }
 .install-item-text { display: grid; flex: 1; min-width: 0; gap: 3px; }
 .install-item-text strong { overflow-wrap: anywhere; color: #29473c; font-size: 12px; }
