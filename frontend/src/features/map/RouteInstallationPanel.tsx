@@ -4,7 +4,7 @@ import { Check, ChevronDown, ChevronRight, GripVertical, Layers3, Maximize2, Mov
 import type { CableSpecification } from '../cable-catalog/model'
 import { kindLabel, type DuctType } from '../duct-catalog/model'
 import { canPlaceItem, hasAvailablePlacement, installationContinuations, installationFit, installationSummary,
-  type InstalledItem, type InstallationSummary, type RouteInstallationDocument } from './routeInstallations'
+  type InstalledItem, type InstallationSummary } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
 import { useRouteInstallations } from './useRouteInstallations'
 import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
@@ -91,72 +91,6 @@ function InstallationIllustration({ item }: { item: InstalledItem }) {
   </svg>
 }
 
-function InstallationTreeItem({ item, items, documents, routes, busy, draggedPlacements, dropTargetKey,
-  onDragStart, onDragEnd, onDragOver, onDrop, onRename, onRequestRemove, onAddInside }:
-  { item: InstalledItem; items: InstalledItem[]; documents: RouteInstallationDocument[]; routes: UndergroundRoute[];
-    busy: boolean; draggedPlacements: Placement[]; dropTargetKey: string | null;
-    onDragStart: (event: DragEvent<HTMLElement>, item: InstalledItem) => void; onDragEnd: () => void;
-    onDragOver: (event: DragEvent<HTMLElement>, place: Placement | undefined) => void;
-    onDrop: (event: DragEvent<HTMLElement>, place: Placement | undefined) => void;
-    onRename: (id: string, label: string) => Promise<boolean>; onRequestRemove: (id: string) => void;
-    onAddInside: (id: string) => void }) {
-  const [editing, setEditing] = useState(false)
-  const [label, setLabel] = useState(item.label)
-  const children = items.filter(child => child.parentId === item.id)
-  const parent = items.find(other => other.id === item.parentId) ?? null
-  const fit = installationFit(item, parent, item.slotIndex,
-    items.filter(other => other.parentId === parent?.id && other.id !== item.id))
-  const linkedRoutes = documents.filter(document => document.routeId !== item.routeId
-    && document.items.some(other => other.runId === item.runId)).map(document => routeName(document.routeId, routes))
-  const targets = draggedPlacements.filter(place => place.parentId === item.id)
-  const directTarget = targets.find(place => place.slotIndex === null)
-  const saveLabel = async (event: FormEvent) => {
-    event.preventDefault()
-    if (await onRename(item.id, label)) setEditing(false)
-  }
-  return <li className="install-tree-item">
-    <div className={`install-item-head ${dropTargetKey === directTarget?.key ? 'drop-active' : ''} ${directTarget ? 'can-drop' : ''}`}
-      onDragOver={event => onDragOver(event, directTarget)} onDrop={event => onDrop(event, directTarget)}>
-      <span className="install-drag-handle" draggable={!busy} title={`Přetáhnout ${item.label}`} aria-label={`Přetáhnout ${item.label}`}
-        onDragStart={event => onDragStart(event, item)} onDragEnd={onDragEnd}><GripVertical size={17} /></span>
-      <span className="install-item-dot" style={{ background: itemColor(item) }} />
-      <div className="install-item-text"><strong>{item.label}</strong>
-        <small>{itemKind(item)} · typ: {item.duct?.name ?? item.cable?.name}
-          {item.slotIndex !== null ? ` · pozice ${item.slotIndex + 1}` : ''}</small>
-        {linkedRoutes.length > 0 && <small className="install-continuity">Prvek pokračuje: {linkedRoutes.join(', ')}</small>}
-        {parent && <small className={`install-fit ${fit}`}>{fit === 'possible' ? 'Rozměrově předběžně vyhovuje'
-          : fit === 'too-small' ? 'Rozměry nevyhovují' : 'Kompatibilita neurčená'}</small>}
-      </div>
-      <div className="install-item-actions">
-        {hasAvailablePlacement(item, items) && <button type="button" title={`Vložit do ${item.label}`} aria-label={`Vložit do ${item.label}`}
-          onClick={() => onAddInside(item.id)} disabled={busy}><Plus size={15} /></button>}
-        <button type="button" title={`Přejmenovat ${item.label}`} aria-label={`Přejmenovat ${item.label}`}
-          onClick={() => { setLabel(item.label); setEditing(value => !value) }} disabled={busy}><Pencil size={14} /></button>
-        <button type="button" title={`Odebrat ${item.label} včetně obsahu`}
-          aria-label={`Odebrat ${item.label} včetně obsahu`} disabled={busy}
-          onClick={() => onRequestRemove(item.id)}><Trash2 size={14} /></button>
-      </div>
-    </div>
-    {targets.some(place => place.slotIndex !== null) && <div className="install-slot-targets" aria-label={`Volné pozice: ${item.label}`}>
-      {targets.filter(place => place.slotIndex !== null).map(place => <div key={place.key}
-        className={`install-slot-target ${dropTargetKey === place.key ? 'drop-active' : ''}`}
-        onDragOver={event => onDragOver(event, place)} onDrop={event => onDrop(event, place)}>
-        Pozice {(place.slotIndex ?? 0) + 1}
-      </div>)}</div>}
-    {editing && <form className="install-rename" onSubmit={saveLabel}>
-      <input aria-label={`Nové označení ${item.label}`} value={label} maxLength={80}
-        onChange={event => setLabel(event.target.value)} required />
-      <button type="submit" disabled={busy || !label.trim()} aria-label="Uložit označení"><Check size={15} /></button>
-      <button type="button" onClick={() => setEditing(false)} aria-label="Zrušit přejmenování"><X size={15} /></button>
-    </form>}
-    {children.length > 0 && <ul>{children.map(child => <InstallationTreeItem key={child.id} item={child}
-      items={items} documents={documents} routes={routes} busy={busy} draggedPlacements={draggedPlacements}
-      dropTargetKey={dropTargetKey} onDragStart={onDragStart} onDragEnd={onDragEnd}
-      onDragOver={onDragOver} onDrop={onDrop} onRename={onRename}
-      onRequestRemove={onRequestRemove} onAddInside={onAddInside} />)}</ul>}
-  </li>
-}
-
 export function RouteInstallationPanel({ route, routes, editable, installations }: {
   route: UndergroundRoute; routes: UndergroundRoute[]; editable: boolean;
   installations: ReturnType<typeof useRouteInstallations>
@@ -169,7 +103,6 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     const timer = window.setTimeout(() => setSavedMessage(''), 5000)
     return () => window.clearTimeout(timer)
   }, [savedMessage])
-  const [view, setView] = useState<'diagram' | 'list'>('diagram')
   const [addOpen, setAddOpen] = useState(false)
   const [parentId, setParentId] = useState('')
   const [slotIndex, setSlotIndex] = useState<number | null>(null)
@@ -477,9 +410,13 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
         </div>}
       </div>
     })
+  const expandableIds = document.items.filter(item => item.duct && (
+    document.items.some(child => child.parentId === item.id)
+    || item.duct.kind === 'assembly' && item.duct.slots.length > 0)).map(item => item.id)
+  const allCollapsed = expandableIds.length > 0 && expandableIds.every(id => collapsedIds.has(id))
   const editorContent = <section className="installation-panel installation-editor-panel" aria-label="Osazení trasy" ref={sectionRef}>
     <div className="installation-heading"><div><span className="section-label">Prvky v úseku</span>
-      <h2>{view === 'diagram' ? 'Uspořádání prvků' : 'Seznam osazení'}</h2></div><div className="installation-heading-actions">
+      <h2>Uspořádání prvků</h2></div><div className="installation-heading-actions">
         <button type="button" className="move-button" aria-expanded={addOpen} aria-controls="installation-add-form"
           onClick={() => {
             setAddOpen(current => !current)
@@ -489,21 +426,20 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
           aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button>
       </div></div>
     {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
-    <p className="route-help">{view === 'diagram'
-      ? 'Celé osazení úseku vidíte najednou. Vyberte prvek pro úpravy, uchopte ho za kartu a přetáhněte do jiného prvku nebo vedle ostatních do úseku.'
-      : 'Prvek uchopte za tečky a pusťte ho na cílový prvek, volnou pozici sestavy nebo vedle ostatních do úseku. Tlačítko Přesunout… je také v detailu na kartě Uspořádání.'}</p>
+    <p className="route-help">Prvky můžete rozbalit, vybrat a přetáhnout do vhodného místa. Tlačítko Přesunout… je v detailu vybraného prvku.</p>
     {loading ? <p className="installation-muted">Načítání osazení…</p> : <>
       {error && <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>}
       {loadFailed ? null : roots.length === 0 ? <><p className="installation-empty">Trasa je zatím prázdná. Tlačítkem Přidat prvek vložte první chráničku, mikrotrubičku nebo sestavu.</p>
         {rootContinuations.length > 0 && <button type="button" className="move-button" onClick={openRootContinuation}
           disabled={!editable || busy}>Navázat osazení ze sousedního úseku</button>}</>
-        : <><div className="installation-view-switch" role="group" aria-label="Zobrazení osazení">
-          <button type="button" aria-pressed={view === 'diagram'} onClick={() => setView('diagram')}>Uspořádání</button>
-          <button type="button" aria-pressed={view === 'list'} onClick={() => setView('list')}>Seznam prvků</button>
-        </div><div className="installation-view installation-diagram-view" hidden={view !== 'diagram'}>
+        : <div className="installation-view installation-diagram-view">
           <div className="installation-canvas">
             <div className="installation-canvas-heading"><span>Celý úsek trasy</span>
-              <small>{document.items.length} {document.items.length === 1 ? 'prvek' : document.items.length > 1 && document.items.length < 5 ? 'prvky' : 'prvků'}</small></div>
+              <div><small>{document.items.length} {document.items.length === 1 ? 'prvek' : document.items.length > 1 && document.items.length < 5 ? 'prvky' : 'prvků'}</small>
+                {expandableIds.length > 0 && <button type="button" onClick={() => {
+                  if (allCollapsed) setCollapsedIds(new Set())
+                  else { setCollapsedIds(new Set(expandableIds)); setSelectedItemId(null) }
+                }}>{allCollapsed ? 'Rozbalit vše' : 'Sbalit vše'}</button>}</div></div>
             <div className="installation-flow" aria-label="Uspořádání prvků v úseku">
               <div className={`installation-flow-route ${dropTargetKey === draggedPlacements.find(place => place.parentId === null)?.key ? 'drop-active' : ''}`}
                 onDragOver={event => allowDrop(event, draggedPlacements.find(place => place.parentId === null))}
@@ -585,18 +521,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
         </div> : <div className="installation-selection installation-selection-empty">
           <strong>Vyberte prvek vlevo</strong>
           <p>Zde uvidíte jeho údaje a akce. Pořadí a vložení prvků můžete upravit přetažením vlevo.</p>
-        </div>}</div><div className="installation-list-view installation-view" hidden={view !== 'list'}>
-          <div className={`installation-route-target ${dropTargetKey === draggedPlacements.find(place => place.parentId === null)?.key ? 'drop-active' : ''}`}
-            onDragOver={event => allowDrop(event, draggedPlacements.find(place => place.parentId === null))}
-            onDrop={event => drop(event, draggedPlacements.find(place => place.parentId === null))}>
-            <Layers3 size={16} /> Úsek trasy · pustit vedle ostatních prvků
-          </div>
-          <ul className="installation-tree">{roots.map(root => <InstallationTreeItem key={root.id} item={root}
-          items={document.items} documents={documents} routes={routes} busy={busy || !editable}
-          draggedPlacements={draggedPlacements} dropTargetKey={dropTargetKey} onDragStart={startDrag}
-          onDragEnd={() => { setDraggedId(null); setDropTargetKey(null) }} onDragOver={allowDrop} onDrop={drop}
-          onRename={renameItem} onRequestRemove={setPendingRemovalId} onAddInside={addInside} />)}</ul>
-        </div></>}
+        </div>}</div>}
       {!loadFailed && <div id="installation-add-form" className="installation-add-container" hidden={!addOpen}>
       <form className="installation-add" onSubmit={submit} ref={formRef}>
         <h3><Layers3 size={16} /> Vložit prvek do trasy</h3>
