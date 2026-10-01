@@ -511,8 +511,11 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .installation-editor-dialog .installation-selection-heading small { margin-top: 3px; font-size: 11px; }
 .installation-editor-dialog .installation-selection-actions { display: grid; grid-template-columns: 1fr 1fr; margin-top: 10px; }
 .installation-editor-dialog .installation-selection-actions button { justify-content: center; min-height: 34px; font-size: 11px; }
-.installation-selection-actions .installation-remove-button { grid-column: 1 / -1; justify-self: start; min-width: 130px; margin-top: 5px; border-color: #edd0ca; color: #9a4439; }
-.installation-selection-actions .installation-remove-button:hover:not(:disabled) { background: #fff2ef; }
+.installation-move-unavailable { margin: 3px 0 0; color: #647a70; font-size: 11px; line-height: 1.45; }
+.installation-selection-footer { margin-top: 12px; padding-top: 13px; border-top: 1px solid #e3ebe5; }
+.installation-selection-footer .installation-remove-button { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 34px; padding: 6px 11px; border: 1px solid #edd0ca; border-radius: 5px; background: #fff; color: #9a4439; font: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+.installation-selection-footer .installation-remove-button:hover:not(:disabled) { background: #fff2ef; }
+.installation-selection-footer .installation-remove-button:disabled { opacity: .45; cursor: not-allowed; }
 .installation-length { display: grid; gap: 9px; margin-top: 12px; padding: 13px; border: 1px solid #d5e5da; border-radius: 8px; background: #f6faf7; }
 .installation-length label { display: grid; gap: 7px; color: #355e4d; font-size: 12px; font-weight: 650; }
 .installation-length label span { display: flex; align-items: center; gap: 7px; }

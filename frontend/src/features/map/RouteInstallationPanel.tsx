@@ -218,7 +218,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     if (await setCableLength(item.id, length)) {
       setLengthInput(length?.toString() ?? '')
       setLengthError('')
-      setSavedMessage(length === null ? 'Délka kabelu odebrána.' : 'Skutečná délka kabelu uložena.')
+      setSavedMessage(length === null ? 'Délka kabelu odebrána.' : 'Délka uloženého kabelu uložena.')
     }
   }
   const toggleContents = (item: InstalledItem) => {
@@ -426,7 +426,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
           aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button>
       </div></div>
     {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
-    <p className="route-help">Prvky můžete rozbalit, vybrat a přetáhnout do vhodného místa. Tlačítko Přesunout… je v detailu vybraného prvku.</p>
+    <p className="route-help">Prvky můžete rozbalit, vybrat a přetáhnout do vhodného místa.</p>
     {loading ? <p className="installation-muted">Načítání osazení…</p> : <>
       {error && <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>}
       {loadFailed ? null : roots.length === 0 ? <><p className="installation-empty">Trasa je zatím prázdná. Tlačítkem Přidat prvek vložte první chráničku, mikrotrubičku nebo sestavu.</p>
@@ -470,21 +470,19 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
             }}
               disabled={!editable || busy} aria-expanded={generateOpen}>
               <Layers3 size={14} /> Vyplnit sestavu</button>}
+            {selectedPlacements.length > 0 && <button type="button" onClick={() => setMovePickerOpen(current => !current)}
+              disabled={!editable || busy} aria-expanded={movePickerOpen}><MoveRight size={14} /> Přesunout…</button>}
             <button type="button" onClick={() => { setSelectionLabel(selectedItem.label); setSelectionEditing(true) }}
               disabled={!editable || busy}><Pencil size={14} /> Přejmenovat</button>
-            <button type="button" onClick={() => setMovePickerOpen(current => !current)}
-              disabled={!editable || busy || selectedPlacements.length === 0}
-              aria-expanded={movePickerOpen}><MoveRight size={14} /> Přesunout…</button>
-            <button type="button" className="installation-remove-button" onClick={() => setPendingRemovalId(selectedItem.id)}
-              disabled={!editable || busy}><Trash2 size={14} /> Odebrat…</button>
           </div>}
+          {selectedPlacements.length === 0 && <p className="installation-move-unavailable">Prvek nyní nemá jiné vhodné místo pro přesun.</p>}
           {selectedItem.cable && <form className="installation-length" onSubmit={event => {
             event.preventDefault(); void saveCableLength(selectedItem)
-          }}><label>Skutečná délka kabelu v tomto úseku
+          }}><label>Délka uloženého kabelu v úseku
             <span><input inputMode="decimal" value={lengthInput} placeholder="Zatím neznámá"
               aria-invalid={!!lengthError} onChange={event => { setLengthInput(event.target.value); setLengthError('') }} /> m</span>
           </label><button type="submit" className="move-button" disabled={!editable || busy}>Uložit délku</button>
-            <p>Délka instalovaného kabelu včetně rezerv. Mapa ukazuje jen přibližnou délku trasy.</p>
+            <p>Zadejte délku kabelu včetně rezerv. Mapa ukazuje jen přibližnou délku trasy.</p>
             {lengthError && <p className="form-error" role="alert">{lengthError}</p>}</form>}
           {generateOpen && openMicroductSlots.length > 0 && <div className="installation-generate-panel" ref={generateRef}>
             <strong>Vyplnit {openMicroductSlots.length} volných pozic</strong>
@@ -518,6 +516,9 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
             ? 'Všechny pozice sestavy jsou obsazené.'
             : selectedItem.duct.kind === 'microduct' ? 'Mikrotrubička už obsahuje kabel.'
               : 'Chránička s přímým kabelem nemá další volné místo.'}</p>}
+          <div className="installation-selection-footer"><button type="button" className="installation-remove-button"
+            onClick={() => setPendingRemovalId(selectedItem.id)} disabled={!editable || busy}>
+            <Trash2 size={14} /> Odebrat prvek…</button></div>
         </div> : <div className="installation-selection installation-selection-empty">
           <strong>Vyberte prvek vlevo</strong>
           <p>Zde uvidíte jeho údaje a akce. Pořadí a vložení prvků můžete upravit přetažením vlevo.</p>
