@@ -131,7 +131,7 @@
 .layer-zoom-action:hover { background: #edf5f1; }
 .spin { animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.details-panel { min-width: 0; overflow-y: auto; padding: 24px 20px; border-left: 1px solid #d8e2df; background: #fff; }
+.details-panel { min-width: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 24px 20px; border-left: 1px solid #d8e2df; background: #fff; }
 .details-panel.collapsed { overflow: hidden; padding: 0; background: #f7faf8; }
 .details-panel.collapsed > :not(.details-rail-tabs) { display: none; }
 .details-rail-tabs { display: grid; }
@@ -673,7 +673,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
   .app-header { padding: 0 16px; }
   .workspace { grid-template-columns: 1fr; grid-template-rows: minmax(280px, 1fr) auto; height: calc(100dvh - 58px); }
   .workspace.panel-collapsed { grid-template-columns: 1fr; grid-template-rows: minmax(280px, 1fr) 42px; }
-  .details-panel { min-height: 152px; max-height: 43dvh; padding: 16px; border-left: 0; border-top: 1px solid #d8e2df; }
+  .details-panel { min-height: 152px; max-height: 43dvh; scrollbar-gutter: auto; padding: 16px; border-left: 0; border-top: 1px solid #d8e2df; }
   .details-panel.collapsed { min-height: 42px; max-height: 42px; }
   .details-rail-tabs { grid-template-columns: 1fr 1fr; }
   .details-rail-toggle { flex-direction: row; justify-content: center; min-height: 42px; padding: 7px; border-bottom: 0; writing-mode: horizontal-tb; }
