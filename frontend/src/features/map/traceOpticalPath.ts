@@ -6,7 +6,8 @@ import type { RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
 
 export type PathStep = { kind: 'cable' | 'indoor-cable' | 'splice' | 'connector' | 'patch' | 'splitter' | 'premise'; label: string;
-  routeId?: string; itemId?: string; splitterId?: string; outputPosition?: number; source?: string;
+  routeId?: string; itemId?: string; runId?: string; tubeIndex?: number; fiberIndex?: number;
+  splitterId?: string; outputPosition?: number; source?: string;
   lengthMeters?: number | null; attenuationDbPerKm?: IndoorLosses | null; count?: number | null;
   losses?: Pick<SplitterOutput, 'loss1270Db' | 'loss1310Db' | 'loss1490Db' | 'loss1550Db' | 'loss1577Db'> }
 export type BranchChoice = { splitterId: string; position: number; label: string }
@@ -118,7 +119,7 @@ function tracePath(start: string, equipment: BuildingEquipmentDocument[],
       add(node(route.startPointId, item.id, tubeIndex, fiberIndex),
         node(route.endPointId, item.id, tubeIndex, fiberIndex),
         { kind: 'cable', label: `${route.name} · ${item.label} · ${tube.name} / ${fiberIndex + 1}`,
-          routeId: route.id, itemId: item.id })))
+          routeId: route.id, itemId: item.id, runId: item.runId, tubeIndex, fiberIndex })))
   }
   const byRun = new Map<string, typeof items>()
   for (const item of items) byRun.set(item.runId, [...byRun.get(item.runId) ?? [], item])

@@ -9,6 +9,9 @@ import type { RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
 import { traceOpticalPath, tracePortToPremise, type OpticalPath } from './traceOpticalPath'
 import { countCzech, portLocation } from './equipmentPresentation'
+import { cableFibers, previewPortAssignments } from './fiberBatch'
+import { allocatedFiberKey, allocationConflicts, loadFiberAllocations, pathAllocatedFibers, saveFiberAllocations,
+  type FiberAllocationDocument } from './fiberAllocations'
 
 type Selection = { kind: 'rack' | 'shelf' | 'card' | 'port'; id: string }
 const id = () => crypto.randomUUID()
@@ -29,17 +32,19 @@ function PortButton({ port, document, selected, onSelect }: {
     onClick={onSelect}><strong>P{port.position}</strong><span>{status}</span></button>
 }
 
-export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes, installations, onClose, onSaved, onTrace, onBudget }: {
+export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes, installations, onClose, onSaved, onTrace, onBudget, onOpenRoute, onViewMap }: {
   pointId: string; pointName: string; routes: UndergroundRoute[]; installations: RouteInstallationDocument[]
   pointNames: Record<string, string>
   onClose: () => void; onSaved: (document: BuildingEquipmentDocument) => void
   onTrace: (path: OpticalPath | null) => void; onBudget: (path: OpticalPath) => void
+  onOpenRoute: (routeId: string) => void; onViewMap: () => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState<BuildingEquipmentDocument | null>(null)
   const [otherEquipment, setOtherEquipment] = useState<BuildingEquipmentDocument[]>([])
   const [splices, setSplices] = useState<OpticalSpliceDocument[]>([])
   const [distributions, setDistributions] = useState<BuildingDistributionDocument[]>([])
+  const [allocations, setAllocations] = useState<FiberAllocationDocument | null>(null)
   const [selection, setSelection] = useState<Selection | null>(null)
   const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
   const [error, setError] = useState('')
@@ -47,11 +52,18 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
   const [saved, setSaved] = useState(false)
   const [dirty, setDirty] = useState(false)
   const [portCount, setPortCount] = useState(8)
+  const [bulkCableId, setBulkCableId] = useState('')
+  const [bulkFirstFiber, setBulkFirstFiber] = useState(0)
+  const [bulkFirstPort, setBulkFirstPort] = useState(1)
+  const [bulkCount, setBulkCount] = useState(8)
   const [portQuery, setPortQuery] = useState('')
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
   const [path, setPath] = useState<OpticalPath | null>(null)
   const [branchSelections, setBranchSelections] = useState<Record<string, number>>({})
   const [targetPremiseId, setTargetPremiseId] = useState('')
+  const [allocationLabel, setAllocationLabel] = useState('')
+  const [allocationStatus, setAllocationStatus] = useState<'reserved' | 'used'>('reserved')
+  const [allocationBusy, setAllocationBusy] = useState(false)
   const select = (next: Selection) => {
     setSelection(next); setMobileView('detail'); setPath(null); setBranchSelections({}); setTargetPremiseId(''); onTrace(null)
   }
@@ -69,9 +81,11 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
   }, [])
   useEffect(() => {
     let live = true
-    Promise.all([loadBuildingEquipment(pointId), listBuildingEquipment(), listOpticalSplices(), listBuildingDistribution()])
-      .then(([document, all, spliceList, homes]) => { if (live) {
+    Promise.all([loadBuildingEquipment(pointId), listBuildingEquipment(), listOpticalSplices(),
+      listBuildingDistribution(), loadFiberAllocations()])
+      .then(([document, all, spliceList, homes, fiberAllocations]) => { if (live) {
         setDraft(document); setOtherEquipment(all); setSplices(spliceList); setDistributions(homes)
+        setAllocations(fiberAllocations)
       } })
       .catch(reason => { if (live) setError(reason instanceof Error ? reason.message : 'Údaje se nepodařilo načíst.') })
     return () => { live = false }
@@ -112,6 +126,13 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
   for (const premise of distributions.find(document => document.pointId === pointId)?.premises ?? []) {
     if (isConnectedPremise(premise)) occupied.add(fiberEndKey(premise.fiber!))
   }
+  const bulkCable = cables.find(item => item.id === bulkCableId)
+  const bulkPorts = draft?.ports.filter(port => port.parentId === selectedShelf?.id) ?? []
+  const bulkOccupied = new Set(draft?.ports.filter(port => port.fiber).map(port => fiberEndKey(port.fiber!)) ?? [])
+  for (const premise of distributions.find(document => document.pointId === pointId)?.premises ?? []) {
+    if (isConnectedPremise(premise)) bulkOccupied.add(fiberEndKey(premise.fiber!))
+  }
+  const bulkPreview = previewPortAssignments(bulkPorts, bulkCable, bulkFirstPort, bulkFirstFiber, bulkCount, bulkOccupied)
   const fiberOptions = cables.flatMap(cable => cable.cable?.tubes.flatMap((tube, tubeIndex) =>
     tube.fibers.map((fiber, fiberIndex) => ({ end: { itemId: cable.id, tubeIndex, fiberIndex },
       label: `${cable.label} · ${tube.name} · ${fiber.name || `vlákno ${fiberIndex + 1}`}` }))) ?? [])
@@ -186,6 +207,29 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
       ? tracePortToPremise(selectedPort.id, targetId, allEquipment, routes, installations, splices, distributions)
       : traceOpticalPath(selectedPort.id, allEquipment, routes, installations, splices, choices, distributions)
     setPath(next); onTrace(next)
+  }
+  const pathFibers = path ? pathAllocatedFibers(path) : []
+  const conflictingAllocations = allocationConflicts(pathFibers, allocations?.allocations ?? [])
+  const reservePath = async () => {
+    if (!allocations || !path || path.status !== 'connected' || !pathFibers.length
+        || !allocationLabel.trim() || conflictingAllocations.length || dirty || allocationBusy) return
+    setAllocationBusy(true); setError('')
+    try {
+      const updated = await saveFiberAllocations({ ...allocations, allocations: [...allocations.allocations, {
+        id: crypto.randomUUID(), label: allocationLabel.trim(), status: allocationStatus,
+        premiseId: targetPremiseId || path.endPremiseId || null, fibers: pathFibers,
+      }] })
+      setAllocations(updated); setAllocationLabel('')
+    } catch (reason) { setError(reason instanceof Error ? reason.message : 'Využití vláken se nepodařilo uložit.') }
+    finally { setAllocationBusy(false) }
+  }
+  const removeAllocation = async (id: string) => {
+    if (!allocations || allocationBusy || !window.confirm('Uvolnit rezervaci nebo službu na celé evidované cestě?')) return
+    setAllocationBusy(true); setError('')
+    try { setAllocations(await saveFiberAllocations({ ...allocations,
+      allocations: allocations.allocations.filter(item => item.id !== id) })) }
+    catch (reason) { setError(reason instanceof Error ? reason.message : 'Využití vláken se nepodařilo uvolnit.') }
+    finally { setAllocationBusy(false) }
   }
   const selectBranch = (splitterId: string, position: number) => {
     const choices = { ...branchSelections, [splitterId]: position }
@@ -312,6 +356,32 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
               onChange={event => setPortCount(Number(event.target.value))} /></label>
               <button type="button" className="move-button" onClick={() => addPorts(portParentId)} disabled={!Number.isInteger(portCount) || portCount < 1 || portCount > 48}>
                 <Plus size={15} /> Přidat {countCzech(portCount, 'port', 'porty', 'portů')}</button></div></section>}
+          {selection?.kind === 'shelf' && selectedShelf?.kind === 'odf' && bulkPorts.length > 0 && <section className="equipment-add-section equipment-bulk">
+            <h4>Hromadně ukončit vlákna</h4><p>Vyberte kabel, první vlákno a port. Náhled ukáže celý rozsah; obsazené pozice se nezmění.</p>
+            <div className="equipment-bulk-fields">
+              <label>Kabel<select value={bulkCableId} onChange={event => { setBulkCableId(event.target.value); setBulkFirstFiber(0) }}>
+                <option value="">Vyberte kabel</option>{cables.map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
+              </select></label>
+              <label>První vlákno<select value={bulkFirstFiber} disabled={!bulkCable} onChange={event => setBulkFirstFiber(Number(event.target.value))}>
+                {bulkCable && cableFibers(bulkCable).map((choice, index) => <option key={fiberEndKey(choice.end)} value={index}>{choice.label}</option>)}
+              </select></label>
+              <label>Od portu<select value={bulkFirstPort} onChange={event => setBulkFirstPort(Number(event.target.value))}>
+                {bulkPorts.sort((a, b) => a.position - b.position).map(port => <option key={port.id} value={port.position}>P{port.position}</option>)}
+              </select></label>
+              <label>Počet portů<input type="number" min="1" max="96" value={bulkCount}
+                onChange={event => setBulkCount(Number(event.target.value))} /></label>
+            </div>
+            {bulkCable && (bulkPreview.length === bulkCount ? <div className="equipment-bulk-preview"><strong>Náhled · {bulkCount} portů</strong>
+              <ol>{bulkPreview.map(row => <li key={row.port.id} className={row.conflict ? 'conflict' : ''}>
+                <span>P{row.port.position} ← {row.fiber.label}</span>{row.conflict && <small>{row.conflict}</small>}
+              </li>)}</ol></div> : <p className="form-error">Rozsah přesahuje počet portů nebo vláken.</p>)}
+            <button type="button" className="move-button" disabled={bulkPreview.length !== bulkCount || bulkPreview.some(row => row.conflict)}
+              onClick={() => { if (!draft || !bulkPreview.length) return
+                const assignments = new Map(bulkPreview.map(row => [row.port.id, row.fiber.end]))
+                update({ ...draft, ports: draft.ports.map(port => assignments.has(port.id)
+                  ? { ...port, fiber: assignments.get(port.id)! } : port) })
+              }}><Plus size={15} /> Připojit všechna vlákna</button>
+          </section>}
           {selectedPort && <><p className={`equipment-port-detail-status${portStatus(selectedPort) === 'Volný' ? '' : ' linked'}`}>
             {selectedOdf ? 'ODF' : 'OLT'} · P{selectedPort.position} · {portStatus(selectedPort)}</p>
             <p className="equipment-note">Pozice {selectedPort.position}. {selectedOdf
@@ -348,10 +418,40 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
                   }}><option value="">Vyberte výstup</option>
                     {path.branchChoices.filter(choice => choice.splitterId === splitterId).map(choice =>
                       <option key={choice.position} value={choice.position}>{choice.label}</option>)}
-                  </select></label>)}{path.steps.length > 0 && <ol>{path.steps.map((step, index) =>
-                <li key={index}>{step.label}</li>)}</ol>}
+                  </select></label>)}{path.steps.length > 0 && <><h4>Schéma sledované cesty</h4><ol className="equipment-path-schematic">{path.steps.map((step, index) => {
+                const fiberKey = step.runId !== undefined && step.tubeIndex !== undefined && step.fiberIndex !== undefined
+                  ? allocatedFiberKey({ runId: step.runId, tubeIndex: step.tubeIndex, fiberIndex: step.fiberIndex }) : null
+                const assignment = fiberKey ? allocations?.allocations.find(item => item.fibers.some(fiber =>
+                  allocatedFiberKey(fiber) === fiberKey)) : null
+                return <li key={index}><div><span>{step.kind === 'cable' ? 'Kabel' : step.kind === 'splitter' ? 'Splitter'
+                  : step.kind === 'patch' ? 'Propojka' : step.kind === 'premise' ? 'HP' : 'Spoj'}</span>
+                  <strong>{step.label}</strong>{fiberKey && <small className="fiber-path-status">{assignment
+                    ? `${assignment.status === 'used' ? 'Obsazeno' : 'Rezervováno'}: ${assignment.label}` : 'Volné pro službu'}</small>}</div>
+                  {step.routeId && <button type="button" className="move-button" onClick={() => onOpenRoute(step.routeId!)}>Ukázat na mapě</button>}
+                </li>
+              })}</ol></>}
               {path.routeIds.length > 0 && <p>Počet zvýrazněných úseků na mapě: {path.routeIds.length}</p>}
+              {path.routeIds.length > 0 && <button type="button" className="move-button" onClick={onViewMap}>Zobrazit celou cestu na mapě</button>}
               {dirty && <p>Jde o náhled neuložených změn. Před přenosem cestu uložte.</p>}
+              {path.status === 'connected' && pathFibers.length > 0 && <div className="fiber-allocation-card">
+                <strong>Využití celé cesty</strong>
+                {conflictingAllocations.length > 0 ? <><p>Tato cesta už obsahuje přiřazená vlákna:</p>
+                  {conflictingAllocations.map(item => <div className="fiber-allocation-entry" key={item.id}>
+                    <span>{item.status === 'used' ? 'Obsazeno' : 'Rezervováno'} · {item.label}</span>
+                    <button type="button" className="move-button" disabled={allocationBusy}
+                      onClick={() => void removeAllocation(item.id)}>Uvolnit</button></div>)}</>
+                  : <><p>{pathFibers.length} {pathFibers.length === 1 ? 'vlákno v kabelovém běhu' : 'vlákna v kabelových bězích'}.
+                    Přiřazení se zobrazí na všech úsecích těchto běhů.</p>
+                    <label className="equipment-field">Služba nebo důvod rezervace<input maxLength={120}
+                      value={allocationLabel} onChange={event => setAllocationLabel(event.target.value)}
+                      placeholder="Např. Internet · byt 201" /></label>
+                    <label className="equipment-field">Stav<select value={allocationStatus}
+                      onChange={event => setAllocationStatus(event.target.value as 'reserved' | 'used')}>
+                      <option value="reserved">Rezervováno</option><option value="used">Obsazeno službou</option>
+                    </select></label>
+                    <button type="button" className="move-button" disabled={!allocationLabel.trim() || dirty || allocationBusy}
+                      onClick={() => void reservePath()}>{allocationBusy ? 'Ukládám…' : 'Přiřadit celou cestu'}</button></>}
+              </div>}
               {path.status === 'connected' && path.steps.some(step => step.routeId) && <button type="button" className="move-button" disabled={dirty}
                 onClick={() => onBudget(path)}>Přenést do kalkulačky</button>}</div>}
           </>}

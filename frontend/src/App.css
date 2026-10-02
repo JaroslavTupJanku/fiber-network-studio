@@ -306,6 +306,20 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .equipment-add-section h4 { margin: 0; color: #294d40; font-size: 13px; }
 .equipment-add-section p { margin: 5px 0 11px; color: #667d72; font-size: 11px; line-height: 1.5; }
 .equipment-add-section .equipment-generate label { margin: 0; }
+.equipment-bulk-fields, .splice-bulk-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin: 12px 0; }
+.equipment-bulk-fields label { display: grid; gap: 5px; color: #446459; font-size: 12px; font-weight: 650; }
+.equipment-bulk-fields input, .equipment-bulk-fields select { width: 100%; min-width: 0; min-height: var(--ui-control-height); padding: 7px 9px; border: 1px solid #b9cec4; border-radius: 6px; background: #fff; color: #24483b; font: inherit; font-size: 13px; }
+.equipment-bulk-preview, .splice-bulk-preview { margin: 12px 0; padding: 11px; border: 1px solid #d8e6dc; border-radius: 8px; background: #fff; font-size: 12px; }
+.equipment-bulk-preview ol, .splice-bulk-preview ol { max-height: 200px; overflow: auto; margin: 7px 0 0; padding-left: 20px; }
+.equipment-bulk-preview li, .splice-bulk-preview li { display: flex; justify-content: space-between; gap: 8px; padding: 5px 2px; border-top: 1px solid #edf2ee; }
+.equipment-bulk-preview li.conflict, .splice-bulk-preview li.conflict { color: #b54733; }
+.equipment-bulk-preview li small, .splice-bulk-preview li small { flex: none; font-size: 11px; }
+.fiber-path-status { color: #607a6a; font-size: 11px; }
+.fiber-allocation-card { display: grid; gap: 8px; margin: 13px 0; padding: 13px; border: 1px solid #c8ded0; border-radius: 8px; background: #f5faf6; }
+.fiber-allocation-card > strong { color: #245847; font-size: 13px; }
+.fiber-allocation-card p { margin: 0; }
+.fiber-allocation-card .equipment-field { margin: 0; }
+.fiber-allocation-entry { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 12px; }
 .equipment-port-detail-status { align-self: flex-start; margin: 15px 0 0; padding: 6px 9px; border-radius: 6px; background: #edf2ee; color: #496b5a; font-size: 11px; font-weight: 700; }
 .equipment-port-detail-status.linked { background: #e8f5ed; color: #22694f; }
 .equipment-note { margin: 8px 0 0; color: #668075; font-size: 12px; line-height: 1.5; }
@@ -313,6 +327,13 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .equipment-path.open, .equipment-path.ambiguous { border-color: #e6c998; background: #fff9ee; color: #725320; }
 .equipment-path p { margin: 5px 0; line-height: 1.5; }
 .equipment-path ol { max-height: 180px; overflow: auto; padding-left: 19px; line-height: 1.7; }
+.equipment-path h4 { margin: 16px 0 8px; color: #285747; font-size: 12px; }
+.equipment-path .equipment-path-schematic { display: grid; gap: 7px; max-height: 340px; margin: 0; padding: 0 2px 0 14px; list-style: none; border-left: 2px solid #b7d8c5; }
+.equipment-path-schematic li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid #d2e2d7; border-radius: 7px; background: #fff; line-height: 1.35; }
+.equipment-path-schematic li > div { display: grid; gap: 3px; min-width: 0; }
+.equipment-path-schematic li span { color: #6a8274; font-size: 10px; text-transform: uppercase; }
+.equipment-path-schematic li strong { font-size: 11px; font-weight: 650; }
+.equipment-path-schematic li button { flex: none; padding: 5px 8px; font-size: 11px; }
 .distribution-trace-action { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 6px; }
 .distribution-trace-action small { color: #667d72; line-height: 1.4; }
 .distribution-path { margin-top: 4px; }
@@ -384,6 +405,25 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .splice-editor-tabs button[aria-pressed="true"] { color: #185d4d; background: #fff; box-shadow: 0 1px 4px #244b3d1c; }
 .splice-editor-tabs button:focus-visible { outline: 2px solid #176759; outline-offset: 2px; }
 .splice-connection-form, .splice-connections, .splice-reserves, .splice-through-runs { margin-top: 16px; padding: 19px; border: 1px solid #dbe7df; border-radius: 10px; }
+.splice-bulk { margin-top: 16px; padding: 19px; border: 1px solid #c8ded0; border-radius: 10px; background: #f6faf7; }
+.splice-bulk h3 { margin-bottom: 5px; }
+.splice-bulk p { margin: 0; color: #668076; font-size: 12px; }
+.splice-schematic { margin-top: 16px; padding: 19px; border: 1px solid #dbe7df; border-radius: 10px; background: #f7faf8; }
+.splice-schematic-head { display: flex; align-items: start; justify-content: space-between; gap: 12px; }
+.splice-schematic-head p { margin: 0; color: #668076; font-size: 12px; }
+.splice-schematic-head > span { color: #537565; font-size: 12px; white-space: nowrap; }
+.splice-schematic-search { display: grid; gap: 5px; margin-top: 13px; }
+.splice-schematic-list { display: grid; gap: 12px; max-height: 420px; overflow: auto; margin-top: 15px; padding-right: 4px; }
+.splice-schematic-link { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; }
+.splice-schematic-link button, .splice-schematic-branches > span:first-child, .splice-schematic-branches > div span { min-width: 0; padding: 10px; border: 1px solid #cddfd4; border-radius: 8px; background: #fff; color: #24483b; font: inherit; font-size: 12px; text-align: left; }
+.splice-schematic-link button { cursor: pointer; }
+.splice-schematic-link button:hover { border-color: #26766b; background: #eff7f2; }
+.splice-schematic-link button small { display: block; margin-top: 4px; color: #26766b; }
+.splice-schematic-link > span { color: #657f72; font-size: 11px; font-weight: 700; text-align: center; }
+.splice-schematic-splitter { padding: 13px; border: 1px solid #d5e5da; border-radius: 9px; background: #fff; }
+.splice-schematic-branches { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; margin-top: 10px; }
+.splice-schematic-branches > div { display: grid; gap: 5px; }
+@media (max-width: 650px) { .splice-schematic-link, .splice-schematic-branches { grid-template-columns: 1fr; } .equipment-bulk-fields, .splice-bulk-fields { grid-template-columns: 1fr; } }
 .splice-splitters { margin-top: 16px; padding: 19px; border: 1px solid #dbe7df; border-radius: 10px; background: #fbfdfb; }
 .splitter-heading, .splitter-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .splitter-heading p, .splitter-help { margin: 0 0 12px; color: #668076; font-size: 12px; line-height: 1.5; }

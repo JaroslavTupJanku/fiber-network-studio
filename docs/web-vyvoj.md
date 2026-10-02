@@ -83,3 +83,5 @@ v tomto prohlížeči. Pro přenos na jiný počítač se exportují dva soubory
 tam importuje katalog profilů, potom výpočet. Katalog kabelů i chrániček ukládá API na
 backendu. Zákazníkovi lze nasazenou aplikaci otevřít jedním odkazem; frontend a
 backend spouští zvlášť jen vývojář při práci na vlastním počítači.
+
+**Hromadné optické propojení** vybírá souvislý rozsah vláken a před uložením ukáže všechny páry nebo porty. Frontend připraví náhled, backend uloží celý dokument najednou a odmítne konflikt či zastaralou verzi. **Přiřazení vlákna** váže službu nebo rezervaci na fyzická vlákna všech kabelových běhů dohledané cesty. Backend odmítá dvojí obsazení a chrání navázaný kabel, spojku a přípojné místo před změnou, která by cestu rozpojila. Schéma cesty vzniká ze stejných vazeb jako zvýraznění na mapě; není to samostatný ručně kreslený plán.

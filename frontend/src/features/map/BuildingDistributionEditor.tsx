@@ -10,6 +10,7 @@ import { IndoorCableFields } from './IndoorCableFields'
 import { indoorCableError } from './indoorCable'
 import { listOpticalSplices } from './opticalSplices'
 import { tracePremisePath, type OpticalPath } from './traceOpticalPath'
+import { allocatedFiberKey, loadFiberAllocations, type FiberAllocationDocument } from './fiberAllocations'
 import { isConnectedPremise, loadBuildingDistribution, saveBuildingDistribution,
   type BuildingDistributionDocument, type BuildingRiser, type FloorBox, type HomePremise } from './buildingDistribution'
 import type { RouteInstallationDocument } from './routeInstallations'
@@ -17,10 +18,11 @@ import type { UndergroundRoute } from './undergroundRoutes'
 
 type Selection = { kind: 'riser' | 'box' | 'premise'; id: string }
 
-export function BuildingDistributionEditor({ pointId, pointName, routes, installations, onClose, onSaved, onTrace, onBudget }: {
+export function BuildingDistributionEditor({ pointId, pointName, routes, installations, onClose, onSaved, onTrace, onBudget, onOpenRoute, onViewMap }: {
   pointId: string; pointName: string; routes: UndergroundRoute[]; installations: RouteInstallationDocument[];
   onClose: () => void; onSaved: (document: BuildingDistributionDocument) => void;
   onTrace: (path: OpticalPath | null) => void; onBudget: (path: OpticalPath) => void
+  onOpenRoute: (routeId: string) => void; onViewMap: () => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState<BuildingDistributionDocument | null>(null)
@@ -32,6 +34,7 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
   const [saved, setSaved] = useState(false)
   const [error, setError] = useState('')
   const [path, setPath] = useState<OpticalPath | null>(null)
+  const [allocations, setAllocations] = useState<FiberAllocationDocument | null>(null)
   const [tracing, setTracing] = useState(false)
   const [catalogCables, setCatalogCables] = useState<CableSpecification[]>([])
   const [catalogError, setCatalogError] = useState('')
@@ -135,9 +138,10 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
     if (!draft || !selectedPremise || dirty || tracing) return
     setTracing(true); setError('')
     try {
-      const [equipment, splices] = await Promise.all([listBuildingEquipment(), listOpticalSplices()])
+      const [equipment, splices, fiberAllocations] = await Promise.all([
+        listBuildingEquipment(), listOpticalSplices(), loadFiberAllocations()])
       const next = tracePremisePath(selectedPremise.id, equipment, routes, installations, splices, [draft])
-      setPath(next); onTrace(next)
+      setPath(next); setAllocations(fiberAllocations); onTrace(next)
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Cestu se nepodařilo načíst.') }
     finally { setTracing(false) }
   }
@@ -229,8 +233,21 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
             {path && <div className={`equipment-path distribution-path ${path.status}`} role="status">
               <strong>{path.status === 'connected' ? 'Přiřazené vlákno dohledáno k OLT' : path.status === 'ambiguous' ? 'Nejednoznačná cesta' : 'Cesta není úplná'}</strong>
               <p>{path.message}</p>
-              {path.steps.length > 0 && <ol>{path.steps.map((step, index) => <li key={index}>{step.label}</li>)}</ol>}
+              {path.steps.length > 0 && <><h4>Schéma sledované cesty</h4><ol className="equipment-path-schematic">
+                {path.steps.map((step, index) => {
+                  const fiberKey = step.runId !== undefined && step.tubeIndex !== undefined && step.fiberIndex !== undefined
+                    ? allocatedFiberKey({ runId: step.runId, tubeIndex: step.tubeIndex, fiberIndex: step.fiberIndex }) : null
+                  const assignment = fiberKey ? allocations?.allocations.find(item => item.fibers.some(fiber =>
+                    allocatedFiberKey(fiber) === fiberKey)) : null
+                  return <li key={index}><div><span>{step.kind === 'cable' ? 'Kabel' : step.kind === 'splitter' ? 'Splitter'
+                    : step.kind === 'patch' ? 'Propojka' : step.kind === 'premise' ? 'HP' : 'Spoj'}</span>
+                    <strong>{step.label}</strong>{fiberKey && <small className="fiber-path-status">{assignment
+                      ? `${assignment.status === 'used' ? 'Obsazeno' : 'Rezervováno'}: ${assignment.label}` : 'Volné pro službu'}</small>}</div>
+                    {step.routeId && <button type="button" className="move-button" onClick={() => onOpenRoute(step.routeId!)}>Ukázat na mapě</button>}
+                  </li>
+                })}</ol></>}
               {path.routeIds.length > 0 && <p>Počet zvýrazněných úseků na mapě: {path.routeIds.length}</p>}
+              {path.routeIds.length > 0 && <button type="button" className="move-button" onClick={onViewMap}>Zobrazit celou cestu na mapě</button>}
               {path.status === 'connected' && <button type="button" className="move-button"
                 onClick={() => onBudget(path)}>Přenést do kalkulačky</button>}
             </div>}</>}
