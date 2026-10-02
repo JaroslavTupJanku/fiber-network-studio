@@ -1,6 +1,13 @@
 import type { Coordinates, NetworkPoint } from './networkPoints'
 
+export type RouteKind = 'underground' | 'aerial'
+export const routeKind = (route: { kind?: RouteKind }) => route.kind ?? 'underground'
+export const routeKindLabel = (route: { kind?: RouteKind }) => routeKind(route) === 'aerial' ? 'Nadzemní trasa' : 'Podzemní trasa'
+export const acceptsRouteEndpoint = (route: { kind?: RouteKind }, point: NetworkPoint) =>
+  routeKind(route) !== 'aerial' || point.kind === 'building' || point.kind === 'pole'
+
 export type UndergroundRouteInput = {
+  kind?: RouteKind
   name: string
   startPointId: string | null
   endPointId: string | null
@@ -16,7 +23,30 @@ export type UndergroundRoute = Omit<UndergroundRouteInput, 'startPointId' | 'end
 export type RouteDraft = UndergroundRouteInput & { id?: string }
 export type RouteSplitPosition = { segmentIndex: number; fraction: number; location: Coordinates }
 export type RouteSplitOutcome = { chamber: NetworkPoint; firstRoute: UndergroundRoute;
-  secondRoute: UndergroundRoute }
+  secondRoute: UndergroundRoute; addedPoints: NetworkPoint[]; routes: UndergroundRoute[] }
+export type AerialSplitOptions = { poleCount: number } | { maxSpanMeters: number }
+
+export function aerialSplitPreview(route: UndergroundRoute, points: NetworkPoint[], options: AerialSplitOptions):
+  { positions: Coordinates[]; spanMeters: number } | null {
+  if (routeKind(route) !== 'aerial') return null
+  const vertices = routeCoordinates(route, points)
+  if (vertices.length < 2) return null
+  const lengths = vertices.slice(1).map((vertex, index) => routeLengthMeters([vertices[index], vertex]))
+  const total = lengths.reduce((sum, length) => sum + length, 0)
+  const count = 'poleCount' in options ? options.poleCount : Math.ceil(total / options.maxSpanMeters) - 1
+  if ('maxSpanMeters' in options && (!Number.isFinite(options.maxSpanMeters) || options.maxSpanMeters < 2)
+    || !Number.isInteger(count) || count < 1 || count > 100 || total / (count + 1) < 2) return null
+  const spanMeters = total / (count + 1)
+  const positions = Array.from({ length: count }, (_, index) => {
+    const distance = (index + 1) * spanMeters
+    let walked = 0; let segment = 0
+    while (segment < lengths.length - 1 && walked + lengths[segment] < distance) walked += lengths[segment++]
+    const fraction = lengths[segment] > 0 ? (distance - walked) / lengths[segment] : 0
+    return { latitude: vertices[segment].latitude + (vertices[segment + 1].latitude - vertices[segment].latitude) * fraction,
+      longitude: vertices[segment].longitude + (vertices[segment + 1].longitude - vertices[segment].longitude) * fraction }
+  })
+  return { positions, spanMeters }
+}
 
 export function routeSplitPosition(route: UndergroundRoute, points: NetworkPoint[],
   segmentIndex: number, fraction: number): RouteSplitPosition | null {
@@ -139,16 +169,17 @@ export async function saveUndergroundRoute(route: RouteDraft): Promise<Undergrou
     method: route.id ? 'PUT' : 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: route.name.trim(), startPointId: route.startPointId,
-      endPointId: route.endPointId, waypoints: route.waypoints }),
+      endPointId: route.endPointId, waypoints: route.waypoints, kind: routeKind(route) }),
   }))).json()
 }
 
 export async function splitUndergroundRoute(route: UndergroundRoute, installationVersion: number,
-  position: RouteSplitPosition, chamberName: string): Promise<RouteSplitOutcome> {
+  position: RouteSplitPosition | null, chamberName: string, options?: AerialSplitOptions): Promise<RouteSplitOutcome> {
   return (await expectOk(await fetch(`/api/underground-routes/${route.id}/split`, {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ expectedRoute: route, installationVersion,
-      segmentIndex: position.segmentIndex, fraction: position.fraction, chamberName: chamberName.trim() }),
+      segmentIndex: position?.segmentIndex ?? 0, fraction: position?.fraction ?? 0,
+      chamberName: chamberName.trim(), ...options }),
   }))).json()
 }
 

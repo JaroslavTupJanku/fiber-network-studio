@@ -37,8 +37,10 @@ export async function downloadMapPng(snapshot: Extract<MapSnapshot, { image: str
     18, mapHeight + 46, snapshot.widthCss - 36)
   const legend = [
     { label: 'Budova', color: '#24796d', line: false }, { label: 'Šachta', color: '#b8613e', line: false },
+    { label: 'Sloup', color: '#75529c', line: false },
     { label: 'Trasa bez osazení', color: '#b8613e', line: true },
     { label: 'Chránička', color: '#26766b', line: true }, { label: 'Optický kabel', color: '#2d6f9f', line: true },
+    { label: 'Nadzemní', color: '#24453d', line: true, dashed: true },
   ]
   let x = 18
   let legendY = mapHeight + 65
@@ -47,7 +49,12 @@ export async function downloadMapPng(snapshot: Extract<MapSnapshot, { image: str
     const needed = context.measureText(item.label).width + (item.line ? 46 : 41)
     if (x + needed > snapshot.widthCss - 18 && x > 18) { x = 18; legendY += 18 }
     context.fillStyle = item.color
-    if (item.line) context.fillRect(x, legendY, 20, 4)
+    if (item.line) {
+      context.strokeStyle = item.color; context.lineWidth = 3
+      context.setLineDash(item.dashed ? [5, 3] : [])
+      context.beginPath(); context.moveTo(x, legendY + 2); context.lineTo(x + 20, legendY + 2); context.stroke()
+      context.setLineDash([])
+    }
     else { context.beginPath(); context.arc(x + 8, legendY + 2, 7, 0, Math.PI * 2); context.fill() }
     x += item.line ? 26 : 21
     context.fillStyle = '#24453d'; context.fillText(item.label, x, legendY + 5)

@@ -4,7 +4,7 @@ namespace FiberNetworkStudio.Api.UndergroundRoutes;
 
 public sealed record RouteVertex(double Latitude, double Longitude);
 public sealed record UndergroundRoute(Guid Id, string Name, Guid StartPointId, Guid EndPointId,
-    List<RouteVertex> Waypoints);
+    List<RouteVertex> Waypoints, string Kind = "underground");
 
 public sealed class UndergroundRouteStore(string path)
 {

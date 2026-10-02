@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { ArrowLeft, Building2, Cable, ChevronDown, CircleDot, Copy, Crosshair, FileDown, House, MapPin, Network, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, Users, X } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { ArrowLeft, Building2, Cable, ChevronDown, CircleDot, UtilityPole, Copy, Crosshair, FileDown, House, MapPin, Network, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, Users, X } from 'lucide-react'
 import { CustomerQuickPanel } from '../customers/CustomerQuickPanel'
 import { MapCanvas, type MapSnapshot } from './MapCanvas'
 import { NetworkExportDialog } from './NetworkExportDialog'
@@ -18,10 +18,10 @@ import { installationSummary } from './routeInstallations'
 import { useRouteInstallations } from './useRouteInstallations'
 import { useMapWorkspace } from './useMapWorkspace'
 import type { NetworkPoint, NetworkPointKind } from './networkPoints'
-import { routeCoordinates, routeLengthMeters, splitUndergroundRoute, type RouteSplitPosition } from './undergroundRoutes'
+import { aerialSplitPreview, type AerialSplitOptions, routeKind, routeKindLabel, acceptsRouteEndpoint, routeCoordinates, routeLengthMeters, splitUndergroundRoute, type RouteSplitPosition } from './undergroundRoutes'
 import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
 
-const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : 'Šachta'
+const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : kind === 'pole' ? 'Sloup' : 'Šachta'
 const pointKindLabel = (point: Pick<NetworkPoint, 'kind' | 'buildingType'>) =>
   point.kind === 'building' && point.buildingType === 'apartment' ? 'Bytový dům' : kindLabel(point.kind)
 const countLabel = (count: number, one: string, few: string, many: string) =>
@@ -55,10 +55,13 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
     return () => { live = false }
   }, [])
   const [routeTab, setRouteTab] = useState<'installations' | 'route'>('installations')
-  const [expandedLists, setExpandedLists] = useState({ building: true, chamber: true, route: true })
+  const [expandedLists, setExpandedLists] = useState({ building: true, chamber: true, pole: true, route: true })
   const [splitActive, setSplitActive] = useState(false)
   const [splitSelection, setSplitSelection] = useState<RouteSplitPosition | null>(null)
   const [splitName, setSplitName] = useState('')
+  const [splitMode, setSplitMode] = useState<'map' | 'count' | 'distance'>('map')
+  const [splitCount, setSplitCount] = useState(2)
+  const [splitDistance, setSplitDistance] = useState(50)
   const [splitBusy, setSplitBusy] = useState(false)
   const [splitError, setSplitError] = useState('')
   const detailsPanelRef = useRef<HTMLElement>(null)
@@ -78,7 +81,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
   const {
     points, loading, loadError, actionError, saving, activeTool, moving, editor, route,
     selectedLocation, selectedParcel, parcelStatus, query, visiblePoints,
-    buildings, chambers, preview, setQuery, setEditor, setSelectedLocation,
+    buildings, chambers, poles, preview, setQuery, setEditor, setSelectedLocation,
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,
     clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect, handleRouteEdit,
     handleLocationClick, handlePointSelect, relocatePoint,
@@ -110,6 +113,12 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
     lastRouteId.current = id
   }, [routeDraft?.id])
   const selectedSavedRoute = routeDraft?.id ? route.routes.find(item => item.id === routeDraft.id) : null
+  const splitOptions = useMemo<AerialSplitOptions | undefined>(() => splitMode === 'count' ? { poleCount: splitCount }
+    : splitMode === 'distance' ? { maxSpanMeters: splitDistance } : undefined, [splitMode, splitCount, splitDistance])
+  const uniformPreview = useMemo(() => selectedSavedRoute && splitOptions
+    ? aerialSplitPreview(selectedSavedRoute, points, splitOptions) : null,
+    [selectedSavedRoute, points, splitOptions])
+  const splitValid = splitMode === 'map' ? !!splitSelection : !!uniformPreview
   const activeRouteTab = route.drawing || splitActive ? 'route' : routeTab
   const installations = useRouteInstallations(routeDraft?.id ?? null)
   const installationByRoute = new Map(installations.documents.map(document => [document.routeId, document]))
@@ -168,21 +177,21 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
       return
     }
     setSplitActive(true)
+    setSplitMode('map')
     setSplitSelection(null)
-    setSplitName('Nová šachta')
+    setSplitName(routeKind(selectedSavedRoute) === 'aerial' ? 'Nový sloup' : 'Nová šachta')
     setSplitError('')
     selectRouteTab('route')
   }
   const cancelSplit = () => { setSplitActive(false); setSplitSelection(null); setSplitError('') }
   const finishSplit = async () => {
-    if (!selectedSavedRoute || !splitSelection || !splitName.trim() || splitBusy) return
+    if (!selectedSavedRoute || !splitValid || !splitName.trim() || splitBusy) return
     setSplitBusy(true)
     setSplitError('')
     try {
       const outcome = await splitUndergroundRoute(selectedSavedRoute, installations.document.version,
-        splitSelection, splitName)
-      route.setRoutes(current => [...current.map(item => item.id === outcome.firstRoute.id ? outcome.firstRoute : item),
-        outcome.secondRoute])
+        splitSelection, splitName, splitOptions)
+      route.setRoutes(current => [...current.filter(item => item.id !== selectedSavedRoute.id), ...outcome.routes])
       route.setDraft({ ...outcome.firstRoute })
       setReloadVersion(value => value + 1)
       installations.refresh()
@@ -223,6 +232,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
   const filteredRoutes = route.visibleRoutes.filter(item => item.name.toLocaleLowerCase('cs').includes(query.toLocaleLowerCase('cs')))
   const visibleBuildings = visiblePoints.filter(point => point.kind === 'building')
   const visibleChambers = visiblePoints.filter(point => point.kind === 'chamber')
+  const visiblePoles = visiblePoints.filter(point => point.kind === 'pole')
 
   return (
     <main className={`workspace${panelOpen ? '' : ' panel-collapsed'}`} hidden={!active}>
@@ -244,14 +254,15 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           routePaused={route.drawing && Boolean(activeTool)}
           routeError={route.error}
           routeSplitActive={splitActive}
-          routeSplitSelection={splitSelection}
-          onRouteSplitPick={setSplitSelection}
+          routeSplitSelection={splitMode === 'map' ? splitSelection : null}
+          routeSplitPreview={splitActive ? uniformPreview?.positions ?? [] : []}
+          onRouteSplitPick={position => { if (splitMode === 'map') setSplitSelection(position) }}
           onRouteSplitCancel={cancelSplit}
           routeBuildingCrossings={route.buildingCrossings}
           routeNearbyBuildings={route.nearbyBuildings}
           routeCheckingBuildings={route.checkingBuildings}
           pointMoveError={actionError}
-          onRouteToolChange={() => { selectRouteTab('route'); handleRouteToolChange() }}
+          onRouteToolChange={kind => { selectRouteTab('route'); handleRouteToolChange(kind) }}
           onRouteSelect={selectSavedRoute}
           onRouteEdit={editSavedRoute}
           onRouteWaypointInsert={route.insertWaypoint}
@@ -303,8 +314,8 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             {(editor || selectedLocation || routeDraft) && <button className="panel-back-button" type="button" onClick={backFromDetail}>
               <ArrowLeft size={16} aria-hidden="true" /> {editor && route.drawing ? 'Zpět k trase' : route.drawing && routeDraft?.id ? 'Zpět k trase' : 'Zpět na přehled'}
             </button>}
-            <span className="section-label">{editor && route.drawing ? 'Přidat během kreslení' : routeDraft?.id && !editor ? 'Podzemní trasa' : selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
-            <h1>{editor ? editor.id ? pointKindLabel(editor) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : routeDraft ? routeDraft.id ? routeDraft.name || 'Podzemní trasa' : 'Nová podzemní trasa' : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
+            <span className="section-label">{editor && route.drawing ? 'Přidat během kreslení' : routeDraft?.id && !editor ? routeKindLabel(routeDraft) : selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
+            <h1>{editor ? editor.id ? pointKindLabel(editor) : editor.kind === 'pole' ? 'Nový sloup' : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : routeDraft ? routeDraft.id ? routeDraft.name || routeKindLabel(routeDraft) : `Nová ${routeKind(routeDraft) === 'aerial' ? 'nadzemní' : 'podzemní'} trasa` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
           </div>
           <button type="button" className="panel-export-button move-button" title="Tisk a export mapy, schémat a přehledů"
             onClick={() => { setMapSnapshot(null); setSnapshotRequest(value => value + 1); setExportOpen(true) }}>
@@ -313,6 +324,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
 
         {!routeDraft && <div className="point-counts" aria-label="Počet objektů">
           <span><House size={15} aria-hidden="true" /> Budovy <strong>{buildings}</strong></span>
+          <span><UtilityPole size={15} aria-hidden="true" /> Sloupy <strong>{poles}</strong></span>
           <span><CircleDot size={15} aria-hidden="true" /> Šachty <strong>{chambers}</strong></span>
           <span><RouteIcon size={15} aria-hidden="true" /> Trasy <strong>{route.routes.length}</strong></span>
         </div>}
@@ -346,7 +358,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               <RouteIcon size={14} /> Navázat od konce
             </button></div>}
           </div>
-          <div className="route-detail-tabs" role="tablist" aria-label="Detail podzemní trasy" onKeyDown={handleRouteTabKeyDown}>
+          <div className="route-detail-tabs" role="tablist" aria-label="Detail trasy sítě" onKeyDown={handleRouteTabKeyDown}>
             <button type="button" id="route-tab-installations" role="tab" aria-controls="route-panel-installations"
               aria-selected={activeRouteTab === 'installations'} tabIndex={activeRouteTab === 'installations' ? 0 : -1}
               disabled={route.drawing || splitActive} onClick={() => selectRouteTab('installations')}>Osazení</button>
@@ -365,30 +377,30 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           <div className="route-tab-panel" id={selectedSavedRoute ? 'route-panel-route' : undefined}
             role={selectedSavedRoute ? 'tabpanel' : undefined} aria-labelledby={selectedSavedRoute ? 'route-tab-route' : undefined}
             hidden={!!selectedSavedRoute && activeRouteTab !== 'route'}>
-          <form className="point-form route-form" onSubmit={route.save}>
-            {routeDraft.id && <h2 className="route-detail-title">Údaje trasy</h2>}
+          <form className="point-form route-form" onSubmit={event => { if (splitActive || splitBusy) event.preventDefault(); else void route.save(event) }}>
+            {routeDraft.id && <h2 className="route-detail-title">{routeKindLabel(routeDraft)}</h2>}
             <p className="route-help">{route.drawing
               ? routeDraft.endPointId
-                ? 'Kliknutím na úsek přidáte lomový bod. Bod můžete přetáhnout nebo kliknutím vybrat k odebrání (funguje i Delete). Budovu či šachtu také přesunete tažením. Potom úpravu dokončete a uložte.'
+                ? 'Kliknutím na úsek přidáte lomový bod. Bod můžete přetáhnout nebo kliknutím vybrat k odebrání (funguje i Delete). Síťový objekt také přesunete tažením. Potom úpravu dokončete a uložte.'
                 : routeDraft.startPointId
-                ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další budovu nebo šachtu v mapě; kliknutím mimo objekty přidáte lomový bod.`
-                : 'Klikněte na výchozí budovu nebo šachtu v mapě. Konec můžete vybrat i v polích níže.'
+                ? `Trasa začíná v objektu ${pointName(routeDraft.startPointId)}. Klikněte na další vhodný objekt v mapě; kliknutím mimo objekty přidáte lomový bod.`
+                : 'Klikněte na výchozí síťový objekt v mapě. Konec můžete vybrat i v polích níže.'
               : routeDraft.id
-                ? 'Trasa v mapě ukazuje průběh podzemního vedení mezi dvěma body. Chráničky a kabely najdete na záložce Osazení; svary patří do spojky v šachtě.'
+                ? routeKind(routeDraft) === 'aerial' ? 'Nadzemní vedení mezi budovami a sloupy. Kabel vložte přímo v záložce Osazení; spojku lze evidovat na sloupu.' : 'Trasa v mapě ukazuje průběh podzemního vedení mezi dvěma body. Chráničky a kabely najdete na záložce Osazení; svary patří do spojky v šachtě.'
                 : 'Trasa spojuje dva body sítě. Nejdřív ji uložte, potom do ní můžete vložit chráničky a kabely.'}</p>
             {route.drawing ? <div className="route-endpoint-fields">
               <label htmlFor="route-start">Začátek trasy
                 <select id="route-start" value={routeDraft.startPointId ?? ''}
                   onChange={event => route.setEndpoint('startPointId', event.target.value || null)}>
                   <option value="">Vyberte objekt</option>
-                  {endpointPoints.map(point => <option key={point.id} value={point.id} disabled={point.id === routeDraft.endPointId}>{point.name} · {kindLabel(point.kind)}</option>)}
+                  {endpointPoints.filter(point => acceptsRouteEndpoint(routeDraft, point)).map(point => <option key={point.id} value={point.id} disabled={point.id === routeDraft.endPointId}>{point.name} · {kindLabel(point.kind)}</option>)}
                 </select>
               </label>
               <label htmlFor="route-end">Konec trasy
                 <select id="route-end" value={routeDraft.endPointId ?? ''}
                   onChange={event => route.setEndpoint('endPointId', event.target.value || null)}>
                   <option value="">Vyberte objekt</option>
-                  {endpointPoints.map(point => <option key={point.id} value={point.id} disabled={point.id === routeDraft.startPointId}>{point.name} · {kindLabel(point.kind)}</option>)}
+                  {endpointPoints.filter(point => acceptsRouteEndpoint(routeDraft, point)).map(point => <option key={point.id} value={point.id} disabled={point.id === routeDraft.startPointId}>{point.name} · {kindLabel(point.kind)}</option>)}
                 </select>
               </label>
             </div> : <div className="route-endpoints">
@@ -397,7 +409,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             </div>}
             {selectedSavedRoute && !route.drawing && <div className="route-continuation">
               <strong>Navázat další úsek</strong>
-              <p>Každý úsek spojuje dva objekty. Chcete-li vést trasu přes šachtu dál, začněte nový úsek z jejího bodu. Osazení nového úseku pak navážete zvlášť.</p>
+              <p>Každý úsek spojuje dva objekty. Chcete-li vést trasu přes další objekt, začněte nový úsek z jejího bodu. Osazení nového úseku pak navážete zvlášť.</p>
               <div className="route-continuation-actions">
                 <button type="button" className="move-button" disabled={route.saving}
                   onClick={() => beginRouteContinuation(selectedSavedRoute.startPointId)}>
@@ -410,43 +422,64 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               </div>
             </div>}
             {selectedSavedRoute && !route.drawing && <div className="route-split-card">
-              <strong>Vložit šachtu do této trasy</strong>
-              <p>Vyberte místo přímo na trase. Vzniknou dva navazující úseky; průchozí chráničky a kabely zůstanou propojené.</p>
+              <strong>{routeKind(routeDraft) === 'aerial' ? 'Vložit sloup do této trasy' : 'Vložit šachtu do této trasy'}</strong>
+              <p>{routeKind(routeDraft) === 'aerial' ? 'Zvolte jedno místo nebo rovnoměrné rozmístění sloupů. Náhled ukáže nové pozice před potvrzením. Kabel zůstane průchozí.' : 'Vyberte místo přímo na trase. Vzniknou dva navazující úseky; průchozí chráničky a kabely zůstanou propojené.'}</p>
               {!splitActive ? <button type="button" className="move-button" disabled={route.saving || splitBusy}
-                onClick={beginSplit}><MapPin size={16} /> Vybrat místo na mapě</button> : <>
-                <label htmlFor="split-chamber-name">Název nové šachty</label>
-                <input id="split-chamber-name" maxLength={80} value={splitName}
+                onClick={beginSplit}><MapPin size={16} /> {routeKind(routeDraft) === 'aerial' ? 'Vložit sloupy…' : 'Vybrat místo na mapě'}</button> : <>
+                {routeKind(routeDraft) === 'aerial' && <>
+                  <label htmlFor="split-mode">Jak rozmístit sloupy</label>
+                  <select id="split-mode" value={splitMode} disabled={splitBusy}
+                    onChange={event => { setSplitMode(event.target.value as typeof splitMode); setSplitError('') }}>
+                    <option value="map">Jeden sloup kliknutím na mapu</option>
+                    <option value="count">Rovnoměrně podle počtu sloupů</option>
+                    <option value="distance">Rovnoměrně podle největší rozteče</option>
+                  </select>
+                  {splitMode === 'count' && <label>Počet nových sloupů
+                    <input type="number" min={1} max={100} step={1} value={splitCount} disabled={splitBusy}
+                      onChange={event => setSplitCount(Number(event.target.value))} /></label>}
+                  {splitMode === 'distance' && <label>Největší rozteč v mapě (m)
+                    <input type="number" min={2} step="any" value={splitDistance} disabled={splitBusy}
+                      onChange={event => setSplitDistance(Number(event.target.value))} /></label>}
+                  {splitMode !== 'map' && (uniformPreview
+                    ? <p role="status">Náhled: {uniformPreview.positions.length} nových sloupů,
+                      {' '}{uniformPreview.positions.length + 1} úseků, rozteč přibližně {uniformPreview.spanMeters.toFixed(1)} m.
+                      Pozice jsou vyznačené v mapě. Potvrďte až po jejich kontrole.</p>
+                    : <p className="form-error" role="alert">Zvolte 1–100 sloupů s roztečí alespoň 2 m;
+                      rozteč musí být menší než délka trasy.</p>)}
+                </>}
+                <label htmlFor="split-chamber-name">{routeKind(routeDraft) === 'aerial' ? 'Název nového sloupu' : 'Název nové šachty'}</label>
+                <input id="split-chamber-name" maxLength={80} disabled={splitBusy} value={splitName}
                   onChange={event => setSplitName(event.target.value)}
                   onKeyDown={event => { if (event.key === 'Enter') { event.preventDefault(); void finishSplit() } }} />
-                {splitSelection ? <p>Vybrané místo: {splitSelection.location.latitude.toFixed(6)}°,
+                {splitMode === 'map' && (splitSelection ? <p>Vybrané místo: {splitSelection.location.latitude.toFixed(6)}°,
                   {' '}{splitSelection.location.longitude.toFixed(6)}°. Kliknutím na trasu ho můžete změnit.</p>
-                  : <p className="route-help">Klikněte na některý úsek vybrané trasy v mapě.</p>}
+                  : <p className="route-help">Klikněte na některý úsek vybrané trasy v mapě.</p>)}
                 {installations.document.items.some(item => item.cable?.name && item.actualLengthMeters != null)
                   && <p className="route-help">Původní délka kabelu zůstane v evidenci jako údaj před rozdělením.
                     Délky nových úseků bude potřeba doplnit zvlášť.</p>}
                 {splitError && <p className="form-error" role="alert">{splitError}</p>}
                 <div className="route-continuation-actions">
-                  <button type="button" className="primary-button" disabled={!splitSelection || !splitName.trim() || splitBusy}
-                    onClick={() => void finishSplit()}>{splitBusy ? 'Rozděluji…' : 'Vložit šachtu a rozdělit'}</button>
+                  <button type="button" className="primary-button" disabled={!splitValid || !splitName.trim() || splitBusy}
+                    onClick={() => void finishSplit()}>{splitBusy ? 'Rozděluji…' : routeKind(routeDraft) === 'aerial' ? 'Potvrdit sloupy a rozdělit' : 'Vložit šachtu a rozdělit'}</button>
                   <button type="button" className="move-button" disabled={splitBusy} onClick={cancelSplit}>Zrušit</button>
                 </div>
               </>}
               {!splitActive && splitError && <p className="form-error" role="alert">{splitError}</p>}
             </div>}
-            {routeLength !== null && <p className="route-length">Přibližná délka z mapy: <strong>{Math.round(routeLength).toLocaleString('cs-CZ')} m</strong><small>Není to délka instalovaného kabelu.</small></p>}
+            {routeLength !== null && <p className="route-length">Přibližná délka z mapy: <strong>{Math.round(routeLength).toLocaleString('cs-CZ')} m</strong><small>{routeKind(routeDraft) === 'aerial' ? 'Skutečná délka kabelu zahrnuje průvěs a rezervy; doplňte ji u kabelu.' : 'Není to délka instalovaného kabelu.'}</small></p>}
             {route.drawing && <>
               <div className="route-drawing-actions">
                 <button type="button" className="move-button" onClick={route.undo} disabled={!routeDraft.startPointId}><Undo2 size={16} /> Zpět</button>
                 <button type="button" className="move-button" onClick={route.resetGeometry}>Začít znovu</button>
               </div>
-              <p className="route-help">Klikněte nebo táhněte přímo za úsek trasy. Lomový bod můžete později znovu přetáhnout; mění jen průběh trasy, není samostatným objektem sítě. Dotčené budovy se při úpravě zvýrazní červeně. Při dokončení průchod znovu ověříme podle RÚIAN.</p>
+              <p className="route-help">Klikněte nebo táhněte přímo za úsek trasy. Lomový bod můžete později znovu přetáhnout; mění jen průběh trasy, není samostatným objektem sítě. {routeKind(routeDraft) === 'aerial' ? 'Lom nenahrazuje sloup. Mapová čára neověřuje průvěs, výšku zavěšení ani únosnost.' : 'Dotčené budovy se při úpravě zvýrazní červeně. Při dokončení průchod znovu ověříme podle RÚIAN.'}</p>
               {routeDraft.waypoints.length > 0 && <div className="route-waypoints"><strong>Lomové body</strong>{routeDraft.waypoints.map((point, index) =>
                 <div key={index}><span>{index + 1}. {point.latitude.toFixed(5)}, {point.longitude.toFixed(5)}</span>
                   <button type="button" className="icon-button" onClick={() => route.removeWaypoint(index)} aria-label={`Odebrat lomový bod ${index + 1}`}><X size={14} /></button></div>)}</div>}
               <button type="button" className="primary-button" onClick={route.finish} disabled={!routeDraft.endPointId}>Dokončit kreslení</button>
             </>}
             <label htmlFor="route-name">Název trasy</label>
-            <input id="route-name" maxLength={80} required value={routeDraft.name}
+            <input id="route-name" maxLength={80} required disabled={splitActive || splitBusy} value={routeDraft.name}
               onChange={event => route.setDraft(current => current ? { ...current, name: event.target.value } : current)}
               onKeyDown={event => acceptExampleOnArrowRight(event, name => route.setDraft(current => current ? { ...current, name } : current))}
               title="Šipka doprava převezme šedý příklad"
@@ -467,7 +500,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             <label htmlFor="point-name">Název</label>
             <input id="point-name" autoFocus required maxLength={80} value={editor.name} onChange={(event) => setEditor({ ...editor, name: event.target.value })}
               onKeyDown={event => acceptExampleOnArrowRight(event, name => setEditor(current => current ? { ...current, name } : current))}
-              title="Šipka doprava převezme šedý příklad" placeholder={editor.kind === 'building' ? 'Např. Dům 12' : 'Např. Šachta S-01'} />
+              title="Šipka doprava převezme šedý příklad" placeholder={editor.kind === 'building' ? 'Např. Dům 12' : editor.kind === 'pole' ? 'Např. Sloup P-01' : 'Např. Šachta S-01'} />
             <div className="point-kind">{editor.kind === 'building' && editor.buildingType === 'apartment'
               ? <Building2 size={16} aria-hidden="true" /> : <span className={`kind-dot ${editor.kind}`} />}{pointKindLabel(editor)}</div>
             {editor.kind === 'building' && <label className="building-type-field" htmlFor="building-type">Typ budovy
@@ -509,19 +542,19 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               <div className="chamber-splice-actions"><button type="button" className="move-button" onClick={() => setDistributionOpen(true)}>
                 {selectedDistribution ? 'Otevřít rozvod' : 'Navrhnout domovní rozvod'}</button></div>
             </section>}
-            {editor.id && editor.kind === 'chamber' && <section className="chamber-splice-card" aria-labelledby="chamber-splice-heading">
+            {editor.id && (editor.kind === 'chamber' || editor.kind === 'pole') && <section className="chamber-splice-card" aria-labelledby="chamber-splice-heading">
               <div className="chamber-splice-heading">
                 <span className="chamber-splice-icon"><Cable size={17} aria-hidden="true" /></span>
                 <div><h2 id="chamber-splice-heading">Optická spojka</h2>
-                  <p>{selectedSplice?.name ?? (splicesLoadError ? 'Údaje se nenačetly' : 'V šachtě zatím není evidována')}</p></div>
+                  <p>{selectedSplice?.name ?? (splicesLoadError ? 'Údaje se nenačetly' : 'U objektu zatím není evidována')}</p></div>
                 {selectedSplice && <p className="chamber-splice-count">{spliceConnectionsLabel}</p>}
               </div>
               <div className="chamber-splice-actions">
                 <button type="button" className="move-button" onClick={() => setSpliceOpen(true)}>
                   {selectedSplice ? 'Otevřít spojku' : splicesLoadError ? 'Zkusit otevřít spojku' : 'Přidat spojku'}
                 </button>
-                <details className="chamber-splice-help"><summary>Co je spojka v šachtě?</summary>
-                  <p>Šachta je přístupný podzemní prostor. Kabel jí může jen procházet; spojka je samostatné pouzdro pro propojení vláken.</p>
+                <details className="chamber-splice-help"><summary>Co je optická spojka?</summary>
+                  <p>Kabel může objektem jen procházet; spojka je samostatné pouzdro pro propojení vláken v šachtě nebo na sloupu.</p>
                 </details>
               </div>
             </section>}
@@ -556,12 +589,13 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           <div className="point-list">
             <label className="search-field"><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => {
               setQuery(event.target.value)
-              if (event.target.value.trim()) setExpandedLists({ building: true, chamber: true, route: true })
+              if (event.target.value.trim()) setExpandedLists({ building: true, chamber: true, pole: true, route: true })
             }} placeholder="Hledat objekt nebo trasu" aria-label="Hledat objekt nebo trasu" /></label>
             {loading ? <p className="empty-selection">Načítání objektů…</p> : query && visiblePoints.length + filteredRoutes.length === 0
               ? <p className="empty-selection">Nic nenalezeno.</p> : <>
               {([{ key: 'building', title: 'Budovy', items: visibleBuildings },
-                { key: 'chamber', title: 'Šachty', items: visibleChambers }] as const).map(group => {
+                { key: 'chamber', title: 'Šachty', items: visibleChambers },
+                { key: 'pole', title: 'Sloupy', items: visiblePoles }] as const).map(group => {
                 const expanded = expandedLists[group.key]
                 return (!query || group.items.length > 0) && <section className="network-list-group" key={group.key}>
                   <button type="button" className="network-list-toggle" aria-expanded={expanded}
@@ -570,7 +604,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
                     <ChevronDown size={16} className={expanded ? 'open' : ''} aria-hidden="true" />
                   </button>
                   <div id={`network-list-${group.key}`} className="network-list-content" hidden={!expanded}>
-                    {group.items.length === 0 ? <p className="network-list-empty">Zatím žádné {group.key === 'building' ? 'budovy' : 'šachty'}.</p>
+                    {group.items.length === 0 ? <p className="network-list-empty">Zatím žádné {group.key === 'building' ? 'budovy' : group.key === 'pole' ? 'sloupy' : 'šachty'}.</p>
                       : <ul>{group.items.map(point => <li key={point.id}><button type="button" className={mapHoveredPointId === point.id ? 'map-linked-hover' : undefined}
                         onMouseEnter={() => setListHoveredPointId(point.id)} onMouseLeave={() => setListHoveredPointId(null)}
                         onFocus={() => setListHoveredPointId(point.id)} onBlur={() => setListHoveredPointId(null)}
@@ -583,7 +617,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               {(!query || filteredRoutes.length > 0) && <section className="network-list-group route-list">
                 <button type="button" className="network-list-toggle" aria-expanded={expandedLists.route}
                   aria-controls="network-list-route" onClick={() => setExpandedLists(current => ({ ...current, route: !current.route }))}>
-                  <span>Podzemní trasy</span><span className="network-list-count">{filteredRoutes.length}</span>
+                  <span>Trasy sítě</span><span className="network-list-count">{filteredRoutes.length}</span>
                   <ChevronDown size={16} className={expandedLists.route ? 'open' : ''} aria-hidden="true" />
                 </button>
                 <div id="network-list-route" className="network-list-content" hidden={!expandedLists.route}>
@@ -598,9 +632,9 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
                   setListHoveredRouteId(null)
                   selectSavedRoute(item.id)
                   setRouteFocusRequest(current => ({ id: item.id, sequence: (current?.sequence ?? 0) + 1 }))
-                }}><RouteIcon className={`route-list-icon ${status}`} size={17} /><span className="route-list-text"><strong>{item.name}</strong><small>
+                }}><RouteIcon className={`route-list-icon ${status}`} size={17} /><span className="route-list-text"><strong>{item.name}</strong><small>{routeKindLabel(item)} ·
                   {installations.loading ? 'Načítání osazení…' : installations.loadFailed ? 'Osazení se nenačetlo'
-                    : summary.items ? `Chráničky, trubičky a sestavy ${summary.ducts} · kabely ${summary.cables}` : 'Bez osazení'}
+                    : summary.items ? routeKind(item) === 'aerial' ? `Optické kabely ${summary.cables}` : `Chráničky, trubičky a sestavy ${summary.ducts} · kabely ${summary.cables}` : 'Bez osazení'}
                 </small></span></button></li>
                     })}</ul>}
                 </div>
@@ -616,7 +650,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           onOpenCustomers={onOpenCustomers} />
         </div>
       </aside>
-      {spliceOpen && editor?.id && editor.kind === 'chamber' && <OpticalSpliceEditor key={editor.id}
+      {spliceOpen && editor?.id && (editor.kind === 'chamber' || editor.kind === 'pole') && <OpticalSpliceEditor key={editor.id}
         pointId={editor.id} pointName={editor.name}
         pointNames={Object.fromEntries(points.map(point => [point.id, point.name]))} routes={route.routes}
         tracedPath={tracedPath}

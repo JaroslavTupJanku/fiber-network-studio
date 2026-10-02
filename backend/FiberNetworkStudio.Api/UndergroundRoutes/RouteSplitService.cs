@@ -7,9 +7,10 @@ using FiberNetworkStudio.Api.RouteInstallations;
 namespace FiberNetworkStudio.Api.UndergroundRoutes;
 
 public sealed record SplitRouteRequest(UndergroundRoute? ExpectedRoute, int InstallationVersion,
-    int SegmentIndex, double Fraction, string? ChamberName);
+    int SegmentIndex, double Fraction, string? ChamberName, int? PoleCount = null, double? MaxSpanMeters = null);
 public sealed record SplitRouteOutcome(NetworkPoint Chamber, UndergroundRoute FirstRoute,
-    UndergroundRoute SecondRoute, List<RouteInstallationDocument> Installations);
+    UndergroundRoute SecondRoute, List<RouteInstallationDocument> Installations,
+    List<NetworkPoint> AddedPoints, List<UndergroundRoute> Routes);
 public sealed record SplitRouteResult(int Status, SplitRouteOutcome? Outcome, string? Error)
 {
     public static SplitRouteResult Fail(int status, string error) => new(status, null, error);
@@ -38,10 +39,14 @@ public sealed class RouteSplitService(string pointPath, string routePath, string
 
     public async Task<SplitRouteResult> SplitAsync(Guid routeId, SplitRouteRequest request)
     {
+        var uniform = request.PoleCount is not null || request.MaxSpanMeters is not null;
         if (request.ExpectedRoute is null || request.ChamberName is null
             || string.IsNullOrWhiteSpace(request.ChamberName) || request.ChamberName.Trim().Length > 80
-            || !double.IsFinite(request.Fraction) || request.Fraction is < 0.02 or > 0.98)
-            return SplitRouteResult.Fail(400, "Vyberte místo na úseku a název nové šachty.");
+            || !uniform && (!double.IsFinite(request.Fraction) || request.Fraction is < 0.02 or > 0.98)
+            || request.PoleCount is < 1 or > 100
+            || request.PoleCount is not null && request.MaxSpanMeters is not null
+            || request.MaxSpanMeters is double span && (!double.IsFinite(span) || span < 2))
+            return SplitRouteResult.Fail(400, "Vyberte platné dělení trasy a název nového objektu.");
 
         var points = await ReadAsync<List<NetworkPoint>>(pointPath);
         var routes = await ReadAsync<List<UndergroundRoute>>(routePath);
@@ -54,13 +59,16 @@ public sealed class RouteSplitService(string pointPath, string routePath, string
         var expected = request.ExpectedRoute;
         if (expected.Id != original.Id || expected.Name != original.Name
             || expected.StartPointId != original.StartPointId || expected.EndPointId != original.EndPointId
+            || expected.Kind != original.Kind
             || expected.Waypoints is null || !expected.Waypoints.SequenceEqual(original.Waypoints))
             return SplitRouteResult.Fail(409, "Trasa se mezitím změnila. Načtěte ji znovu.");
         var installation = documents.Find(document => document.RouteId == routeId)
             ?? new RouteInstallationDocument(routeId, 0, []);
         if (installation.Version != request.InstallationVersion)
             return SplitRouteResult.Fail(409, "Osazení se mezitím změnilo. Načtěte je znovu.");
-        if (request.SegmentIndex < 0 || request.SegmentIndex > original.Waypoints.Count)
+        if (uniform && original.Kind != "aerial")
+            return SplitRouteResult.Fail(400, "Rovnoměrné dělení je určeno pro nadzemní trasu.");
+        if (!uniform && (request.SegmentIndex < 0 || request.SegmentIndex > original.Waypoints.Count))
             return SplitRouteResult.Fail(400, "Vybrané místo neleží na trase.");
         var start = points.Find(point => point.Id == original.StartPointId);
         var end = points.Find(point => point.Id == original.EndPointId);
@@ -68,42 +76,74 @@ public sealed class RouteSplitService(string pointPath, string routePath, string
             return SplitRouteResult.Fail(409, "Koncový objekt trasy chybí.");
         List<RouteVertex> vertices = [new(start.Latitude, start.Longitude),
             .. original.Waypoints, new(end.Latitude, end.Longitude)];
-        var firstVertex = vertices[request.SegmentIndex];
-        var secondVertex = vertices[request.SegmentIndex + 1];
-        var splitVertex = new RouteVertex(
-            firstVertex.Latitude + (secondVertex.Latitude - firstVertex.Latitude) * request.Fraction,
-            firstVertex.Longitude + (secondVertex.Longitude - firstVertex.Longitude) * request.Fraction);
-        if (DistanceMeters(firstVertex, splitVertex) < 1 || DistanceMeters(splitVertex, secondVertex) < 1)
-            return SplitRouteResult.Fail(400, "Nová šachta je příliš blízko konce úseku. Vyberte místo dál od objektu nebo lomu.");
-
-        var chamber = new NetworkPoint(Guid.NewGuid(), "chamber", request.ChamberName.Trim(),
-            splitVertex.Latitude, splitVertex.Longitude);
-        var secondId = Guid.NewGuid();
-        var firstRoute = original with { EndPointId = chamber.Id,
-            Waypoints = original.Waypoints.Take(request.SegmentIndex).ToList() };
-        var secondRoute = new UndergroundRoute(secondId,
-            (original.Name.Length <= 65 ? original.Name : original.Name[..65]) + " · pokračování",
-            chamber.Id, original.EndPointId, original.Waypoints.Skip(request.SegmentIndex).ToList());
-        var idMap = installation.Items.ToDictionary(item => item.Id, _ => Guid.NewGuid());
-        var firstItems = installation.Items.Select(item => item.Cable is not null
-            && item.ActualLengthMeters is double length
-                ? item with { ActualLengthMeters = null, LengthBeforeSplitMeters = length } : item).ToList();
-        var secondItems = installation.Items.Select(item => item with
+        var lengths = vertices.Zip(vertices.Skip(1), DistanceMeters).ToArray();
+        var totalLength = lengths.Sum();
+        List<double> cuts;
+        if (uniform)
         {
-            Id = idMap[item.Id], RouteId = secondId,
-            ParentId = item.ParentId is Guid parent ? idMap[parent] : null,
-            ActualLengthMeters = null, LengthBeforeSplitMeters = null
-        }).ToList();
-        if (installation.Items.Count > 0)
-        {
-            documents.RemoveAll(document => document.RouteId == routeId);
-            documents.Add(installation with { Version = installation.Version + 1, Items = firstItems });
-            documents.Add(new RouteInstallationDocument(secondId, 1, secondItems));
+            var poleCount = request.PoleCount ?? (int)Math.Min(101, Math.Ceiling(totalLength / request.MaxSpanMeters!.Value) - 1);
+            if (poleCount is < 1 or > 100 || totalLength / (poleCount + 1) < 2)
+                return SplitRouteResult.Fail(400, "Zvolte 1 až 100 sloupů s rozestupem alespoň 2 m. Pro kratší trasu není dělení potřeba.");
+            cuts = Enumerable.Range(1, poleCount).Select(index => totalLength * index / (poleCount + 1)).ToList();
         }
-        points.Add(chamber);
-        routes[routes.IndexOf(original)] = firstRoute;
-        routes.Add(secondRoute);
-        RemapAtOldEnd(original.EndPointId, idMap, splices, equipment, distribution);
+        else
+        {
+            var localLength = lengths[request.SegmentIndex];
+            if (localLength * request.Fraction < 1 || localLength * (1 - request.Fraction) < 1)
+                return SplitRouteResult.Fail(400, "Nový objekt je příliš blízko konce úseku nebo lomu.");
+            cuts = [lengths.Take(request.SegmentIndex).Sum() + localLength * request.Fraction];
+        }
+        var cumulative = new List<double> { 0 };
+        foreach (var length in lengths) cumulative.Add(cumulative[^1] + length);
+        RouteVertex At(double distance)
+        {
+            var index = 0;
+            while (index < lengths.Length - 1 && cumulative[index + 1] < distance) index++;
+            var fraction = lengths[index] > 0 ? (distance - cumulative[index]) / lengths[index] : 0;
+            return new RouteVertex(vertices[index].Latitude + (vertices[index + 1].Latitude - vertices[index].Latitude) * fraction,
+                vertices[index].Longitude + (vertices[index + 1].Longitude - vertices[index].Longitude) * fraction);
+        }
+        var addedPoints = cuts.Select((distance, index) =>
+        {
+            var vertex = At(distance);
+            var name = request.ChamberName.Trim();
+            if (uniform) name = (name.Length > 74 ? name[..74] : name) + $" {index + 1}";
+            return new NetworkPoint(Guid.NewGuid(), original.Kind == "aerial" ? "pole" : "chamber", name,
+                vertex.Latitude, vertex.Longitude);
+        }).ToList();
+        List<Guid> endpointIds = [original.StartPointId, .. addedPoints.Select(point => point.Id), original.EndPointId];
+        List<double> boundaries = [0, .. cuts, totalLength];
+        var splitRoutes = new List<UndergroundRoute>();
+        var installed = new List<RouteInstallationDocument>();
+        Dictionary<Guid, Guid> farEndIds = [];
+        for (var index = 0; index < boundaries.Count - 1; index++)
+        {
+            var id = index == 0 ? original.Id : Guid.NewGuid();
+            var name = index == 0 ? original.Name : (original.Name.Length > 65 ? original.Name[..65] : original.Name) + $" · úsek {index + 1}";
+            var waypoints = original.Waypoints.Where((_, waypointIndex) =>
+                cumulative[waypointIndex + 1] > boundaries[index] + 0.001
+                && cumulative[waypointIndex + 1] < boundaries[index + 1] - 0.001).ToList();
+            splitRoutes.Add(original with { Id = id, Name = name, StartPointId = endpointIds[index],
+                EndPointId = endpointIds[index + 1], Waypoints = waypoints });
+            var ids = installation.Items.ToDictionary(item => item.Id, item => index == 0 ? item.Id : Guid.NewGuid());
+            var items = installation.Items.Select(item => item with
+            {
+                Id = ids[item.Id], RouteId = id,
+                ParentId = item.ParentId is Guid parent ? ids[parent] : null,
+                ActualLengthMeters = item.Cable is not null ? null : item.ActualLengthMeters,
+                LengthBeforeSplitMeters = index == 0 ? item.ActualLengthMeters ?? item.LengthBeforeSplitMeters : null
+            }).ToList();
+            if (items.Count > 0 || index == 0 && documents.Any(document => document.RouteId == routeId))
+                installed.Add(new RouteInstallationDocument(id,
+                index == 0 ? installation.Version + 1 : 1, items));
+            farEndIds = ids;
+        }
+        documents.RemoveAll(document => document.RouteId == routeId);
+        documents.AddRange(installed);
+        points.AddRange(addedPoints);
+        routes.Remove(original);
+        routes.AddRange(splitRoutes);
+        RemapAtOldEnd(original.EndPointId, farEndIds, splices, equipment, distribution);
 
         var writes = new List<PendingWrite>
         {
@@ -112,8 +152,8 @@ public sealed class RouteSplitService(string pointPath, string routePath, string
         };
         await WriteAtomicAsync(journalPath, JsonSerializer.SerializeToUtf8Bytes(writes, JsonOptions));
         await RecoverAsync();
-        return new SplitRouteResult(200, new SplitRouteOutcome(chamber, firstRoute, secondRoute,
-            documents.Where(document => document.RouteId == routeId || document.RouteId == secondId).ToList()), null);
+        return new SplitRouteResult(200, new SplitRouteOutcome(addedPoints[0], splitRoutes[0], splitRoutes[1],
+            installed, addedPoints, splitRoutes), null);
     }
 
     private static void RemapAtOldEnd(Guid endPointId, Dictionary<Guid, Guid> ids,

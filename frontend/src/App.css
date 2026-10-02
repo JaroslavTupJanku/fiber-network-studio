@@ -91,7 +91,7 @@
 .chamber-conduit-notice { display: flex; align-items: center; gap: 7px; margin: 0; color: #256653; font-size: 12px; }
 .chamber-splice-help p { margin: 7px 0 0; }
 .maplibregl-control-container { font-family: inherit; }
-.map-toolbar { position: absolute; top: 12px; left: 12px; z-index: 1; width: 236px; max-height: calc(100% - 24px); overflow-y: auto; border: 1px solid #bfcfca; border-radius: 8px; background: #fff; box-shadow: 0 3px 12px rgb(20 45 38 / 15%); }
+.map-toolbar { position: absolute; top: 12px; left: 12px; z-index: 1; width: 236px; max-height: calc(100% - 96px); overflow-y: auto; border: 1px solid #bfcfca; border-radius: 8px; background: #fff; box-shadow: 0 3px 12px rgb(20 45 38 / 15%); }
 .map-toolbar.collapsed { width: 183px; }
 .map-toolbox-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; width: 100%; min-height: 39px; padding: 9px 11px; border: 0; background: #f7faf8; color: #23483e; font: inherit; font-size: 13px; font-weight: 700; text-align: left; cursor: pointer; }
 .map-toolbox-header:hover { background: #edf5f1; }
@@ -774,7 +774,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
   .details-rail-tabs { grid-template-columns: 1fr 1fr; }
   .details-rail-toggle { flex-direction: row; justify-content: center; min-height: 42px; padding: 7px; border-bottom: 0; writing-mode: horizontal-tb; }
   .details-rail-toggle svg, .details-rail-toggle span { transform: none; }
-  .map-toolbar { top: 10px; left: 10px; max-height: calc(100% - 20px); }
+  .map-toolbar { top: 10px; left: 10px; max-height: calc(100% - 96px); }
   .point-counts { margin: 12px 0; padding-bottom: 12px; }
 }
 @media (max-width: 480px) {
@@ -789,3 +789,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
   .route-guide-actions button:disabled { display: none; }
 }
 @media (max-width: 650px) { .app-shell .app-header { flex-wrap: nowrap; gap: 8px; min-width: 0; overflow: hidden; }.app-brand { flex: none; }.app-brand span { display: none; }.app-shell .workspace-navigation { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }.workspace-navigation::-webkit-scrollbar { display: none; }.workspace-navigation button { flex: none; white-space: nowrap; } }
+
+.point-key.pole, .kind-dot.pole { background: #75529c; }
+.placement-cursor.pole .placement-cursor-figure { background: #f2ebfa; color: #75529c; }
+.placement-cursor.pole .placement-cursor-target { background: #75529c; }

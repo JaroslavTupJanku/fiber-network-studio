@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { ArrowLeft, MapPin, Network } from 'lucide-react'
-import { infrastructureLinks } from './infrastructureSchematic'
+import { infrastructureLinks } from './infrastructureTopology'
 import { countCzech } from './equipmentPresentation'
 import type { RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
@@ -25,7 +25,7 @@ export function InfrastructureSchematic({ pointId, pointName, pointNames, routes
       <div className="infrastructure-schematic-link" key={link.routeId}>
         <button type="button" className={`infrastructure-schematic-route${tracedRouteIds.includes(link.routeId) ? ' traced' : ''}`}
           onClick={() => onOpenRoute(link.routeId)}>
-          <span>{link.routeName}</span><small>{countCzech(link.conduitRuns, 'prvek potrubí', 'prvky potrubí', 'prvků potrubí')}
+          <span>{link.routeName}</span><small>{link.routeKindLabel} · {countCzech(link.conduitRuns, 'prvek potrubí', 'prvky potrubí', 'prvků potrubí')}
             {' · '}{countCzech(link.cableRuns, 'kabelový běh', 'kabelové běhy', 'kabelových běhů')}
             {tracedRouteIds.includes(link.routeId) ? ' · Sledovaná cesta' : ' · Otevřít na mapě'}</small>
         </button>

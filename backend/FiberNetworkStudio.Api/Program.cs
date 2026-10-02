@@ -129,8 +129,8 @@ app.MapGet("/api/network-points", async (NetworkPointStore store) =>
 app.MapPost("/api/network-points", async (CreateNetworkPointRequest request, NetworkPointStore store) =>
 {
     var errors = Validate(request.Name, request.Latitude, request.Longitude);
-    if (request.Kind is not ("building" or "chamber"))
-        errors["kind"] = ["Typ musí být building nebo chamber."];
+    if (request.Kind is not ("building" or "chamber" or "pole"))
+        errors["kind"] = ["Typ musí být building, chamber nebo pole."];
     if (request.Kind == "building" && request.BuildingType is not (null or "standard" or "apartment"))
         errors["buildingType"] = ["Typ budovy musí být standard nebo apartment."];
     if (errors.Count > 0) return Results.ValidationProblem(errors);
@@ -158,7 +158,7 @@ app.MapDelete("/api/network-points/{id:guid}", async (Guid id, NetworkPointStore
     UndergroundRouteStore routes, OpticalSpliceStore splices, BuildingEquipmentStore equipment,
     BuildingDistributionStore distribution, CustomerStore customers) =>
     await routes.ContainsPointAsync(id)
-        ? Results.Conflict(new { error = "Bod je koncem podzemní trasy. Nejprve upravte nebo smažte trasu." })
+        ? Results.Conflict(new { error = "Bod je koncem síťové trasy. Nejprve upravte nebo smažte trasu." })
         : await splices.HasSpliceAsync(id)
             ? Results.Conflict(new { error = "V šachtě je optická spojka. Nejprve ji odeberte." })
         : await equipment.HasEquipmentAsync(id)

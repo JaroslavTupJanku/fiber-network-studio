@@ -5,7 +5,7 @@ import type { CableSpecification } from '../cable-catalog/model'
 import { kindLabel, type DuctType } from '../duct-catalog/model'
 import { canPlaceItem, hasAvailablePlacement, installationContinuations, installationFit, installationSummary,
   type InstalledItem, type InstallationSummary } from './routeInstallations'
-import type { UndergroundRoute } from './undergroundRoutes'
+import { routeKind, type UndergroundRoute } from './undergroundRoutes'
 import { useRouteInstallations } from './useRouteInstallations'
 import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
 
@@ -27,11 +27,11 @@ function nestedItemCount(root: InstalledItem, items: InstalledItem[]): number {
   return seen.size - 1
 }
 
-function InstallationOverview({ summary }: { summary: InstallationSummary }) {
+function InstallationOverview({ summary, aerial = false }: { summary: InstallationSummary; aerial?: boolean }) {
   return <div className={`installation-overview ${summary.status}`} aria-live="polite">
     <strong>{summary.status === 'empty' ? 'Zatím bez osazení' : summary.status === 'cables'
       ? summary.cables === 1 ? 'V úseku je optický kabel' : 'V úseku jsou optické kabely' : 'Osazeno bez kabelu'}</strong>
-    <span>Chráničky, mikrotrubičky, sestavy <b>{summary.ducts}</b></span>
+    {!aerial && <span>Chráničky, mikrotrubičky, sestavy <b>{summary.ducts}</b></span>}
     <span>Optické kabely <b>{summary.cables}</b></span>
   </div>
 }
@@ -39,7 +39,7 @@ function InstallationOverview({ summary }: { summary: InstallationSummary }) {
 type Placement = { parentId: string | null; slotIndex: number | null; label: string; key: string }
 
 function placementFor(item: InstalledItem, parent: InstalledItem | null, items: InstalledItem[],
-  slotIndex: number | null): Placement | null {
+  slotIndex: number | null, aerial = false): Placement | null {
   const targetId = parent?.id ?? null
   if (parent?.id === item.id) return null
   let ancestor = parent
@@ -50,7 +50,7 @@ function placementFor(item: InstalledItem, parent: InstalledItem | null, items: 
     ancestor = items.find(other => other.id === ancestor?.parentId) ?? null
   }
   const others = items.filter(other => other.id !== item.id)
-  if (!canPlaceItem(parent, others, item, slotIndex)) return null
+  if (!canPlaceItem(parent, others, item, slotIndex, aerial)) return null
   if (installationFit(item, parent, slotIndex,
     others.filter(other => other.parentId === targetId)) === 'too-small') return null
   if (item.parentId === targetId && item.slotIndex === slotIndex) return null
@@ -62,13 +62,13 @@ function placementFor(item: InstalledItem, parent: InstalledItem | null, items: 
     label: parent ? `Do: ${parent.label}${distinguishingNumber}${slotIndex === null ? '' : ` · pozice ${slotIndex + 1}`}` : 'Samostatně v úseku' }
 }
 
-function availablePlacements(item: InstalledItem, items: InstalledItem[]): Placement[] {
-  const places = [placementFor(item, null, items, null)]
+function availablePlacements(item: InstalledItem, items: InstalledItem[], aerial = false): Placement[] {
+  const places = [placementFor(item, null, items, null, aerial)]
   for (const parent of items) {
     if (parent.duct?.kind === 'assembly')
       for (let index = 0; index < parent.duct.slots.length; index++)
-        places.push(placementFor(item, parent, items, index))
-    else places.push(placementFor(item, parent, items, null))
+        places.push(placementFor(item, parent, items, index, aerial))
+    else places.push(placementFor(item, parent, items, null, aerial))
   }
   return places.filter((place): place is Placement => place !== null)
 }
@@ -95,6 +95,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   route: UndergroundRoute; routes: UndergroundRoute[]; editable: boolean;
   installations: ReturnType<typeof useRouteInstallations>
 }) {
+  const aerial = routeKind(route) === 'aerial'
   const { documents, document, ducts, cables, loading, loadFailed, busy, error, refresh,
     add, generateMicroducts, rename, setCableLength, move, remove } = installations
   const [savedMessage, setSavedMessage] = useState('')
@@ -158,15 +159,15 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       duct, cable: null })),
     ...cables.map(cable => ({ key: `cable:${cable.id}`, label: `Kabel · ${cable.name}`, duct: null, cable })),
   ]
-  const candidates = catalogItems.filter(candidate => canPlaceItem(parent, document.items, candidate, selectedSlot)
+  const candidates = catalogItems.filter(candidate => canPlaceItem(parent, document.items, candidate, selectedSlot, aerial)
     && installationFit(candidate, parent, selectedSlot,
       document.items.filter(item => item.parentId === parent?.id)) !== 'too-small')
   const continuations = installationContinuations(route, routes, documents)
-    .filter(item => canPlaceItem(parent, document.items, item, selectedSlot)
+    .filter(item => canPlaceItem(parent, document.items, item, selectedSlot, aerial)
       && installationFit(item, parent, selectedSlot,
         document.items.filter(other => other.parentId === parent?.id)) !== 'too-small')
   const rootContinuations = installationContinuations(route, routes, documents)
-    .filter(item => canPlaceItem(null, document.items, item, null))
+    .filter(item => canPlaceItem(null, document.items, item, null, aerial))
   const selectedCandidate = sourceMode === 'catalog'
     ? candidates.find(candidate => candidate.key === catalogKey) ?? null
     : continuations.find(item => item.id === continuationId) ?? null
@@ -174,9 +175,9 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     document.items.filter(item => item.parentId === parent?.id)) : null
   const roots = document.items.filter(item => item.parentId === null)
   const selectedItem = document.items.find(item => item.id === selectedItemId) ?? null
-  const selectedPlacements = selectedItem ? availablePlacements(selectedItem, document.items) : []
+  const selectedPlacements = selectedItem ? availablePlacements(selectedItem, document.items, aerial) : []
   const draggedItem = document.items.find(item => item.id === draggedId) ?? null
-  const draggedPlacements = draggedItem ? availablePlacements(draggedItem, document.items) : []
+  const draggedPlacements = draggedItem ? availablePlacements(draggedItem, document.items, aerial) : []
   const pendingRemoval = document.items.find(item => item.id === pendingRemovalId) ?? null
   const pendingChildCount = pendingRemoval ? nestedItemCount(pendingRemoval, document.items) : 0
   const selectedHasRoom = selectedItem !== null && hasAvailablePlacement(selectedItem, document.items)
@@ -193,7 +194,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const quickParent = storedQuickParent && hasAvailablePlacement(storedQuickParent, document.items) ? storedQuickParent : null
   const quickSlots = quickParent?.duct?.kind === 'assembly' ? quickParent.duct.slots : []
   const quickSlot = quickSlots.length ? quickSlotIndex : null
-  const quickCandidates = catalogItems.filter(candidate => canPlaceItem(quickParent, document.items, candidate, quickSlot)
+  const quickCandidates = catalogItems.filter(candidate => canPlaceItem(quickParent, document.items, candidate, quickSlot, aerial)
     && installationFit(candidate, quickParent, quickSlot,
       document.items.filter(item => item.parentId === quickParent?.id)) !== 'too-small')
   const quickType = quickCandidates.find(candidate => candidate.key === quickCatalogKey)
@@ -429,7 +430,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
     <p className="route-help">Prvky můžete rozbalit, vybrat a přetáhnout do vhodného místa.</p>
     {loading ? <p className="installation-muted">Načítání osazení…</p> : <>
       {error && <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>}
-      {loadFailed ? null : roots.length === 0 ? <><p className="installation-empty">Trasa je zatím prázdná. Tlačítkem Přidat prvek vložte první chráničku, mikrotrubičku nebo sestavu.</p>
+      {loadFailed ? null : roots.length === 0 ? <><p className="installation-empty">{aerial ? 'Vložte kabel přímo do nadzemního úseku. Provedení a zavěšení určete podle skutečného kabelu.' : 'Trasa je zatím prázdná. Tlačítkem Přidat prvek vložte první chráničku, mikrotrubičku nebo sestavu.'}</p>
         {rootContinuations.length > 0 && <button type="button" className="move-button" onClick={openRootContinuation}
           disabled={!editable || busy}>Navázat osazení ze sousedního úseku</button>}</>
         : <div className="installation-view installation-diagram-view">
@@ -588,7 +589,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
           <Plus size={14} /> Přidat</button>
         <button type="button" className="icon-button" title="Načíst osazení znovu"
           aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button></div></div>
-      {!loading && !loadFailed && <InstallationOverview summary={summary} />}
+      {!loading && !loadFailed && <InstallationOverview summary={summary} aerial={aerial} />}
       {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
       {quickAddOpen && !loadFailed && <form id="installation-quick-add" className="installation-quick-add" onSubmit={submitQuick}>
         <strong>Přidat prvek do trasy</strong>
@@ -634,7 +635,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       </form>}
       {loading ? <p className="installation-muted">Načítání osazení…</p>
         : error ? <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>
-          : roots.length === 0 ? <><p className="installation-empty">Úsek zatím nemá žádné uložené prvky. Přidejte první chráničku nebo mikrotrubičku.</p>
+          : roots.length === 0 ? <><p className="installation-empty">{aerial ? 'Úsek zatím nemá kabel. Přidejte kabel přímo do úseku.' : 'Úsek zatím nemá žádné uložené prvky. Přidejte první chráničku nebo mikrotrubičku.'}</p>
               {rootContinuations.length > 0 && <button type="button" className="move-button" onClick={openRootContinuation}
                 disabled={!editable || busy}>Navázat osazení ze sousedního úseku</button>}</>
             : <><div className="installation-preview-list" aria-label="Hlavní prvky v úseku">
@@ -643,7 +644,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
                   const next = new Set(previous); next.delete(root.id); return next
                 }); setEditorOpen(true) }}>
                 <span className="installation-preview-mark" style={{ background: itemColor(root) }} aria-hidden="true" />
-                <span><strong>{root.label}</strong><small>{itemKind(root)} · {nestedItemCount(root, document.items)} uvnitř</small></span>
+                <span><strong>{root.label}</strong><small>{itemKind(root)}{root.duct ? ` · ${nestedItemCount(root, document.items)} uvnitř` : ` · ${root.cable?.tubes.reduce((count, tube) => count + tube.fibers.length, 0) ?? 0} vláken`}</small></span>
                 <ChevronRight size={16} aria-hidden="true" />
               </button>)}
             </div>{roots.length > 4 && <p className="installation-muted">A další {roots.length - 4} hlavní prvky v editoru.</p>}</>}
@@ -657,11 +658,11 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       <div className="installation-editor-shell">
         <header className="installation-editor-header">
           <div className="installation-editor-header-main"><div className="installation-editor-emblem"><Layers3 size={22} /></div>
-            <div><span>Podzemní trasa · {route.name}</span>
+            <div><span>{aerial ? 'Nadzemní trasa' : 'Podzemní trasa'} · {route.name}</span>
               <h2 id="installation-editor-title">Editor osazení</h2></div>
             <button type="button" onClick={() => setEditorOpen(false)} aria-label="Zavřít editor osazení"><X size={18} /></button>
           </div>
-          {!loading && !loadFailed && <InstallationOverview summary={summary} />}
+          {!loading && !loadFailed && <InstallationOverview summary={summary} aerial={aerial} />}
         </header>
         <div className="installation-editor-scroll">{editorContent}</div>
       </div>

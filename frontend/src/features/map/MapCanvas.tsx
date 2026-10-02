@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CircleDot, House, Info, Route as RouteIcon } from 'lucide-react'
+import { CircleDot, UtilityPole, House, Info, Route as RouteIcon } from 'lucide-react'
 import { MapToolbox, type BaseMap, type CadastreStatus, type OrthophotoStatus, type PlacementPointer } from './MapToolbox'
 import { GeoJSONSource, LngLatBounds, Map, Marker, NavigationControl, setWorkerUrl, type ErrorEvent, type MapMouseEvent, type MapSourceDataEvent } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
@@ -16,8 +16,8 @@ import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollec
   ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, TRACED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
   ROUTE_VERTEX_SOURCE_ID, ROUTE_INSERT_SOURCE_ID, BUILDING_CROSSING_SOURCE_ID } from './mapLayers'
 import { crossedDragThreshold, mapCursor, resolveMapClick } from './interactions'
-import { routeGeometryHit, routeCoordinates, routeLengthMeters, routeSplitPosition, waypointsAfterPointMove,
-  type RouteDraft, type RouteSplitPosition, type UndergroundRoute } from './undergroundRoutes'
+import { routeKind, routeGeometryHit, routeCoordinates, routeLengthMeters, routeSplitPosition, waypointsAfterPointMove,
+  type RouteKind, type RouteDraft, type RouteSplitPosition, type UndergroundRoute } from './undergroundRoutes'
 
 export type MapSnapshot = { image: string; baseMap: string; cadastre: boolean; scaleMeters: number;
   widthCss: number; bearing: number; center: string; capturedAt: string } | { error: string }
@@ -39,6 +39,7 @@ type MapCanvasProps = {
   routePaused: boolean
   routeError: string
   routeSplitActive: boolean
+  routeSplitPreview: Coordinates[]
   routeSplitSelection: RouteSplitPosition | null
   onRouteSplitPick: (position: RouteSplitPosition) => void
   onRouteSplitCancel: () => void
@@ -46,7 +47,7 @@ type MapCanvasProps = {
   routeNearbyBuildings: BuildingFootprint[]
   routeCheckingBuildings: boolean
   pointMoveError: string
-  onRouteToolChange: () => void
+  onRouteToolChange: (kind: RouteKind) => void
   onRouteSelect: (id: string) => void
   onRouteEdit: (id: string) => void
   onRouteWaypointInsert: (segmentIndex: number, location: Coordinates) => void
@@ -82,7 +83,7 @@ const withPointPosition = (points: NetworkPoint[], id: string, location: Coordin
 setWorkerUrl(workerUrl)
 
 export function MapCanvas({ points, routes, installations, splices, installationLoading, selectedRouteId, tracedRouteIds, hoveredRouteId, onMapRouteHoverChange, routeFocusRequest, pointFocusRequest, routeDraft, drawingRoute, routePaused, routeError,
-  routeSplitActive, routeSplitSelection, onRouteSplitPick, onRouteSplitCancel,
+  routeSplitActive, routeSplitSelection, routeSplitPreview, onRouteSplitPick, onRouteSplitCancel,
   routeBuildingCrossings, routeNearbyBuildings, routeCheckingBuildings, pointMoveError, onRouteToolChange,
   onRouteSelect, onRouteEdit, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId, onMapPointHoverChange,
   selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop,
@@ -690,10 +691,11 @@ export function MapCanvas({ points, routes, installations, splices, installation
       type: 'FeatureCollection', features: routeSplitActive && routeSplitSelection ? [{
         type: 'Feature', geometry: { type: 'Point', coordinates: [routeSplitSelection.location.longitude,
           routeSplitSelection.location.latitude] }, properties: {},
-      }] : [],
+      }] : routeSplitActive ? routeSplitPreview.map(point => ({ type: 'Feature' as const,
+        geometry: { type: 'Point' as const, coordinates: [point.longitude, point.latitude] }, properties: {} })) : [],
     })
     refreshCursor.current?.()
-  }, [routeSplitActive, routeSplitSelection, mapGeneration])
+  }, [routeSplitActive, routeSplitSelection, routeSplitPreview, mapGeneration])
 
   useEffect(() => {
     const map = mapRef.current
@@ -796,7 +798,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
   useEffect(() => {
     if (!preview || selectedPointId || !mapRef.current) return
     const draggable = Boolean(preview.kind)
-    const marker = new Marker({ color: preview.kind === 'chamber' ? '#b8613e' : '#24796d', draggable })
+    const marker = new Marker({ color: preview.kind === 'pole' ? '#75529c' : preview.kind === 'chamber' ? '#b8613e' : '#24796d', draggable })
       .setLngLat([preview.longitude, preview.latitude])
       .addTo(mapRef.current)
     if (draggable) {
@@ -890,13 +892,13 @@ export function MapCanvas({ points, routes, installations, splices, installation
       <div className="map-canvas" ref={container} aria-label="Mapa" />
       {cursorPreview && (
         <div className={`placement-cursor ${cursorPreview.kind}`} style={{ left: cursorPreview.x, top: cursorPreview.y }} aria-hidden="true">
-          <span className="placement-cursor-figure">{cursorPreview.kind === 'building' ? <House size={38} strokeWidth={2.5} /> : <CircleDot size={30} strokeWidth={2.4} />}</span>
+          <span className="placement-cursor-figure">{cursorPreview.kind === 'building' ? <House size={38} strokeWidth={2.5} /> : cursorPreview.kind === 'pole' ? <UtilityPole size={34} /> : <CircleDot size={30} strokeWidth={2.4} />}</span>
           <span className="placement-cursor-target" />
         </div>
       )}
       {placementActive && (
         <div className="placement-guide" role="status">
-          <span>{activeTool ? `${activeTool === 'building' ? 'Budova' : 'Šachta'}: klikněte do mapy pro umístění` : 'Přesun objektu: klikněte na nové místo'}</span>
+          <span>{activeTool ? `${activeTool === 'building' ? 'Budova' : activeTool === 'pole' ? 'Sloup' : 'Šachta'}: klikněte do mapy pro umístění` : 'Přesun objektu: klikněte na nové místo'}</span>
           <button type="button" onClick={() => onToolChange(null)}>Zrušit · Esc</button>
         </div>
       )}
@@ -909,8 +911,8 @@ export function MapCanvas({ points, routes, installations, splices, installation
               ? 'Trasa zasahuje do budovy. Šachta zůstane na místě; před dokončením upravte průběh lomovým bodem.' : routeDraft?.startPointId
               ? routeDraft.endPointId
                 ? `Spojeno: ${routeStartName} → ${routeEndName}. Úsek i objekty můžete přetáhnout; lomový bod kliknutím vyberete.`
-                : `Začátek: ${routeStartName}. Klikněte na cíl; tažením budovu nebo šachtu přesunete.`
-              : 'Klikněte na první budovu nebo šachtu; tažením objekt přesunete.')}</span>
+                : `Začátek: ${routeStartName}. Klikněte na cíl; tažením síťový objekt přesunete.`
+              : 'Klikněte na první vhodný síťový objekt; tažením objekt přesunete.')}</span>
             <small>Přesun objektu se uloží hned; Zrušit vrátí jen kreslení.</small></div>
           <div className="route-guide-actions">
             <button type="button" onClick={onRouteUndo} disabled={!routeDraft?.startPointId}>Zpět</button>
@@ -922,13 +924,13 @@ export function MapCanvas({ points, routes, installations, splices, installation
       )}
       {routeSplitActive && <div className="placement-guide route-guide" role="status">
         <RouteIcon size={20} aria-hidden="true" />
-        <div className="route-guide-copy"><strong>Nová šachta na trase</strong>
-          <span>{routeSplitSelection ? 'Místo je vybrané. Pojmenujte šachtu a potvrďte rozdělení v panelu.'
+        <div className="route-guide-copy"><strong>{routeSplitPreview.length ? `Náhled: ${routeSplitPreview.length} nových sloupů` : routeDraft && routeKind(routeDraft) === 'aerial' ? 'Nový sloup na trase' : 'Nová šachta na trase'}</strong>
+          <span>{routeSplitPreview.length ? 'Pozice zkontrolujte v mapě a potvrďte v panelu trasy.' : routeSplitSelection ? 'Místo je vybrané. Pojmenujte nový objekt a potvrďte rozdělení v panelu.'
             : 'Klikněte na vybranou trasu mezi koncovými objekty a lomovými body.'}</span>
-          <small>Chráničky a kabely zůstanou průchozí; délky kabelů po rozdělení doplníte zvlášť.</small></div>
+          <small>{routeDraft && routeKind(routeDraft) === 'aerial' ? 'Kabely zůstanou průchozí; jejich délky po rozdělení doplníte zvlášť.' : 'Chráničky a kabely zůstanou průchozí; délky kabelů po rozdělení doplníte zvlášť.'}</small></div>
         <div className="route-guide-actions"><button type="button" onClick={onRouteSplitCancel}>Zrušit</button></div>
       </div>}
-      {(points.length > 0 || routes.length > 0) && !drawingRoute && !placementActive && (
+      {(points.length > 0 || routes.length > 0) && !drawingRoute && !placementActive && !routeSplitActive && (
         <div className="map-legend">
           <button type="button" className="map-legend-toggle" aria-expanded={legendOpen}
             aria-controls="map-legend-details" onClick={() => setLegendOpen(open => !open)}>
@@ -938,9 +940,11 @@ export function MapCanvas({ points, routes, installations, splices, installation
             <strong>Body sítě</strong>
             <span><i className="point-key building" /> Budova</span>
             <span><i className="point-key chamber" /> Šachta</span>
-            {splices.length > 0 && <span><i className="point-key chamber with-splice" /> Fialový okraj: v šachtě je spojka</span>}
+            <span><i className="point-key pole" /> Sloup</span>
+            <span>Plná čára: podzemní · přerušovaná: nadzemní</span>
+            {splices.length > 0 && <span><i className="point-key chamber with-splice" /> Fialový okraj: optická spojka</span>}
             {routes.length > 0 && <>
-              <strong>Podzemní trasy</strong>
+              <strong>Trasy sítě</strong>
               <small>Barva trasy ukazuje její osazení:</small>
               {routeStatuses.has('unknown') && <span><i className="route-key unknown" /> {installationLoading ? 'Osazení se načítá' : 'Osazení se nenačetlo'}</span>}
               {routeStatuses.has('empty') && <span><i className="route-key empty" /> Zatím bez osazení</span>}
@@ -955,10 +959,11 @@ export function MapCanvas({ points, routes, installations, splices, installation
         placementActive={placementActive}
         toolsDisabled={toolsDisabled}
         onToolChange={kind => { setLegendOpen(false); onToolChange(kind) }}
+        routeKind={routeDraft ? routeKind(routeDraft) : 'underground'}
         routeDrawing={drawingRoute}
         routePaused={routePaused}
         canDrawRoute={points.length >= 2}
-        onRouteToolChange={() => { setLegendOpen(false); onRouteToolChange() }}
+        onRouteToolChange={kind => { setLegendOpen(false); onRouteToolChange(kind) }}
         onToolDropAt={(kind, clientX, clientY) => {
           const map = mapRef.current
           if (!map || !map.getCanvasContainer().contains(document.elementFromPoint(clientX, clientY))) return

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { findParcelAt, type Parcel } from './parcels'
 import { useUndergroundRoutes } from './useUndergroundRoutes'
-import { routeCoordinates, saveUndergroundRoute, waypointsAfterPointMove } from './undergroundRoutes'
+import { routeCoordinates, routeKind, saveUndergroundRoute, waypointsAfterPointMove, type RouteKind } from './undergroundRoutes'
 import { crossingBuildingFootprints, findBuildingFootprints } from './buildingFootprints'
 import {
   createNetworkPoint,
@@ -68,6 +68,7 @@ export function useMapWorkspace() {
     if (!route.drawing) {
       try {
         for (const original of route.routes.filter(item => item.startPointId === id || item.endPointId === id)) {
+          if (routeKind(original) === 'aerial') continue
           const changed = { ...original, waypoints: waypointsAfterPointMove(original, points, id, location) }
           const footprints = await findBuildingFootprints(routeCoordinates(changed, movedPoints))
           if (crossingBuildingFootprints(changed, movedPoints, footprints).length) {
@@ -189,16 +190,16 @@ export function useMapWorkspace() {
     setActionError('')
   }, [points, clearParcel, route, editor])
 
-  const handleRouteToolChange = () => {
+  const handleRouteToolChange = (kind: RouteKind = 'underground') => {
     if (route.drawing && activeTool) { setActiveTool(null); return }
-    if (route.drawing) { route.cancelDrawing(); return }
+    if (route.drawing && route.draft && routeKind(route.draft) === kind) { route.cancelDrawing(); return }
     setActiveTool(null)
     setMoving(false)
     setEditor(null)
     setSelectedLocation(null)
     clearParcel()
     setActionError('')
-    route.startDrawing()
+    route.startDrawing(kind)
   }
 
   const handleRouteSelect = (id: string) => {
@@ -307,7 +308,8 @@ export function useMapWorkspace() {
     .filter((point) => point.name.toLocaleLowerCase('cs').includes(query.toLocaleLowerCase('cs')))
     .sort((a, b) => a.name.localeCompare(b.name, 'cs')), [points, query])
   const buildings = points.filter((point) => point.kind === 'building').length
-  const chambers = points.length - buildings
+  const chambers = points.filter(point => point.kind === 'chamber').length
+  const poles = points.filter(point => point.kind === 'pole').length
   const originalPoint = points.find((point) => point.id === editor?.id)
   const preview = editor && (!editor.id || (originalPoint && (editor.latitude !== originalPoint.latitude || editor.longitude !== originalPoint.longitude)))
     ? editor : selectedLocation
@@ -315,7 +317,7 @@ export function useMapWorkspace() {
   return {
     points, loading, loadError, actionError, saving, activeTool, moving, editor, route,
     selectedLocation, selectedParcel, parcelStatus, query, visiblePoints,
-    buildings, chambers, preview, setQuery, setEditor, setSelectedLocation,
+    buildings, chambers, poles, preview, setQuery, setEditor, setSelectedLocation,
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,
     clearParcel, handleToolChange, handleRouteToolChange, handleRouteSelect, handleRouteEdit,
     handleLocationClick, handlePointSelect, relocatePoint,

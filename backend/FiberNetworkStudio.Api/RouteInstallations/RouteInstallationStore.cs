@@ -83,7 +83,8 @@ public sealed class RouteInstallationStore(string path)
             var label = string.IsNullOrWhiteSpace(request.Label)
                 ? continuationLabel ?? duct?.Name ?? cable!.Name : request.Label.Trim();
             if (label.Length is < 1 or > 80) return InstallationResult.Fail(400, "Označení prvku musí mít 1 až 80 znaků.");
-            var placementError = ValidatePlacement(current.Items, request.ParentId, request.SlotIndex, duct, cable);
+            var placementError = ValidatePlacement(current.Items, request.ParentId, request.SlotIndex, duct, cable,
+                route.Kind == "aerial");
             if (placementError is not null) return InstallationResult.Fail(409, placementError);
 
             var item = new InstalledItem(Guid.NewGuid(), route.Id, request.ParentId, request.SlotIndex,
@@ -260,7 +261,8 @@ public sealed class RouteInstallationStore(string path)
         finally { gate.Release(); }
     }
 
-    public async Task<InstallationResult> MoveAsync(Guid routeId, Guid itemId, MoveInstalledItemRequest request)
+    public async Task<InstallationResult> MoveAsync(Guid routeId, Guid itemId, MoveInstalledItemRequest request,
+        bool aerial = false)
     {
         await gate.WaitAsync();
         try
@@ -284,7 +286,7 @@ public sealed class RouteInstallationStore(string path)
             }
             var remaining = current.Items.Where(item => item.Id != itemId).ToList();
             var placementError = ValidatePlacement(remaining, request.ParentId, request.SlotIndex,
-                moved.Duct, moved.Cable);
+                moved.Duct, moved.Cable, aerial);
             if (placementError is not null) return InstallationResult.Fail(409, placementError);
 
             var updated = current with { Version = current.Version + 1,
@@ -365,8 +367,11 @@ public sealed class RouteInstallationStore(string path)
     }
 
     private static string? ValidatePlacement(List<InstalledItem> items, Guid? parentId, int? slotIndex,
-        DuctType? duct, CableSpecification? cable)
+        DuctType? duct, CableSpecification? cable, bool aerial = false)
     {
+        if (aerial)
+            return parentId is null && slotIndex is null && cable is not null && duct is null
+                ? null : "Do nadzemní trasy vložte kabel přímo do úseku.";
         if (parentId is null)
             return slotIndex is not null || cable is not null
                 ? "Na volnou trasu vložte nejdřív chráničku, mikrotrubičku nebo sestavu." : null;

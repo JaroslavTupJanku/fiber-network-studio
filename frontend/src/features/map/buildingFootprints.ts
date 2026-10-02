@@ -1,5 +1,5 @@
 import type { Coordinates, NetworkPoint } from './networkPoints'
-import { routeCoordinates, type RouteDraft } from './undergroundRoutes.ts'
+import { routeKind, routeCoordinates, type RouteDraft } from './undergroundRoutes.ts'
 
 type Position = [number, number]
 type Polygon = Position[][]
@@ -71,6 +71,7 @@ function polygons(feature: BuildingFootprint): Polygon[] {
 
 export function crossingBuildingFootprints(route: RouteDraft, points: NetworkPoint[],
   footprints: BuildingFootprint[]): BuildingFootprint[] {
+  if (routeKind(route) === 'aerial') return []
   const coordinates = routeCoordinates(route, points).map(point => [point.longitude, point.latitude] as Position)
   if (coordinates.length < 2) return []
   return footprints.filter(feature => polygons(feature).some(polygon => {

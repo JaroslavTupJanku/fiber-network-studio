@@ -213,7 +213,7 @@ export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, in
       const updated = await splitCableAtChamber(pointId, item.id, version)
       onInstallationsUpdated(updated)
       setSplitPendingRunId(null)
-      setSplitNotice('Kabel je v této šachtě rozdělený. Níže můžete vybrat jeho dva konce a spojit vlákna.')
+      setSplitNotice('Kabel je v tomto bodě rozdělený. Níže můžete vybrat jeho dva konce a spojit vlákna.')
     } catch (reason) { setError(reason instanceof Error ? reason.message : 'Kabel se nepodařilo rozdělit.') }
     finally { setBusy(false) }
   }
@@ -234,12 +234,12 @@ export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, in
   return createPortal(<dialog ref={dialogRef} className="splice-editor-dialog" aria-labelledby="splice-editor-title"
     onCancel={event => { event.preventDefault(); onClose() }}>
     <header className="splice-editor-header"><span className="splice-editor-emblem"><Cable size={23} /></span>
-      <div><small>Šachta · {pointName}</small><h2 id="splice-editor-title">Optická spojka</h2></div>
+      <div><small>Síťový bod · {pointName}</small><h2 id="splice-editor-title">Optická spojka</h2></div>
       <button type="button" className="icon-button" onClick={onClose} aria-label="Zavřít editor"><X size={19} /></button>
     </header>
     <div className="splice-editor-body">
       {loading ? <p>Načítání spojky…</p> : document && <>
-        <div className="splice-location-path" aria-label="Umístění prvků"><span>Mapa: šachta</span><span>Uvnitř: optická spojka</span><span>Uvnitř spojky: svary a splittery</span></div>
+        <div className="splice-location-path" aria-label="Umístění prvků"><span>Mapa: síťový bod</span><span>V bodě: optická spojka</span><span>Uvnitř spojky: svary a splittery</span></div>
         <div className="splice-editor-intro"><label>Název spojky<input maxLength={80} value={document.name}
           placeholder={`Např. spojka v ${pointName}`} onChange={event => {
             setDocument({ ...document, name: event.target.value }); setSaved(false)
@@ -260,12 +260,12 @@ export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, in
         </div>
         {activeTab === 'connections' && <>
         {throughRuns.length > 0 && <section className="splice-through-runs" aria-label="Průchozí kabely">
-          <h3>Průchozí kabely v šachtě</h3>
-          <p>Kabel vede přes tuto šachtu bez ukončení. Chcete-li jeho vlákna spojovat nebo odbočit, rozdělte jej zde na dva konce.</p>
+          <h3>Průchozí kabely v bodě</h3>
+          <p>Kabel vede přes tento bod bez ukončení. Chcete-li jeho vlákna spojovat nebo odbočit, rozdělte jej zde na dva konce.</p>
           <div className="splice-through-list">{throughRuns.map(([runId, items]) => <div className="splice-through-item" key={runId}>
             <div><strong>{items[0].label}</strong><small>{items.map(item => routeNames.get(item.routeId) ?? 'Úsek').join(' · ')}</small></div>
             {splitPendingRunId === runId ? <div className="splice-split-confirm">
-              <span>Vzniknou dva samostatně evidované konce kabelu. Chránička se tímto krokem nemění; rozdělit ji můžete v detailu šachty.</span>
+              <span>Vzniknou dva samostatně evidované konce kabelu. Případná chránička se tímto krokem nemění.</span>
               <div><button type="button" className="move-button" onClick={() => setSplitPendingRunId(null)}>Zpět</button>
                 <button type="button" className="primary-button" disabled={busy} onClick={() => void splitCable(items[0])}>
                   {busy ? 'Rozděluji…' : 'Potvrdit rozdělení'}</button></div>
@@ -275,7 +275,7 @@ export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, in
         </section>}
         {splitNotice && <p className="installation-saved" role="status"><Check size={15} /> {splitNotice}</p>}
         {cables.length < 2 ? throughRuns.length === 0
-          ? <p className="splice-empty">Ke spojování potřebujete dva dostupné konce kabelů. Přiveďte do šachty další kabel.</p>
+          ? <p className="splice-empty">Ke spojování potřebujete dva dostupné konce kabelů. Přiveďte do tohoto bodu další kabel.</p>
           : null : <section className="splice-connection-form" aria-label="Přidat propojení">
           <h3>Nové propojení</h3><div className="splice-pickers">
             <FiberPicker label="První konec" cables={cables} value={left} onChange={setLeft} occupied={occupied} cableLabel={cableLabel} />
@@ -327,7 +327,7 @@ export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, in
         </>}
         {activeTab === 'splitters' && <section className="splice-splitters" aria-label="Splittery v optické spojce">
           <div className="splitter-heading"><div><h3>Splittery</h3>
-            <p>Pasivní rozdělení jednoho vstupního vlákna do vybraných výstupů. Na mapě zůstane pouze značka šachty.</p></div>
+            <p>Pasivní rozdělení jednoho vstupního vlákna do vybraných výstupů. Na mapě zůstane pouze značka síťového bodu.</p></div>
             <button type="button" className="move-button" onClick={addSplitter}><Plus size={16} /> Přidat splitter</button></div>
           {throughRuns.length > 0 && <p className="splitter-help">Průchozí kabel nejdřív rozdělte na dva konce v části <button type="button" className="splitter-inline-link" onClick={() => setActiveTab('connections')}>Spoje a kabely</button>.</p>}
           {document.splitters.length === 0 && <p className="splice-empty">Zatím zde není žádný splitter.</p>}
@@ -379,7 +379,7 @@ export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, in
             </div>}
           </div>}
         </section>}
-        {activeTab === 'reserves' && (reserveCables.length > 0 ? <section className="splice-reserves"><h3>Rezerva kabelu v šachtě</h3><p>Volná délka kabelu uložená u spojky včetně průběžných kabelů. Nejde o optický útlum.</p>
+        {activeTab === 'reserves' && (reserveCables.length > 0 ? <section className="splice-reserves"><h3>Rezerva kabelu u spojky</h3><p>Volná délka kabelu uložená u spojky včetně průběžných kabelů. Nejde o optický útlum.</p>
           <div>{reserveCables.map(item => <label key={item.id}>{cableLabel(item)}
             <span><input type="number" min="0" max="1000" step="0.1" value={document.reserves.find(reserve => reserve.itemId === item.id)?.lengthMeters ?? ''}
               placeholder="0" onChange={event => {
@@ -387,8 +387,8 @@ export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, in
                 if (event.target.value !== '') reserves.push({ itemId: item.id, lengthMeters: Number(event.target.value) })
                 setDocument({ ...document, reserves }); setSaved(false)
               }} /> m</span></label>)}</div></section>
-          : <p className="splice-empty">V šachtě zatím není žádný kabel pro evidenci rezervy.</p>)}
-        {activeTab === 'schematic' && <section className="splice-schematic" aria-label="Schéma optických návazností v šachtě">
+          : <p className="splice-empty">V tomto bodě zatím není žádný kabel pro evidenci rezervy.</p>)}
+        {activeTab === 'schematic' && <section className="splice-schematic" aria-label="Schéma optických návazností v bodě">
           <div className="splice-schematic-head"><div><h3>Schéma spojky</h3>
             <p>Projděte sousední úseky a propojení vláken. Obě části vycházejí z uložené sítě.</p></div>
             <span>{document.connections.length} spojů · {document.splitters.length} splitterů</span></div>

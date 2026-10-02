@@ -2,7 +2,7 @@ import type { NetworkPoint } from './networkPoints'
 import type { OpticalSpliceDocument } from './opticalSplices'
 import type { RouteInstallationDocument } from './routeInstallations'
 import type { OpticalPath } from './traceOpticalPath'
-import { routeCoordinates, routeLengthMeters, type UndergroundRoute } from './undergroundRoutes.ts'
+import { routeKindLabel, routeCoordinates, routeLengthMeters, type UndergroundRoute } from './undergroundRoutes.ts'
 
 export type ExportRow = Record<string, string | number | null>
 
@@ -14,7 +14,7 @@ export function routeExportRows(route: UndergroundRoute, points: NetworkPoint[],
   const coordinates = routeCoordinates(route, points)
   const mapLength = coordinates.length > 1 ? meters(routeLengthMeters(coordinates)) : null
   const items = installations.find(document => document.routeId === route.id)?.items ?? []
-  const base = { 'Trasa': route.name, 'Od': names.get(route.startPointId) ?? 'Neznámý bod',
+  const base = { 'Trasa': route.name, 'Typ trasy': routeKindLabel(route), 'Od': names.get(route.startPointId) ?? 'Neznámý bod',
     'Do': names.get(route.endPointId) ?? 'Neznámý bod', 'Délka z mapy (m, přibližně)': mapLength }
   if (items.length === 0) return [{ ...base, 'Prvek': 'Bez evidovaného osazení', 'Druh': '',
     'Skutečná délka kabelu (m)': null }]

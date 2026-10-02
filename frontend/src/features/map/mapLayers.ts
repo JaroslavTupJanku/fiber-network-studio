@@ -1,7 +1,7 @@
 import type { Map } from 'maplibre-gl'
 import type { Coordinates, NetworkPoint } from './networkPoints'
-import { installationSummary, type RouteInstallationDocument } from './routeInstallations'
-import { routeCoordinates, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
+import { installationSummary, type RouteInstallationDocument } from './routeInstallations.ts'
+import { routeKind, routeCoordinates, type RouteDraft, type UndergroundRoute } from './undergroundRoutes.ts'
 
 export const POINT_SOURCE_ID = 'network-points'
 export const POINT_LAYER_ID = 'network-point-dots'
@@ -32,7 +32,7 @@ export function routeCollection(routes: UndergroundRoute[], points: NetworkPoint
       return coordinates.length < 2 ? [] : [{
         type: 'Feature' as const,
         geometry: { type: 'LineString' as const, coordinates: coordinates.map(point => [point.longitude, point.latitude]) },
-        properties: { id: route.id, name: route.name,
+        properties: { id: route.id, name: route.name, kind: routeKind(route),
           installationStatus: installations === null ? 'unknown' : byRoute.get(route.id)?.status ?? 'empty' },
       }]
     }),
@@ -82,13 +82,17 @@ export function pointCollection(points: NetworkPoint[], selectedPointId: string 
 }
 
 export function initializeMapLayers(map: Map) {
-  for (const type of ['house', 'apartment'] as const) {
+  for (const type of ['house', 'apartment', 'pole'] as const) {
     const canvas = document.createElement('canvas')
     canvas.width = 32; canvas.height = 32
     const context = canvas.getContext('2d')!
     context.strokeStyle = '#fff'; context.fillStyle = '#fff'; context.lineWidth = 2.8
     context.lineJoin = 'round'; context.lineCap = 'round'
-    if (type === 'house') {
+    if (type === 'pole') {
+      context.beginPath(); context.moveTo(16, 6); context.lineTo(16, 27)
+      context.moveTo(6, 11); context.lineTo(26, 11)
+      context.moveTo(9, 16); context.lineTo(23, 16); context.stroke()
+    } else if (type === 'house') {
       context.beginPath(); context.moveTo(7, 15); context.lineTo(16, 8); context.lineTo(25, 15)
       context.moveTo(10, 14); context.lineTo(10, 24); context.lineTo(22, 24); context.lineTo(22, 14)
       context.stroke()
@@ -108,7 +112,8 @@ export function initializeMapLayers(map: Map) {
     filter: ['==', ['get', 'id'], ''], paint: { 'line-color': '#f0b344',
       'line-width': ['interpolate', ['linear'], ['zoom'], 9, 5, 12, 7, 15, 11, 18, 12], 'line-opacity': 0.9 } })
   map.addLayer({ id: ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
-    paint: { 'line-color': ['match', ['get', 'installationStatus'],
+    paint: { 'line-dasharray': ['case', ['==', ['get', 'kind'], 'aerial'], ['literal', [2, 1.5]], ['literal', [1, 0]]],
+    'line-color': ['match', ['get', 'installationStatus'],
       'cables', '#2d6f9f', 'ducts', '#26766b', 'unknown', '#74817d', '#b8613e'],
     'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2, 12, 3, 15, 5, 18, 6], 'line-opacity': 0.95 } })
   map.addLayer({ id: TRACED_ROUTE_LAYER_ID, type: 'line', source: ROUTE_SOURCE_ID,
@@ -146,11 +151,14 @@ export function initializeMapLayers(map: Map) {
     source: POINT_SOURCE_ID,
     paint: {
       'circle-radius': 11,
-      'circle-color': ['match', ['get', 'kind'], 'building', '#24796d', 'chamber', '#b8613e', '#64716d'],
+      'circle-color': ['match', ['get', 'kind'], 'building', '#24796d', 'chamber', '#b8613e', 'pole', '#75529c', '#64716d'],
       'circle-stroke-color': ['case', ['get', 'hasSplice'], '#704b92', '#ffffff'],
       'circle-stroke-width': ['case', ['get', 'hasSplice'], 3, 2],
     },
   })
+  map.addLayer({ id: 'network-point-pole-icons', type: 'symbol', source: POINT_SOURCE_ID,
+    filter: ['==', ['get', 'kind'], 'pole'], layout: { 'icon-image': 'point-pole',
+      'icon-size': 0.75, 'icon-allow-overlap': true, 'icon-ignore-placement': true } })
   map.addLayer({ id: 'network-point-building-icons', type: 'symbol', source: POINT_SOURCE_ID,
     filter: ['==', ['get', 'kind'], 'building'], layout: {
       'icon-image': ['match', ['get', 'buildingType'], 'apartment', 'point-apartment', 'point-house'],

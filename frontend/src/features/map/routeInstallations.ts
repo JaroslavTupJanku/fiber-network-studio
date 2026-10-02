@@ -113,7 +113,8 @@ export function installationFit(item: Pick<InstalledItem, 'duct' | 'cable'>,
 }
 
 export function canPlaceItem(parent: InstalledItem | null, items: InstalledItem[],
-  candidate: Pick<InstalledItem, 'duct' | 'cable'>, slotIndex: number | null): boolean {
+  candidate: Pick<InstalledItem, 'duct' | 'cable'>, slotIndex: number | null, aerial = false): boolean {
+  if (aerial) return parent === null && slotIndex === null && candidate.cable !== null && candidate.duct === null
   if (!parent) return candidate.duct !== null
   if (!parent.duct) return false
   const children = items.filter(item => item.parentId === parent.id)
