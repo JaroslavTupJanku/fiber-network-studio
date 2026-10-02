@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { ArrowLeft, Building2, Cable, ChevronDown, CircleDot, Copy, Crosshair, House, MapPin, Network, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, Users, X } from 'lucide-react'
+import { ArrowLeft, Building2, Cable, ChevronDown, CircleDot, Copy, Crosshair, FileDown, House, MapPin, Network, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, Users, X } from 'lucide-react'
 import { CustomerQuickPanel } from '../customers/CustomerQuickPanel'
-import { MapCanvas } from './MapCanvas'
+import { MapCanvas, type MapSnapshot } from './MapCanvas'
+import { NetworkExportDialog } from './NetworkExportDialog'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
 import { BuildingEquipmentEditor } from './BuildingEquipmentEditor'
@@ -37,6 +38,9 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
   const [spliceOpen, setSpliceOpen] = useState(false)
   const [equipmentOpen, setEquipmentOpen] = useState(false)
   const [distributionOpen, setDistributionOpen] = useState(false)
+  const [exportOpen, setExportOpen] = useState(false)
+  const [snapshotRequest, setSnapshotRequest] = useState(0)
+  const [mapSnapshot, setMapSnapshot] = useState<MapSnapshot | null>(null)
   const [distributions, setDistributions] = useState<BuildingDistributionDocument[]>([])
   useEffect(() => { void listBuildingDistribution().then(setDistributions).catch(() => {}) }, [])
   const [equipment, setEquipment] = useState<BuildingEquipmentDocument[]>([])
@@ -271,6 +275,8 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           onPointMove={(id, location) => { setPanelOpen(true); return relocatePoint(id, location) }}
           onDraftMove={moveDraft}
           onCadastreDisable={clearParcel}
+          snapshotRequest={snapshotRequest}
+          onMapSnapshot={setMapSnapshot}
         />
       </section>
 
@@ -300,6 +306,9 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             <span className="section-label">{editor && route.drawing ? 'Přidat během kreslení' : routeDraft?.id && !editor ? 'Podzemní trasa' : selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
             <h1>{editor ? editor.id ? pointKindLabel(editor) : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : routeDraft ? routeDraft.id ? routeDraft.name || 'Podzemní trasa' : 'Nová podzemní trasa' : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
           </div>
+          <button type="button" className="panel-export-button move-button" title="Tisk a export mapy, schémat a přehledů"
+            onClick={() => { setMapSnapshot(null); setSnapshotRequest(value => value + 1); setExportOpen(true) }}>
+            <FileDown size={16} /> Výstupy</button>
         </div>
 
         {!routeDraft && <div className="point-counts" aria-label="Počet objektů">
@@ -639,6 +648,10 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
         onViewMap={() => setDistributionOpen(false)}
         onBudget={path => { onOpenBudget(scenarioFromOpticalPath(path, installations.documents)); setDistributionOpen(false) }} />}
+      {exportOpen && <NetworkExportDialog onClose={() => setExportOpen(false)}
+        onRefreshMap={() => { setMapSnapshot(null); setSnapshotRequest(value => value + 1) }} snapshot={mapSnapshot}
+        points={points} routes={route.routes} installations={installations.documents} splices={splices}
+        tracedPath={tracedPath} initialRouteId={selectedSavedRoute?.id ?? null} initialPointId={editor?.id ?? null} />}
     </main>
   )
 }
