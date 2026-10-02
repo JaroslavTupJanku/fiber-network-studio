@@ -1,6 +1,7 @@
 .panel-heading > div { flex: 1; width: auto; }
 .panel-export-button { flex: none; align-self: start; white-space: nowrap; }
 .network-export-dialog { width: min(1100px, calc(100vw - 28px)); max-width: none; max-height: min(92dvh, 1000px); padding: 0; overflow: hidden; border: 1px solid #bdd6ca; border-radius: 14px; background: #fff; color: #24453d; box-shadow: 0 24px 70px #13282055; }
+.network-export-dialog[open] { display: flex; flex-direction: column; }
 .network-export-dialog::backdrop { background: #11271fb0; }
 .network-export-header { display: flex; justify-content: space-between; gap: 20px; padding: 20px 24px 16px; border-bottom: 1px solid #dce8e1; background: #f4f9f6; }
 .network-export-header small, .network-export-sheet-head small { color: #638176; font-size: 11px; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
@@ -10,7 +11,7 @@
 .network-export-tabs button { min-height: 38px; padding: 8px 15px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #527166; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; }
 .network-export-tabs button:hover { background: #f3f8f5; }
 .network-export-tabs button[aria-pressed='true'] { border-bottom-color: #237566; color: #15594e; }
-.network-export-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; max-height: calc(92dvh - 190px); overflow: auto; padding: 20px 24px; background: #eef4f0; }
+.network-export-body { flex: 1 1 auto; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 20px; min-height: 0; overflow: auto; padding: 20px 24px; background: #eef4f0; }
 .network-export-options { align-self: start; display: grid; gap: 15px; font-size: 12px; line-height: 1.5; }
 .network-export-options > strong { font-size: 14px; }
 .network-export-options p { margin: 0; color: #61786e; }
@@ -52,14 +53,14 @@
 .network-export-table tr:nth-child(even) td { background: #fafcfb; }
 .network-export-empty { padding: 30px; border: 1px dashed #b8d6c8; border-radius: 8px; color: #627b6c; text-align: center; font-size: 13px; }
 .network-export-sheet-foot { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e1e9e4; color: #71867b; font-size: 10px; }
-.network-export-actions { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 24px; border-top: 1px solid #dce8e1; background: #fff; color: #6a8176; font-size: 12px; }
+.network-export-actions { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 24px; border-top: 1px solid #dce8e1; background: #fff; color: #6a8176; font-size: 12px; }
 .network-export-actions > div { display: flex; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 760px) {
   .network-export-dialog { width: calc(100vw - 12px); max-height: 96dvh; }
   .network-export-header { padding: 14px; }
   .network-export-tabs { padding: 6px 12px 0; overflow-x: auto; }
   .network-export-tabs button { padding-inline: 9px; }
-  .network-export-body { grid-template-columns: 1fr; gap: 12px; max-height: calc(96dvh - 185px); padding: 12px; }
+  .network-export-body { grid-template-columns: 1fr; gap: 12px; padding: 12px; }
   .network-export-options { gap: 8px; }
   .network-export-sheet { padding: 14px; min-height: 280px; }
   .network-export-actions { padding: 10px 12px; }
