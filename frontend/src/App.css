@@ -328,7 +328,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .equipment-path p { margin: 5px 0; line-height: 1.5; }
 .equipment-path ol { max-height: 180px; overflow: auto; padding-left: 19px; line-height: 1.7; }
 .equipment-path h4 { margin: 16px 0 8px; color: #285747; font-size: 12px; }
-.equipment-path .equipment-path-schematic { display: grid; gap: 7px; max-height: 340px; margin: 0; padding: 0 2px 0 14px; list-style: none; border-left: 2px solid #b7d8c5; }
+.equipment-path .equipment-path-schematic { display: grid; gap: 7px; max-height: 340px; overflow-y: auto; margin: 0; padding: 0 2px 0 14px; list-style: none; border-left: 2px solid #b7d8c5; }
 .equipment-path-schematic li { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 10px; border: 1px solid #d2e2d7; border-radius: 7px; background: #fff; line-height: 1.35; }
 .equipment-path-schematic li > div { display: grid; gap: 3px; min-width: 0; }
 .equipment-path-schematic li span { color: #6a8274; font-size: 10px; text-transform: uppercase; }
@@ -420,10 +420,27 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .splice-schematic-link button:hover { border-color: #26766b; background: #eff7f2; }
 .splice-schematic-link button small { display: block; margin-top: 4px; color: #26766b; }
 .splice-schematic-link > span { color: #657f72; font-size: 11px; font-weight: 700; text-align: center; }
+.splice-schematic-link.traced button, .splice-schematic-splitter.traced, .infrastructure-schematic-route.traced { border-color: #31976e; background: #e8f7ed; box-shadow: inset 3px 0 #2b946c; }
 .splice-schematic-splitter { padding: 13px; border: 1px solid #d5e5da; border-radius: 9px; background: #fff; }
 .splice-schematic-branches { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); align-items: center; gap: 10px; margin-top: 10px; }
 .splice-schematic-branches > div { display: grid; gap: 5px; }
+.splice-schematic-subtitle { margin: 20px 0 0; color: #264b3c; font-size: 13px; }
+.infrastructure-schematic { margin-top: 16px; padding: 14px; border: 1px solid #d8e6dc; border-radius: 9px; background: #fff; }
+.infrastructure-schematic-heading { display: flex; justify-content: space-between; align-items: start; flex-wrap: wrap; gap: 8px; }
+.infrastructure-schematic-heading h4 { margin: 0; color: #264b3c; font-size: 13px; }
+.infrastructure-schematic-heading p { margin: 4px 0 0; color: #648075; font-size: 11px; }
+.infrastructure-schematic-node { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding: 10px 12px; border: 1px solid #aad1bf; border-radius: 8px; background: #eff8f1; color: #205c4b; font-size: 12px; }
+.infrastructure-schematic-node span { margin-left: auto; color: #5f7d6d; font-size: 11px; }
+.infrastructure-schematic-links { display: grid; gap: 9px; max-height: 290px; overflow-y: auto; margin: 0 0 0 20px; padding: 10px 0 0 18px; border-left: 2px solid #b9d7c6; }
+.infrastructure-schematic-link { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 9px; position: relative; }
+.infrastructure-schematic-link::before { content: ''; position: absolute; left: -18px; top: 23px; width: 17px; border-top: 2px solid #b9d7c6; }
+.infrastructure-schematic-link button { display: grid; align-content: center; gap: 4px; min-width: 0; min-height: 48px; padding: 8px 10px; border: 1px solid #d4e4d9; border-radius: 8px; background: #f9fcfa; color: #265144; font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
+.infrastructure-schematic-link button:hover { border-color: #4a9a74; background: #f0f8f2; }
+.infrastructure-schematic-link button small { color: #658276; font-size: 10px; }
+.infrastructure-schematic-next { grid-template-columns: auto 1fr; column-gap: 5px; }
+.infrastructure-schematic-next small { grid-column: 2; }
 @media (max-width: 650px) { .splice-schematic-link, .splice-schematic-branches { grid-template-columns: 1fr; } .equipment-bulk-fields, .splice-bulk-fields { grid-template-columns: 1fr; } }
+@media (max-width: 650px) { .infrastructure-schematic-link { grid-template-columns: 1fr; } }
 .splice-splitters { margin-top: 16px; padding: 19px; border: 1px solid #dbe7df; border-radius: 10px; background: #fbfdfb; }
 .splitter-heading, .splitter-detail-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
 .splitter-heading p, .splitter-help { margin: 0 0 12px; color: #668076; font-size: 12px; line-height: 1.5; }

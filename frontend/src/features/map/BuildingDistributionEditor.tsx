@@ -10,7 +10,8 @@ import { IndoorCableFields } from './IndoorCableFields'
 import { indoorCableError } from './indoorCable'
 import { listOpticalSplices } from './opticalSplices'
 import { tracePremisePath, type OpticalPath } from './traceOpticalPath'
-import { allocatedFiberKey, loadFiberAllocations, type FiberAllocationDocument } from './fiberAllocations'
+import { loadFiberAllocations, type FiberAllocationDocument } from './fiberAllocations'
+import { OpticalPathSteps } from './OpticalPathSteps'
 import { isConnectedPremise, loadBuildingDistribution, saveBuildingDistribution,
   type BuildingDistributionDocument, type BuildingRiser, type FloorBox, type HomePremise } from './buildingDistribution'
 import type { RouteInstallationDocument } from './routeInstallations'
@@ -233,19 +234,8 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
             {path && <div className={`equipment-path distribution-path ${path.status}`} role="status">
               <strong>{path.status === 'connected' ? 'Přiřazené vlákno dohledáno k OLT' : path.status === 'ambiguous' ? 'Nejednoznačná cesta' : 'Cesta není úplná'}</strong>
               <p>{path.message}</p>
-              {path.steps.length > 0 && <><h4>Schéma sledované cesty</h4><ol className="equipment-path-schematic">
-                {path.steps.map((step, index) => {
-                  const fiberKey = step.runId !== undefined && step.tubeIndex !== undefined && step.fiberIndex !== undefined
-                    ? allocatedFiberKey({ runId: step.runId, tubeIndex: step.tubeIndex, fiberIndex: step.fiberIndex }) : null
-                  const assignment = fiberKey ? allocations?.allocations.find(item => item.fibers.some(fiber =>
-                    allocatedFiberKey(fiber) === fiberKey)) : null
-                  return <li key={index}><div><span>{step.kind === 'cable' ? 'Kabel' : step.kind === 'splitter' ? 'Splitter'
-                    : step.kind === 'patch' ? 'Propojka' : step.kind === 'premise' ? 'HP' : 'Spoj'}</span>
-                    <strong>{step.label}</strong>{fiberKey && <small className="fiber-path-status">{assignment
-                      ? `${assignment.status === 'used' ? 'Obsazeno' : 'Rezervováno'}: ${assignment.label}` : 'Volné pro službu'}</small>}</div>
-                    {step.routeId && <button type="button" className="move-button" onClick={() => onOpenRoute(step.routeId!)}>Ukázat na mapě</button>}
-                  </li>
-                })}</ol></>}
+              {path.steps.length > 0 && <OpticalPathSteps path={path}
+                allocations={allocations} onOpenRoute={onOpenRoute} />}
               {path.routeIds.length > 0 && <p>Počet zvýrazněných úseků na mapě: {path.routeIds.length}</p>}
               {path.routeIds.length > 0 && <button type="button" className="move-button" onClick={onViewMap}>Zobrazit celou cestu na mapě</button>}
               {path.status === 'connected' && <button type="button" className="move-button"

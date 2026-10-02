@@ -7,6 +7,8 @@ import { deleteOpticalSplice, fiberEndKey, loadOpticalSplice, saveOpticalSplice,
   splitCableAtChamber, spliceCableEnds, spliceIncidentCables, type FiberEnd, type OpticalSpliceDocument,
   type OpticalSplitter, type SplitterOutput } from './opticalSplices'
 import { cableFibers, connectionsFromPreview, previewConnections } from './fiberBatch'
+import { InfrastructureSchematic } from './InfrastructureSchematic'
+import type { OpticalPath } from './traceOpticalPath'
 
 const splitterRatios = [2, 4, 8, 16, 32, 64]
 const lossFields = [
@@ -57,9 +59,10 @@ function FiberPicker({ label, cables, value, onChange, occupied, cableLabel }: {
   </div>
 }
 
-export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
+export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, installations, tracedPath,
   onInstallationsUpdated, onClose, onSaved, onDeleted, onOpenRoute }: {
-  pointId: string; pointName: string; routes: UndergroundRoute[]
+  pointId: string; pointName: string; pointNames: Record<string, string>; routes: UndergroundRoute[]
+  tracedPath: OpticalPath | null
   installations: RouteInstallationDocument[]; onInstallationsUpdated: (documents: RouteInstallationDocument[]) => void
   onClose: () => void
   onSaved: (document: OpticalSpliceDocument) => void; onDeleted: (pointId: string) => void
@@ -125,6 +128,8 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
   const schematicSplitters = document?.splitters.filter(splitter => !schematicTerm
     || `${splitter.name} ${splitter.input ? describe(splitter.input) : ''} ${splitter.outputs.map(output => describe(output.fiber)).join(' ')}`
       .toLocaleLowerCase('cs').includes(schematicTerm)) ?? []
+  const tracedItems = new Set(tracedPath?.steps.filter(step => step.kind === 'cable' && step.itemId)
+    .map(step => step.itemId!) ?? [])
   const refresh = () => {
     setLoading(true)
     setError('')
@@ -385,8 +390,12 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
           : <p className="splice-empty">V šachtě zatím není žádný kabel pro evidenci rezervy.</p>)}
         {activeTab === 'schematic' && <section className="splice-schematic" aria-label="Schéma optických návazností v šachtě">
           <div className="splice-schematic-head"><div><h3>Schéma spojky</h3>
-            <p>Fyzické návaznosti v této šachtě. Vyberte kabel a otevřete jeho úsek na mapě.</p></div>
+            <p>Projděte sousední úseky a propojení vláken. Obě části vycházejí z uložené sítě.</p></div>
             <span>{document.connections.length} spojů · {document.splitters.length} splitterů</span></div>
+          <InfrastructureSchematic pointId={pointId} pointName={pointName} pointNames={pointNames}
+            routes={routes} installations={installations} tracedRouteIds={tracedPath?.routeIds ?? []}
+            onOpenRoute={onOpenRoute} />
+          <h4 className="splice-schematic-subtitle">Logické návaznosti vláken</h4>
           {(document.connections.length + document.splitters.length > 8) && <label className="splice-schematic-search">Najít vlákno nebo kabel
             <input type="search" value={schematicQuery} onChange={event => setSchematicQuery(event.target.value)}
               placeholder="Tuba, vlákno, trasa…" /></label>}
@@ -395,7 +404,8 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
           {schematicTerm && schematicConnections.length + schematicSplitters.length === 0
             && <p className="splice-empty">Žádné spojení neodpovídá hledání.</p>}
           <div className="splice-schematic-list">
-            {schematicConnections.map(connection => <div className="splice-schematic-link" key={connection.id}>
+            {schematicConnections.map(connection => <div className={`splice-schematic-link${tracedItems.has(connection.left.itemId)
+              && tracedItems.has(connection.right.itemId) ? ' traced' : ''}`} key={connection.id}>
               <button type="button" onClick={() => {
                 const routeId = byId.get(connection.left.itemId)?.routeId
                 if (routeId) onOpenRoute(routeId)
@@ -406,7 +416,8 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
                 if (routeId) onOpenRoute(routeId)
               }}>{describe(connection.right)}<small>Otevřít úsek na mapě</small></button>
             </div>)}
-            {schematicSplitters.map(splitter => <div className="splice-schematic-splitter" key={splitter.id}>
+            {schematicSplitters.map(splitter => <div className={`splice-schematic-splitter${tracedPath?.steps.some(step =>
+              step.splitterId === splitter.id) ? ' traced' : ''}`} key={splitter.id}>
               <strong>{splitter.name} · 1:{splitter.outputCount}</strong>
               <div className="splice-schematic-branches"><span>{splitter.input ? describe(splitter.input) : 'Vstup nepřipojen'}</span>
                 <span>→</span><div>{splitter.outputs.length ? splitter.outputs.map(output =>

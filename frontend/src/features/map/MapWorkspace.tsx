@@ -608,7 +608,9 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
         </div>
       </aside>
       {spliceOpen && editor?.id && editor.kind === 'chamber' && <OpticalSpliceEditor key={editor.id}
-        pointId={editor.id} pointName={editor.name} routes={route.routes}
+        pointId={editor.id} pointName={editor.name}
+        pointNames={Object.fromEntries(points.map(point => [point.id, point.name]))} routes={route.routes}
+        tracedPath={tracedPath}
         installations={installations.documents} onInstallationsUpdated={installations.replaceDocuments}
         onClose={() => setSpliceOpen(false)}
         onOpenRoute={id => { setSpliceOpen(false); selectSavedRoute(id)

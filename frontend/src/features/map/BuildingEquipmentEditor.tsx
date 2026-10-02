@@ -10,8 +10,9 @@ import type { UndergroundRoute } from './undergroundRoutes'
 import { traceOpticalPath, tracePortToPremise, type OpticalPath } from './traceOpticalPath'
 import { countCzech, portLocation } from './equipmentPresentation'
 import { cableFibers, previewPortAssignments } from './fiberBatch'
-import { allocatedFiberKey, allocationConflicts, loadFiberAllocations, pathAllocatedFibers, saveFiberAllocations,
+import { allocationConflicts, loadFiberAllocations, pathAllocatedFibers, saveFiberAllocations,
   type FiberAllocationDocument } from './fiberAllocations'
+import { OpticalPathSteps } from './OpticalPathSteps'
 
 type Selection = { kind: 'rack' | 'shelf' | 'card' | 'port'; id: string }
 const id = () => crypto.randomUUID()
@@ -418,18 +419,8 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
                   }}><option value="">Vyberte výstup</option>
                     {path.branchChoices.filter(choice => choice.splitterId === splitterId).map(choice =>
                       <option key={choice.position} value={choice.position}>{choice.label}</option>)}
-                  </select></label>)}{path.steps.length > 0 && <><h4>Schéma sledované cesty</h4><ol className="equipment-path-schematic">{path.steps.map((step, index) => {
-                const fiberKey = step.runId !== undefined && step.tubeIndex !== undefined && step.fiberIndex !== undefined
-                  ? allocatedFiberKey({ runId: step.runId, tubeIndex: step.tubeIndex, fiberIndex: step.fiberIndex }) : null
-                const assignment = fiberKey ? allocations?.allocations.find(item => item.fibers.some(fiber =>
-                  allocatedFiberKey(fiber) === fiberKey)) : null
-                return <li key={index}><div><span>{step.kind === 'cable' ? 'Kabel' : step.kind === 'splitter' ? 'Splitter'
-                  : step.kind === 'patch' ? 'Propojka' : step.kind === 'premise' ? 'HP' : 'Spoj'}</span>
-                  <strong>{step.label}</strong>{fiberKey && <small className="fiber-path-status">{assignment
-                    ? `${assignment.status === 'used' ? 'Obsazeno' : 'Rezervováno'}: ${assignment.label}` : 'Volné pro službu'}</small>}</div>
-                  {step.routeId && <button type="button" className="move-button" onClick={() => onOpenRoute(step.routeId!)}>Ukázat na mapě</button>}
-                </li>
-              })}</ol></>}
+                  </select></label>)}{path.steps.length > 0 && <OpticalPathSteps path={path}
+                allocations={allocations} onOpenRoute={onOpenRoute} />}
               {path.routeIds.length > 0 && <p>Počet zvýrazněných úseků na mapě: {path.routeIds.length}</p>}
               {path.routeIds.length > 0 && <button type="button" className="move-button" onClick={onViewMap}>Zobrazit celou cestu na mapě</button>}
               {dirty && <p>Jde o náhled neuložených změn. Před přenosem cestu uložte.</p>}

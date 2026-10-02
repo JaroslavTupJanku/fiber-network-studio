@@ -9,6 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
 import { previewConnections, previewPortAssignments } from '../frontend/src/features/map/fiberBatch.ts'
 import { pathAllocatedFibers, allocationConflicts } from '../frontend/src/features/map/fiberAllocations.ts'
+import { infrastructureLinks } from '../frontend/src/features/map/infrastructureSchematic.ts'
 
 test('bulk previews reject a conflicted range without offering partial pairs', () => {
   const cable = id => ({ id, runId: id, cable: { tubes: [{ name: 'Tuba', fibers: Array.from({ length: 4 }, (_, i) => ({ name: `${i + 1}` })) }] } })
@@ -34,6 +35,23 @@ test('path allocation groups all sections of one physical run and identifies ove
   assert.deepEqual(fibers, [{ runId: 'run', tubeIndex: 0, fiberIndex: 1 },
     { runId: 'next', tubeIndex: 0, fiberIndex: 1 }])
   assert.equal(allocationConflicts(fibers, [{ id: 'a', fibers: [fibers[1]] }]).length, 1)
+})
+
+test('infrastructure scheme follows saved routes without inventing cable continuity', () => {
+  const routes = [
+    { id: 'a', name: 'Centrála–šachta', startPointId: 'building', endPointId: 'chamber' },
+    { id: 'b', name: 'Šachta–dům', startPointId: 'chamber', endPointId: 'home' },
+  ]
+  const installations = [
+    { routeId: 'a', items: [{ id: 'one', runId: 'same', cable: {}, duct: null }] },
+    { routeId: 'b', items: [{ id: 'two', runId: 'same', cable: {}, duct: null },
+      { id: 'three', runId: 'duct', cable: null, duct: {} }] },
+  ]
+  const links = infrastructureLinks('chamber', routes, installations,
+    { building: 'Centrála', home: 'Dům', chamber: 'Šachta' })
+  assert.deepEqual(links.map(link => [link.otherPointName, link.cableRuns, link.conduitRuns]),
+    [['Centrála', 1, 0], ['Dům', 1, 1]])
+  assert.equal(infrastructureLinks('home', routes, installations, {}).length, 1)
 })
 
 test('fiber allocation API validates conflicts, stale writes and cable deletion', { timeout: 50000 }, async () => {
