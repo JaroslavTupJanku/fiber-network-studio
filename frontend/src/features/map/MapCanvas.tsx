@@ -16,8 +16,11 @@ import { initializeMapLayers, pointCollection, routeCollection, routeDraftCollec
   ROUTE_SOURCE_ID, ROUTE_LAYER_ID, SELECTED_ROUTE_LAYER_ID, TRACED_ROUTE_LAYER_ID, HOVERED_ROUTE_LAYER_ID, ROUTE_DRAFT_SOURCE_ID,
   ROUTE_VERTEX_SOURCE_ID, ROUTE_INSERT_SOURCE_ID, BUILDING_CROSSING_SOURCE_ID } from './mapLayers'
 import { crossedDragThreshold, mapCursor, resolveMapClick } from './interactions'
-import { routeGeometryHit, routeCoordinates, routeSplitPosition, waypointsAfterPointMove,
+import { routeGeometryHit, routeCoordinates, routeLengthMeters, routeSplitPosition, waypointsAfterPointMove,
   type RouteDraft, type RouteSplitPosition, type UndergroundRoute } from './undergroundRoutes'
+
+export type MapSnapshot = { image: string; baseMap: string; cadastre: boolean; scaleMeters: number;
+  widthCss: number; bearing: number; center: string; capturedAt: string } | { error: string }
 
 type MapCanvasProps = {
   points: NetworkPoint[]
@@ -67,6 +70,8 @@ type MapCanvasProps = {
   onPointMove: (id: string, location: Coordinates) => Promise<void>
   onDraftMove: (location: Coordinates) => void
   onCadastreDisable: () => void
+  snapshotRequest: number
+  onMapSnapshot: (snapshot: MapSnapshot) => void
 }
 
 type PointDrag = { id: string, kind: NetworkPointKind, startX: number, startY: number, original: Coordinates, location: Coordinates, moved: boolean }
@@ -81,7 +86,8 @@ export function MapCanvas({ points, routes, installations, splices, installation
   routeBuildingCrossings, routeNearbyBuildings, routeCheckingBuildings, pointMoveError, onRouteToolChange,
   onRouteSelect, onRouteEdit, onRouteWaypointInsert, onRouteWaypointMove, onRouteWaypointRemove, onRouteUndo, onRouteFinish, onRouteCancel, selectedPointId, hoveredPointId, onMapPointHoverChange,
   selectedParcel, preview, activeTool, placementActive, toolsDisabled, onToolChange, onToolDrop,
-  onLocationClick, onPointSelect, onPointMove, onDraftMove, onCadastreDisable }: MapCanvasProps) {
+  onLocationClick, onPointSelect, onPointMove, onDraftMove, onCadastreDisable,
+  snapshotRequest, onMapSnapshot }: MapCanvasProps) {
   const container = useRef<HTMLDivElement>(null)
   const mapRef = useRef<Map | null>(null)
   const readyMapRef = useRef<Map | null>(null)
@@ -99,6 +105,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
   const focusedPointId = useRef<string | null>(null)
   const lastRouteFocusSequence = useRef(0)
   const lastPointFocusSequence = useRef(0)
+  const lastSnapshotRequest = useRef(0)
   const cadastreActive = useRef(false)
   const cadastreFailed = useRef(false)
   const orthophotoActive = useRef(false)
@@ -165,6 +172,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
       style: 'https://tiles.openfreemap.org/styles/liberty',
       center: [14.421, 50.088],
       zoom: 12,
+      canvasContextAttributes: { preserveDrawingBuffer: true },
       locale: {
         'Map.Title': 'Mapa',
         'NavigationControl.ZoomIn': 'Přiblížit',
@@ -842,6 +850,37 @@ export function MapCanvas({ points, routes, installations, splices, installation
       orthophotoTimeout.current = setTimeout(() => setOrthophotoStatus('error'), 15000)
     }
   }, [mapGeneration, baseMap, orthophotoRetryVersion])
+
+  useEffect(() => {
+    if (!snapshotRequest || snapshotRequest === lastSnapshotRequest.current) return
+    const map = mapRef.current
+    if (!map) return
+    lastSnapshotRequest.current = snapshotRequest
+    let finished = false
+    const capture = () => {
+      if (finished) return
+      finished = true
+      try {
+        const canvas = map.getCanvas()
+        if (!canvas.width || !canvas.height) throw new Error('Mapa ještě není připravena k exportu.')
+        const middleY = canvas.clientHeight / 2
+        const left = map.unproject([canvas.clientWidth / 2 - 50, middleY])
+        const right = map.unproject([canvas.clientWidth / 2 + 50, middleY])
+        const center = map.getCenter()
+        onMapSnapshot({ image: canvas.toDataURL('image/png'), baseMap: baseMap === 'street' ? 'Uliční mapa' : 'Ortofoto',
+          cadastre: cadastreEnabled && cadastreStatus === 'ready',
+          scaleMeters: routeLengthMeters([{ latitude: left.lat, longitude: left.lng }, { latitude: right.lat, longitude: right.lng }]),
+          widthCss: canvas.clientWidth, bearing: map.getBearing(),
+          center: `${center.lat.toFixed(5)}° N, ${center.lng.toFixed(5)}° E`, capturedAt: new Date().toLocaleString('cs-CZ') })
+      } catch (reason) {
+        onMapSnapshot({ error: reason instanceof Error ? reason.message : 'Mapu se nepodařilo připravit.' })
+      }
+    }
+    map.once('idle', capture)
+    map.triggerRepaint()
+    const fallback = window.setTimeout(capture, 1500)
+    return () => { map.off('idle', capture); window.clearTimeout(fallback) }
+  }, [snapshotRequest, mapGeneration, baseMap, cadastreEnabled, cadastreStatus, onMapSnapshot])
 
   const needsZoom = cadastreEnabled && !canShowCadastre
   const cursorPreview = dragPointer ?? grabbedPointPointer ?? (activeTool === placementPointer?.kind ? placementPointer : null)
