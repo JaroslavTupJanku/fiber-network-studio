@@ -927,10 +927,10 @@ export function MapCanvas({ points, routes, installations, splices, installation
         <div className="route-guide-copy"><strong>{routeSplitPreview.length ? `Náhled: ${routeSplitPreview.length} nových sloupů` : routeDraft && routeKind(routeDraft) === 'aerial' ? 'Nový sloup na trase' : 'Nová šachta na trase'}</strong>
           <span>{routeSplitPreview.length ? 'Pozice zkontrolujte v mapě a potvrďte v panelu trasy.' : routeSplitSelection ? 'Místo je vybrané. Pojmenujte nový objekt a potvrďte rozdělení v panelu.'
             : 'Klikněte na vybranou trasu mezi koncovými objekty a lomovými body.'}</span>
-          <small>Chráničky a kabely zůstanou průchozí; délky kabelů po rozdělení doplníte zvlášť.</small></div>
+          <small>{routeDraft && routeKind(routeDraft) === 'aerial' ? 'Kabely zůstanou průchozí; jejich délky po rozdělení doplníte zvlášť.' : 'Chráničky a kabely zůstanou průchozí; délky kabelů po rozdělení doplníte zvlášť.'}</small></div>
         <div className="route-guide-actions"><button type="button" onClick={onRouteSplitCancel}>Zrušit</button></div>
       </div>}
-      {(points.length > 0 || routes.length > 0) && !drawingRoute && !placementActive && (
+      {(points.length > 0 || routes.length > 0) && !drawingRoute && !placementActive && !routeSplitActive && (
         <div className="map-legend">
           <button type="button" className="map-legend-toggle" aria-expanded={legendOpen}
             aria-controls="map-legend-details" onClick={() => setLegendOpen(open => !open)}>

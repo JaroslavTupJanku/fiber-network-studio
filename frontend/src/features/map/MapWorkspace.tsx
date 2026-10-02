@@ -425,7 +425,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               <strong>{routeKind(routeDraft) === 'aerial' ? 'Vložit sloup do této trasy' : 'Vložit šachtu do této trasy'}</strong>
               <p>{routeKind(routeDraft) === 'aerial' ? 'Zvolte jedno místo nebo rovnoměrné rozmístění sloupů. Náhled ukáže nové pozice před potvrzením. Kabel zůstane průchozí.' : 'Vyberte místo přímo na trase. Vzniknou dva navazující úseky; průchozí chráničky a kabely zůstanou propojené.'}</p>
               {!splitActive ? <button type="button" className="move-button" disabled={route.saving || splitBusy}
-                onClick={beginSplit}><MapPin size={16} /> Vybrat místo na mapě</button> : <>
+                onClick={beginSplit}><MapPin size={16} /> {routeKind(routeDraft) === 'aerial' ? 'Vložit sloupy…' : 'Vybrat místo na mapě'}</button> : <>
                 {routeKind(routeDraft) === 'aerial' && <>
                   <label htmlFor="split-mode">Jak rozmístit sloupy</label>
                   <select id="split-mode" value={splitMode} disabled={splitBusy}
@@ -634,7 +634,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
                   setRouteFocusRequest(current => ({ id: item.id, sequence: (current?.sequence ?? 0) + 1 }))
                 }}><RouteIcon className={`route-list-icon ${status}`} size={17} /><span className="route-list-text"><strong>{item.name}</strong><small>{routeKindLabel(item)} ·
                   {installations.loading ? 'Načítání osazení…' : installations.loadFailed ? 'Osazení se nenačetlo'
-                    : summary.items ? `Chráničky, trubičky a sestavy ${summary.ducts} · kabely ${summary.cables}` : 'Bez osazení'}
+                    : summary.items ? routeKind(item) === 'aerial' ? `Optické kabely ${summary.cables}` : `Chráničky, trubičky a sestavy ${summary.ducts} · kabely ${summary.cables}` : 'Bez osazení'}
                 </small></span></button></li>
                     })}</ul>}
                 </div>

@@ -27,11 +27,11 @@ function nestedItemCount(root: InstalledItem, items: InstalledItem[]): number {
   return seen.size - 1
 }
 
-function InstallationOverview({ summary }: { summary: InstallationSummary }) {
+function InstallationOverview({ summary, aerial = false }: { summary: InstallationSummary; aerial?: boolean }) {
   return <div className={`installation-overview ${summary.status}`} aria-live="polite">
     <strong>{summary.status === 'empty' ? 'Zatím bez osazení' : summary.status === 'cables'
       ? summary.cables === 1 ? 'V úseku je optický kabel' : 'V úseku jsou optické kabely' : 'Osazeno bez kabelu'}</strong>
-    <span>Chráničky, mikrotrubičky, sestavy <b>{summary.ducts}</b></span>
+    {!aerial && <span>Chráničky, mikrotrubičky, sestavy <b>{summary.ducts}</b></span>}
     <span>Optické kabely <b>{summary.cables}</b></span>
   </div>
 }
@@ -589,7 +589,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
           <Plus size={14} /> Přidat</button>
         <button type="button" className="icon-button" title="Načíst osazení znovu"
           aria-label="Načíst osazení znovu" onClick={refresh}><RefreshCw size={16} /></button></div></div>
-      {!loading && !loadFailed && <InstallationOverview summary={summary} />}
+      {!loading && !loadFailed && <InstallationOverview summary={summary} aerial={aerial} />}
       {savedMessage && <p className="installation-saved" role="status"><Check size={15} /> {savedMessage}</p>}
       {quickAddOpen && !loadFailed && <form id="installation-quick-add" className="installation-quick-add" onSubmit={submitQuick}>
         <strong>Přidat prvek do trasy</strong>
@@ -644,7 +644,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
                   const next = new Set(previous); next.delete(root.id); return next
                 }); setEditorOpen(true) }}>
                 <span className="installation-preview-mark" style={{ background: itemColor(root) }} aria-hidden="true" />
-                <span><strong>{root.label}</strong><small>{itemKind(root)} · {nestedItemCount(root, document.items)} uvnitř</small></span>
+                <span><strong>{root.label}</strong><small>{itemKind(root)}{root.duct ? ` · ${nestedItemCount(root, document.items)} uvnitř` : ` · ${root.cable?.tubes.reduce((count, tube) => count + tube.fibers.length, 0) ?? 0} vláken`}</small></span>
                 <ChevronRight size={16} aria-hidden="true" />
               </button>)}
             </div>{roots.length > 4 && <p className="installation-muted">A další {roots.length - 4} hlavní prvky v editoru.</p>}</>}
@@ -658,11 +658,11 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
       <div className="installation-editor-shell">
         <header className="installation-editor-header">
           <div className="installation-editor-header-main"><div className="installation-editor-emblem"><Layers3 size={22} /></div>
-            <div><span>Podzemní trasa · {route.name}</span>
+            <div><span>{aerial ? 'Nadzemní trasa' : 'Podzemní trasa'} · {route.name}</span>
               <h2 id="installation-editor-title">Editor osazení</h2></div>
             <button type="button" onClick={() => setEditorOpen(false)} aria-label="Zavřít editor osazení"><X size={18} /></button>
           </div>
-          {!loading && !loadFailed && <InstallationOverview summary={summary} />}
+          {!loading && !loadFailed && <InstallationOverview summary={summary} aerial={aerial} />}
         </header>
         <div className="installation-editor-scroll">{editorContent}</div>
       </div>
