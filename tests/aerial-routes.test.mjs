@@ -192,5 +192,15 @@ test('mixed network keeps cable continuity through poles, batch splits and far-e
       assert.equal(reconnected.endPortId, endPortId)
       assert.equal(reconnected.steps.filter(step => step.kind === 'splice').length, 1)
 
+      // Removing the last cable leaves a versioned empty document; splitting must retain its concurrency guard.
+      const emptiedRoute = await ok(await request('/underground-routes', 'POST',
+        { name: 'Prázdný úsek', kind: 'aerial', startPointId: a.id, endPointId: b.id, waypoints: [] }))
+      const withCable = await ok(await add(emptiedRoute, cableType.id, null, 0))
+      const emptied = await ok(await request(`/route-installations/${emptiedRoute.id}/items/${withCable.items[0].id}?version=${withCable.version}`, 'DELETE'))
+      const emptySplit = await ok(await request(`/underground-routes/${emptiedRoute.id}/split`, 'POST',
+        { expectedRoute: emptiedRoute, installationVersion: emptied.version, poleCount: 1, chamberName: 'Prázdný' }))
+      assert.equal(emptySplit.installations[0].version, emptied.version + 1)
+      assert.equal((await add(emptySplit.firstRoute, cableType.id, null, 0)).status, 409)
+
     } finally { await stop(); await rm(directory, { recursive: true, force: true }) }
   })

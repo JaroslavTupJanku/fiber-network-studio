@@ -133,7 +133,8 @@ public sealed class RouteSplitService(string pointPath, string routePath, string
                 ActualLengthMeters = item.Cable is not null ? null : item.ActualLengthMeters,
                 LengthBeforeSplitMeters = index == 0 ? item.ActualLengthMeters ?? item.LengthBeforeSplitMeters : null
             }).ToList();
-            installed.Add(new RouteInstallationDocument(id,
+            if (items.Count > 0 || index == 0 && documents.Any(document => document.RouteId == routeId))
+                installed.Add(new RouteInstallationDocument(id,
                 index == 0 ? installation.Version + 1 : 1, items));
             farEndIds = ids;
         }
