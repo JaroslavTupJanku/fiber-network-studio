@@ -10,6 +10,35 @@ Optické vybavení je v detailu budovy: stojan, ODF/OLT police, OLT karty a čí
 
 Webová pracovní plocha pro provozovatele infrastruktury. Na mapě lze založit budovu nebo šachtu, pojmenovat ji, přesunout a smazat. Dva body lze propojit podzemní trasou. Katastrální podklad umožňuje vybrat a zvýraznit parcelu.
 
+## Nadzemní vedení a sloupy
+
+Nástroj **Sloup** založí samostatný síťový bod. **Nadzemní trasa** propojuje sloupy a/nebo
+budovy a používá stejný postup kreslení, úpravy lomů a navazování jako podzemní trasa.
+V mapě je přerušovaná, podzemní trasa plná; druh je uveden také v seznamu, detailu,
+schématu infrastruktury a výkazu. Podzemní úsek může končit na sloupu pro přechod do nadzemní části.
+
+Do nadzemního úseku vložte kabel přímo, bez fiktivní chráničky. Pokračování ze sousedního
+úseku zachová identitu fyzického kabelu i mezi podzemním a nadzemním vedením. Na sloupu
+lze evidovat spojku, rezervu, svary a splittery. Průchozí kabel nevyžaduje umělý svar;
+pro odbočení jej nejprve rozdělte na dva kabelové konce v editoru spojky.
+
+V záložce **Trasa** lze vložit jeden sloup kliknutím do mapy nebo rovnoměrně rozmístit
+1–100 nových sloupů podle jejich počtu či největší mapové rozteče. Náhled vyznačí polohy
+před potvrzením. Jedním zápisem vzniknou všechny úseky; kabel a vazby na vlákna u původního
+konce zůstanou zachované. Původní známá délka kabelu se uchová jako historický údaj, nové
+délky se doplní zvlášť. Mapová rozteč není délka zavěšeného kabelu: skutečná délka zahrnuje
+průvěs a rezervy. Náhled nenavrhuje únosnost sloupů ani dovolené rozpětí kabelu.
+
+Nadzemní kreslení ani přesun nepoužívají kontrolu výkopu proti půdorysům budov. Výška,
+průvěs, zavěšení a proveditelnost se z 2D mapy neověřují. Staré záznamy bez `kind` se čtou
+jako `underground`; nové nadzemní záznamy mají `kind: aerial`. Oba druhy sdílejí úložiště
+`underground-routes.json` a existující API, aby se zachovaly odkazy osazení, vláken a portů.
+
+Rozsah vychází z dodaného **Školení NetStork**, str. 21, oddílu 15.3 (trasy mezi sloupy/budovami,
+rovnoměrné dělení podle počtu nebo vzdálenosti), z [popisu modelování infrastruktury od Globemy](https://netstork.globema.cz/5-kroku-k-navrhu-vasi-telco-site-primo-v-netstorku-nasem-evidencnim-systemu/)
+a z [instalační příručky Corning SRP 005-010](https://www.corning.com/content/dam/corning/catalog/coc/documents/standard-recommended-procedures/005-010.pdf),
+oddílů 2.10 a 3.36–3.39 (rezervy a umístění spojek). Údaje konkrétního kabelu je potřeba převzít z jeho dokumentace.
+
 ## Jak to funguje
 
 V prázdném poli se šedým příkladem „Např. …“ jej převezmete šipkou doprava; Tab dál přechází mezi poli.

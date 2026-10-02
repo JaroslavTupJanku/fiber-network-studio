@@ -3,7 +3,7 @@ import type { Coordinates, NetworkPoint } from './networkPoints'
 import { crossingBuildingFootprints, findBuildingFootprints, routeWithinFootprintCoverage,
   type BuildingFootprint } from './buildingFootprints'
 import { deleteUndergroundRoute, listUndergroundRoutes, saveUndergroundRoute,
-  routeCoordinates, undoRouteStep, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
+  routeCoordinates, routeKind, acceptsRouteEndpoint, undoRouteStep, type RouteKind, type RouteDraft, type UndergroundRoute } from './undergroundRoutes'
 
 const copyRoute = (route: UndergroundRoute): RouteDraft => ({ ...route,
   waypoints: route.waypoints.map(point => ({ ...point })) })
@@ -36,13 +36,14 @@ export function useUndergroundRoutes(points: NetworkPoint[], drawingPaused = fal
   const geometrySignature = useMemo(() => draft ? JSON.stringify(coordinates) : null, [draft, coordinates])
   useEffect(() => { latestCoordinates.current = coordinates }, [coordinates])
   useEffect(() => { drawingActive.current = drawing }, [drawing])
-  const buildingCrossings = useMemo(() => drawing && draft
+  const underground = !draft || routeKind(draft) === 'underground'
+  const buildingCrossings = useMemo(() => drawing && draft && underground
     ? crossingResult?.signature === geometrySignature ? crossingResult.footprints
       : nearbyResult ? crossingBuildingFootprints(draft, points, nearbyResult.footprints) : []
-    : [], [drawing, draft, points, nearbyResult, crossingResult, geometrySignature])
+    : [], [drawing, draft, underground, points, nearbyResult, crossingResult, geometrySignature])
 
   useEffect(() => {
-    if (!drawing || coordinates.length < 2) {
+    if (!drawing || !underground || coordinates.length < 2) {
       if (nearbyTimer.current) clearTimeout(nearbyTimer.current)
       nearbyTimer.current = null
       return
@@ -74,7 +75,7 @@ export function useUndergroundRoutes(points: NetworkPoint[], drawingPaused = fal
         setNearbyRevision(revision => revision + 1)
       })
     }, delay)
-  }, [drawing, coordinates, geometrySignature, nearbyResult, nearbyRevision])
+  }, [drawing, underground, coordinates, geometrySignature, nearbyResult, nearbyRevision])
 
   useEffect(() => () => {
     nearbySession.current += 1
@@ -96,6 +97,7 @@ export function useUndergroundRoutes(points: NetworkPoint[], drawingPaused = fal
   }, [geometrySignature])
 
   const checkBuildings = async (candidate: RouteDraft, signature: string, revision: number) => {
+    if (routeKind(candidate) === 'aerial') return true
     if (checkedGeometry.current === signature) return true
     try {
       const footprints = await findBuildingFootprints(routeCoordinates(candidate, points))
@@ -147,10 +149,10 @@ export function useUndergroundRoutes(points: NetworkPoint[], drawingPaused = fal
     setError('')
   }, [routes, continuationSourceId])
 
-  const startDrawing = () => {
+  const startDrawing = (kind: RouteKind = 'underground') => {
     resetNearby()
     insertedWaypoints.current = []
-    setDraft({ name: '', startPointId: null, endPointId: null, waypoints: [] })
+    setDraft({ kind, name: '', startPointId: null, endPointId: null, waypoints: [] })
     setDrawing(true)
     setContinuationSourceId(null)
     setError('')
@@ -188,7 +190,7 @@ export function useUndergroundRoutes(points: NetworkPoint[], drawingPaused = fal
     }
     resetNearby()
     insertedWaypoints.current = []
-    setDraft({ name: '', startPointId: pointId, endPointId: null, waypoints: [] })
+    setDraft({ kind: routeKind(saved), name: '', startPointId: pointId, endPointId: null, waypoints: [] })
     setDrawing(true)
     setContinuationSourceId(saved.id)
     setError('')
@@ -197,6 +199,11 @@ export function useUndergroundRoutes(points: NetworkPoint[], drawingPaused = fal
 
   const addPoint = (id: string) => {
     if (!drawing) return
+    const point = points.find(point => point.id === id)
+    if (!point || !draft || !acceptsRouteEndpoint(draft, point)) {
+      setError('Nadzemní trasu připojte k budově nebo sloupu.')
+      return
+    }
     if (draft?.endPointId) {
       setError('Tento úsek už má konec. Dokončete a uložte ho; další úsek pak navážete od vybraného objektu.')
       return
@@ -215,7 +222,7 @@ export function useUndergroundRoutes(points: NetworkPoint[], drawingPaused = fal
 
   const setEndpoint = (endpoint: 'startPointId' | 'endPointId', id: string | null) => {
     if (!drawing) return
-    if (id && !points.some(point => point.id === id)) return
+    if (id && !points.some(point => point.id === id && draft && acceptsRouteEndpoint(draft, point))) return
     const other = endpoint === 'startPointId' ? 'endPointId' : 'startPointId'
     if (id && draft?.[other] === id) {
       setError('Začátek a konec musí být různé objekty.')
@@ -228,7 +235,7 @@ export function useUndergroundRoutes(points: NetworkPoint[], drawingPaused = fal
 
   const addWaypoint = (location: Coordinates) => {
     if (!drawing) return
-    if (!draft?.startPointId) { setError('Nejdřív klikněte na výchozí budovu nebo šachtu.'); return }
+    if (!draft?.startPointId) { setError('Nejdřív vyberte výchozí síťový objekt.'); return }
     setDraft(current => current ? { ...current, waypoints: [...current.waypoints, location] } : current)
     setError('')
   }

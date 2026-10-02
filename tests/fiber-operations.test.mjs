@@ -9,7 +9,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import { test } from 'node:test'
 import { previewConnections, previewPortAssignments } from '../frontend/src/features/map/fiberBatch.ts'
 import { pathAllocatedFibers, allocationConflicts } from '../frontend/src/features/map/fiberAllocations.ts'
-import { infrastructureLinks } from '../frontend/src/features/map/infrastructureSchematic.ts'
+import { infrastructureLinks } from '../frontend/src/features/map/infrastructureTopology.ts'
 
 test('bulk previews reject a conflicted range without offering partial pairs', () => {
   const cable = id => ({ id, runId: id, cable: { tubes: [{ name: 'Tuba', fibers: Array.from({ length: 4 }, (_, i) => ({ name: `${i + 1}` })) }] } })

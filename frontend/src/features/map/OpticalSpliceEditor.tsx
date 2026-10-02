@@ -234,7 +234,7 @@ export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, in
   return createPortal(<dialog ref={dialogRef} className="splice-editor-dialog" aria-labelledby="splice-editor-title"
     onCancel={event => { event.preventDefault(); onClose() }}>
     <header className="splice-editor-header"><span className="splice-editor-emblem"><Cable size={23} /></span>
-      <div><small>Šachta · {pointName}</small><h2 id="splice-editor-title">Optická spojka</h2></div>
+      <div><small>Síťový bod · {pointName}</small><h2 id="splice-editor-title">Optická spojka</h2></div>
       <button type="button" className="icon-button" onClick={onClose} aria-label="Zavřít editor"><X size={19} /></button>
     </header>
     <div className="splice-editor-body">

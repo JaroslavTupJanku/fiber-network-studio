@@ -14,17 +14,17 @@ public static class OpticalSpliceEndpoints
 
         app.MapGet("/api/optical-splices/{pointId:guid}", async (Guid pointId,
             NetworkPointStore points, OpticalSpliceStore store) =>
-            (await points.ListAsync()).Any(point => point.Id == pointId && point.Kind == "chamber")
+            (await points.ListAsync()).Any(point => point.Id == pointId && point.Kind is "chamber" or "pole")
                 ? Results.Ok(await store.GetAsync(pointId))
-                : Results.NotFound(new { error = "Šachta neexistuje." }));
+                : Results.NotFound(new { error = "Šachta nebo sloup neexistuje." }));
 
         app.MapPut("/api/optical-splices/{pointId:guid}", async (Guid pointId,
             SaveOpticalSpliceRequest request, NetworkPointStore points, OpticalSpliceStore store,
             UndergroundRouteStore routes, RouteInstallationStore installations,
             FiberAllocationStore allocations) =>
         {
-            if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind == "chamber"))
-                return Results.NotFound(new { error = "Spojku lze umístit jen do existující šachty." });
+            if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind is "chamber" or "pole"))
+                return Results.NotFound(new { error = "Spojku lze umístit do existující šachty nebo na sloup." });
             var allRoutes = await routes.ListAsync();
             var allInstallations = await installations.ListAsync();
             var current = await store.GetAsync(pointId);
@@ -46,8 +46,8 @@ public static class OpticalSpliceEndpoints
             SplitInstalledRunRequest request, NetworkPointStore points, UndergroundRouteStore routes,
             RouteInstallationStore installations, FiberAllocationStore allocations) =>
         {
-            if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind == "chamber"))
-                return Results.NotFound(new { error = "Kabel lze rozdělit jen v existující šachtě." });
+            if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind is "chamber" or "pole"))
+                return Results.NotFound(new { error = "Kabel lze rozdělit v existující šachtě nebo na sloupu." });
             var item = (await installations.ListAsync()).SelectMany(document => document.Items)
                 .FirstOrDefault(item => item.Id == request.ItemId);
             if (item is not null && await allocations.ReferencesRunAsync([item.RunId]))

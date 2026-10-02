@@ -82,8 +82,12 @@ public static class RouteInstallationEndpoints
         });
 
         group.MapPut("/{routeId:guid}/items/{itemId:guid}/placement", async (Guid routeId, Guid itemId,
-            MoveInstalledItemRequest request, RouteInstallationStore store) =>
-            ToResult(await store.MoveAsync(routeId, itemId, request)));
+            MoveInstalledItemRequest request, RouteInstallationStore store, UndergroundRouteStore routes) =>
+        {
+            var route = (await routes.ListAsync()).FirstOrDefault(route => route.Id == routeId);
+            return route is null ? Results.NotFound() : ToResult(await store.MoveAsync(routeId, itemId, request,
+                route.Kind == "aerial"));
+        });
 
         group.MapDelete("/{routeId:guid}/items/{itemId:guid}", async (Guid routeId, Guid itemId,
             int version, RouteInstallationStore store, UndergroundRouteStore routeStore,

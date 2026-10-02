@@ -1,4 +1,4 @@
-export type NetworkPointKind = 'building' | 'chamber'
+export type NetworkPointKind = 'building' | 'chamber' | 'pole'
 export type BuildingType = 'standard' | 'apartment'
 
 export type Coordinates = {

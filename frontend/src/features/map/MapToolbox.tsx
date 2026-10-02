@@ -1,6 +1,7 @@
 import { useRef, useState, type Dispatch, type PointerEvent, type SetStateAction } from 'react'
-import { AlertCircle, CheckCircle2, ChevronDown, CircleDot, HousePlus, Layers3, LoaderCircle, MousePointer2, Route, RefreshCw, X, ZoomIn, type LucideIcon } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ChevronDown, CircleDot, UtilityPole, HousePlus, Layers3, LoaderCircle, MousePointer2, Route, RefreshCw, X, ZoomIn, type LucideIcon } from 'lucide-react'
 import type { NetworkPointKind } from './networkPoints'
+import type { RouteKind } from './undergroundRoutes'
 import { crossedDragThreshold } from './interactions'
 
 export type CadastreStatus = 'loading' | 'ready' | 'error'
@@ -10,6 +11,7 @@ export type PlacementPointer = { kind: NetworkPointKind, x: number, y: number }
 type ToolDrag = { kind: NetworkPointKind, pointerId: number, startX: number, startY: number, dragging: boolean }
 
 const POINT_TOOLS: { kind: NetworkPointKind; label: string; Icon: LucideIcon; hint: string }[] = [
+  { kind: 'pole', label: 'Sloup', Icon: UtilityPole, hint: 'Podpora nadzemního kabelu; může nést optickou spojku' },
   { kind: 'building', label: 'Budova', Icon: HousePlus, hint: 'Přidat budovu nebo ji přetáhnout na mapu' },
   { kind: 'chamber', label: 'Šachta', Icon: CircleDot, hint: 'Přístupný podzemní prostor; kabel jím může procházet, uvnitř může být spojka' },
 ]
@@ -19,10 +21,11 @@ type MapToolboxProps = {
   placementActive: boolean
   toolsDisabled: boolean
   onToolChange: (kind: NetworkPointKind | null) => void
+  routeKind: RouteKind
   routeDrawing: boolean
   routePaused: boolean
   canDrawRoute: boolean
-  onRouteToolChange: () => void
+  onRouteToolChange: (kind: RouteKind) => void
   onToolDropAt: (kind: NetworkPointKind, clientX: number, clientY: number) => void
   onDragPointerChange: Dispatch<SetStateAction<PlacementPointer | null>>
   mapBounds: () => DOMRect | undefined
@@ -38,7 +41,7 @@ type MapToolboxProps = {
   onZoomToCadastre: () => void
 }
 
-export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolChange, routeDrawing, routePaused, canDrawRoute, onRouteToolChange, onToolDropAt,
+export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolChange, routeKind, routeDrawing, routePaused, canDrawRoute, onRouteToolChange, onToolDropAt,
   onDragPointerChange: setDragPointer, mapBounds,
   baseMap, onBaseMapChange, orthophotoStatus, onOrthophotoRetry, cadastreEnabled, cadastreStatus,
   needsZoom, onCadastreChange, onCadastreRetry, onZoomToCadastre }: MapToolboxProps) {
@@ -83,8 +86,8 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
     onToolChange(activeTool === kind ? null : kind)
     if (window.matchMedia('(max-width: 720px)').matches) setToolboxOpen(false)
   }
-  const handleRouteToolClick = () => {
-    onRouteToolChange()
+  const handleRouteToolClick = (kind: RouteKind) => {
+    onRouteToolChange(kind)
     if (window.matchMedia('(max-width: 720px)').matches) setToolboxOpen(false)
   }
   return (
@@ -113,11 +116,13 @@ export function MapToolbox({ activeTool, placementActive, toolsDisabled, onToolC
         </section>
         <section className="map-toolbox-section" aria-label="Trasy">
           <h2>Trasy</h2>
-          <button type="button" className={`map-tool route-tool${routeDrawing ? ' active' : ''}${routePaused ? ' route-paused' : ''}`}
-            aria-pressed={routeDrawing} disabled={toolsDisabled || !canDrawRoute}
-            onClick={handleRouteToolClick} title="Nakreslit podzemní trasu mezi dvěma body sítě">
-            <Route size={18} aria-hidden="true" /> {routePaused ? 'Pokračovat v trase' : 'Podzemní trasa'}
-          </button>
+          {(['underground', 'aerial'] as const).map(kind => <button key={kind} type="button"
+            className={`map-tool route-tool${routeDrawing && routeKind === kind ? ' active' : ''}`}
+            aria-pressed={routeDrawing && routeKind === kind} disabled={toolsDisabled || !canDrawRoute}
+            onClick={() => handleRouteToolClick(kind)}>
+            <Route size={18} aria-hidden="true" /> {routePaused && routeKind === kind ? 'Pokračovat v trase'
+              : kind === 'aerial' ? 'Nadzemní trasa' : 'Podzemní trasa'}
+          </button>)}
           <p className="map-toolbox-hint">{canDrawRoute
             ? routePaused
               ? 'Rozkreslená trasa čeká na nový objekt. Kliknutím sem se vrátíte ke kreslení.'

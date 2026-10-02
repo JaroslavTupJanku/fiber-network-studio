@@ -5,7 +5,7 @@ import type { NetworkPoint } from './networkPoints'
 import type { OpticalSpliceDocument } from './opticalSplices'
 import type { RouteInstallationDocument } from './routeInstallations'
 import type { OpticalPath } from './traceOpticalPath'
-import type { UndergroundRoute } from './undergroundRoutes'
+import { routeKindLabel, type UndergroundRoute } from './undergroundRoutes'
 import type { MapSnapshot } from './MapCanvas'
 import { downloadMapPng } from './exportMapPng'
 import { pathExportRows, routeExportRows, spliceExportRows, toCzechCsv, type ExportRow } from './networkExports'
@@ -98,7 +98,7 @@ export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, r
       <div className="network-export-options">
         {output === 'map' ? <><strong>Aktuální výřez mapy</strong><p>Výstup zachytí právě zobrazené vrstvy a polohu. Nastavení mapy můžete změnit po zavření tohoto okna.</p>
           <button type="button" className="move-button" onClick={onRefreshMap}><RefreshCw size={15} /> Obnovit snímek</button></>
-        : output === 'infrastructure' || output === 'report' && report === 'route' ? <label>Podzemní trasa
+        : output === 'infrastructure' || output === 'report' && report === 'route' ? <label>Trasa sítě
           <select value={routeId} onChange={event => setRouteId(event.target.value)}>
             {routes.map(item => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select></label>
@@ -124,7 +124,7 @@ export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, r
           <div className="network-export-map-meta"><span>Podklad: {snapshot.baseMap}{snapshot.cadastre ? ' + katastr' : ''}</span>
             <span>Střed: {snapshot.center}</span><span>100 px ≈ {Math.round(snapshot.scaleMeters)} m při zobrazené velikosti</span></div>
           <div className="network-export-legend"><strong>Legenda</strong><span><i className="point-key building" /> Budova</span>
-            <span><i className="point-key chamber" /> Šachta</span><span><i className="route-key empty" /> Neosazená trasa</span>
+            <span><i className="point-key chamber" /> Šachta</span><span><i className="point-key pole" /> Sloup</span><span><i className="route-key empty" /> Neosazená trasa</span><span>Plná: podzemní · přerušovaná: nadzemní</span>
             <span><i className="route-key ducts" /> Chránička</span><span><i className="route-key cables" /> Kabel</span></div>
           <small>Snímek {snapshot.capturedAt} · Podklad: {snapshot.baseMap === 'Uliční mapa' ? 'OpenFreeMap © OpenMapTiles Data from OpenStreetMap' : '© ČÚZK – Ortofoto ČR'}{snapshot.cadastre ? ' · Katastr: ČÚZK' : ''}.
             Měřítko a délky jsou orientační.</small>
@@ -132,7 +132,7 @@ export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, r
         {output === 'infrastructure' && (route ? <>
           <p className="network-export-diagram-intro">Fyzický úsek mezi evidovanými body. Obsah osazení je uveden v pořadí podle evidence.</p>
           <div className="network-export-route-diagram"><span>{names.get(route.startPointId) ?? 'Neznámý bod'}</span>
-            <div><i /><strong>{route.name}</strong><small>podzemní trasa</small></div>
+            <div><i /><strong>{route.name}</strong><small>{routeKindLabel(route)}</small></div>
             <span>{names.get(route.endPointId) ?? 'Neznámý bod'}</span></div>
           <TablePreview rows={routeExportRows(route, points, installations)} />
         </> : <p className="network-export-empty">Zatím není evidována žádná trasa.</p>)}

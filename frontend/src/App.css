@@ -789,3 +789,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
   .route-guide-actions button:disabled { display: none; }
 }
 @media (max-width: 650px) { .app-shell .app-header { flex-wrap: nowrap; gap: 8px; min-width: 0; overflow: hidden; }.app-brand { flex: none; }.app-brand span { display: none; }.app-shell .workspace-navigation { flex: 1; min-width: 0; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }.workspace-navigation::-webkit-scrollbar { display: none; }.workspace-navigation button { flex: none; white-space: nowrap; } }
+
+.point-key.pole, .kind-dot.pole { background: #75529c; }
+.placement-cursor.pole .placement-cursor-figure { background: #f2ebfa; color: #75529c; }
+.placement-cursor.pole .placement-cursor-target { background: #75529c; }
