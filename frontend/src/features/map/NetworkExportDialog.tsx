@@ -126,7 +126,7 @@ export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, r
           <div className="network-export-legend"><strong>Legenda</strong><span><i className="point-key building" /> Budova</span>
             <span><i className="point-key chamber" /> Šachta</span><span><i className="route-key empty" /> Neosazená trasa</span>
             <span><i className="route-key ducts" /> Chránička</span><span><i className="route-key cables" /> Kabel</span></div>
-          <small>Snímek {snapshot.capturedAt} · Podklad: {snapshot.baseMap === 'Uliční mapa' ? '© OpenStreetMap contributors / OpenFreeMap' : '© ČÚZK – Ortofoto ČR'}{snapshot.cadastre ? ' · Katastr: ČÚZK' : ''}.
+          <small>Snímek {snapshot.capturedAt} · Podklad: {snapshot.baseMap === 'Uliční mapa' ? 'OpenFreeMap © OpenMapTiles Data from OpenStreetMap' : '© ČÚZK – Ortofoto ČR'}{snapshot.cadastre ? ' · Katastr: ČÚZK' : ''}.
             Měřítko a délky jsou orientační.</small>
         </> : <p className="network-export-empty">{snapshot && 'error' in snapshot ? snapshot.error : 'Připravuji snímek mapy…'}</p>)}
         {output === 'infrastructure' && (route ? <>

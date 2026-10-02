@@ -54,7 +54,7 @@ export async function downloadMapPng(snapshot: Extract<MapSnapshot, { image: str
     x += context.measureText(item.label).width + 20
   }
   context.fillStyle = '#5f756b'; context.font = '10px sans-serif'
-  context.fillText(snapshot.baseMap === 'Uliční mapa' ? 'Podklad: © OpenStreetMap contributors / OpenFreeMap'
+  context.fillText(snapshot.baseMap === 'Uliční mapa' ? 'Podklad: OpenFreeMap © OpenMapTiles Data from OpenStreetMap'
     : 'Podklad: © ČÚZK – Ortofoto ČR', 18, mapHeight + 104, snapshot.widthCss - 36)
   if (snapshot.cadastre) context.fillText('Katastr: ČÚZK', 18, mapHeight + 119)
   context.fillText('Orientační měřítko. Výstup není projektovou dokumentací.', 18, mapHeight + 135)
