@@ -3,6 +3,7 @@ using FiberNetworkStudio.Api.BuildingEquipment;
 using FiberNetworkStudio.Api.BuildingDistribution;
 using FiberNetworkStudio.Api.DuctCatalog;
 using FiberNetworkStudio.Api.OpticalSplices;
+using FiberNetworkStudio.Api.FiberAllocations;
 using FiberNetworkStudio.Api.UndergroundRoutes;
 
 namespace FiberNetworkStudio.Api.RouteInstallations;
@@ -87,7 +88,7 @@ public static class RouteInstallationEndpoints
         group.MapDelete("/{routeId:guid}/items/{itemId:guid}", async (Guid routeId, Guid itemId,
             int version, RouteInstallationStore store, UndergroundRouteStore routeStore,
             OpticalSpliceStore splices, BuildingEquipmentStore equipment,
-            BuildingDistributionStore distribution) =>
+            BuildingDistributionStore distribution, FiberAllocationStore allocations) =>
         {
             var items = (await store.ListAsync()).FirstOrDefault(document => document.RouteId == routeId)?.Items;
             if (items is not null)
@@ -106,6 +107,8 @@ public static class RouteInstallationEndpoints
                     return Results.Conflict(new { error = "Vlákno kabelu je ukončené na ODF portu. Nejprve odeberte terminaci." });
                 if (await distribution.ReferencesAnyAsync(removed))
                     return Results.Conflict(new { error = "Kabel je použitý v domovním rozvodu. Nejprve odeberte jeho přiřazení." });
+                if (await allocations.ReferencesRunAsync(items.Where(item => removed.Contains(item.Id)).Select(item => item.RunId)))
+                    return Results.Conflict(new { error = "Vlákno kabelu je rezervované nebo přiřazené službě. Nejprve uvolněte jeho využití." });
             }
             return ToResult(await store.RemoveAsync(routeId, itemId, version, await routeStore.ListAsync()));
         });

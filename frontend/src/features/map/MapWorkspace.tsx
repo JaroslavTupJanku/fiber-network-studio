@@ -608,9 +608,13 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
         </div>
       </aside>
       {spliceOpen && editor?.id && editor.kind === 'chamber' && <OpticalSpliceEditor key={editor.id}
-        pointId={editor.id} pointName={editor.name} routes={route.routes}
+        pointId={editor.id} pointName={editor.name}
+        pointNames={Object.fromEntries(points.map(point => [point.id, point.name]))} routes={route.routes}
+        tracedPath={tracedPath}
         installations={installations.documents} onInstallationsUpdated={installations.replaceDocuments}
         onClose={() => setSpliceOpen(false)}
+        onOpenRoute={id => { setSpliceOpen(false); selectSavedRoute(id)
+          setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
         onSaved={document => setSplices(current => [...current.filter(item => item.pointId !== document.pointId), document])}
         onDeleted={pointId => setSplices(current => current.filter(item => item.pointId !== pointId))} />}
       {equipmentOpen && editor?.id && editor.kind === 'building' && <BuildingEquipmentEditor key={editor.id}
@@ -621,6 +625,9 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
         onSaved={document => setEquipment(current => [...current.filter(item => item.pointId !== document.pointId),
           ...(document.racks.length ? [document] : [])])}
         onTrace={path => setTracedPath(path)}
+        onOpenRoute={id => { setEquipmentOpen(false); selectSavedRoute(id)
+          setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
+        onViewMap={() => setEquipmentOpen(false)}
         onBudget={path => { onOpenBudget(scenarioFromOpticalPath(path, installations.documents)); setEquipmentOpen(false) }} />}
       {distributionOpen && editor?.id && editor.kind === 'building' && <BuildingDistributionEditor key={editor.id}
         pointId={editor.id} pointName={editor.name} routes={route.routes} installations={installations.documents}
@@ -628,6 +635,9 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
         onSaved={document => setDistributions(current => [...current.filter(item => item.pointId !== document.pointId),
           ...(document.risers.length ? [document] : [])])}
         onTrace={path => setTracedPath(path)}
+        onOpenRoute={id => { setDistributionOpen(false); selectSavedRoute(id)
+          setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
+        onViewMap={() => setDistributionOpen(false)}
         onBudget={path => { onOpenBudget(scenarioFromOpticalPath(path, installations.documents)); setDistributionOpen(false) }} />}
     </main>
   )

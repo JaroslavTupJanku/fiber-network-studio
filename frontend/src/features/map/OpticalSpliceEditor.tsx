@@ -6,6 +6,9 @@ import type { UndergroundRoute } from './undergroundRoutes'
 import { deleteOpticalSplice, fiberEndKey, loadOpticalSplice, saveOpticalSplice,
   splitCableAtChamber, spliceCableEnds, spliceIncidentCables, type FiberEnd, type OpticalSpliceDocument,
   type OpticalSplitter, type SplitterOutput } from './opticalSplices'
+import { cableFibers, connectionsFromPreview, previewConnections } from './fiberBatch'
+import { InfrastructureSchematic } from './InfrastructureSchematic'
+import type { OpticalPath } from './traceOpticalPath'
 
 const splitterRatios = [2, 4, 8, 16, 32, 64]
 const lossFields = [
@@ -56,12 +59,14 @@ function FiberPicker({ label, cables, value, onChange, occupied, cableLabel }: {
   </div>
 }
 
-export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
-  onInstallationsUpdated, onClose, onSaved, onDeleted }: {
-  pointId: string; pointName: string; routes: UndergroundRoute[]
+export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, installations, tracedPath,
+  onInstallationsUpdated, onClose, onSaved, onDeleted, onOpenRoute }: {
+  pointId: string; pointName: string; pointNames: Record<string, string>; routes: UndergroundRoute[]
+  tracedPath: OpticalPath | null
   installations: RouteInstallationDocument[]; onInstallationsUpdated: (documents: RouteInstallationDocument[]) => void
   onClose: () => void
   onSaved: (document: OpticalSpliceDocument) => void; onDeleted: (pointId: string) => void
+  onOpenRoute: (routeId: string) => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [document, setDocument] = useState<OpticalSpliceDocument | null>(null)
@@ -72,12 +77,18 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
   const [left, setLeft] = useState<FiberEnd | null>(null)
   const [right, setRight] = useState<FiberEnd | null>(null)
   const [kind, setKind] = useState<'fusion' | 'connector'>('fusion')
+  const [bulkLeftId, setBulkLeftId] = useState('')
+  const [bulkRightId, setBulkRightId] = useState('')
+  const [bulkLeftStart, setBulkLeftStart] = useState(0)
+  const [bulkRightStart, setBulkRightStart] = useState(0)
+  const [bulkCount, setBulkCount] = useState(12)
   const [splitPendingRunId, setSplitPendingRunId] = useState<string | null>(null)
   const [splitNotice, setSplitNotice] = useState('')
   const [selectedSplitterId, setSelectedSplitterId] = useState<string | null>(null)
   const [pendingOutput, setPendingOutput] = useState<FiberEnd | null>(null)
   const [pendingPosition, setPendingPosition] = useState(1)
-  const [activeTab, setActiveTab] = useState<'connections' | 'splitters' | 'reserves'>('connections')
+  const [activeTab, setActiveTab] = useState<'connections' | 'splitters' | 'reserves' | 'schematic'>('connections')
+  const [schematicQuery, setSchematicQuery] = useState('')
   const cables = useMemo(() => spliceCableEnds(pointId, routes, installations), [pointId, routes, installations])
   const incidentCables = useMemo(() => spliceIncidentCables(pointId, routes, installations),
     [pointId, routes, installations])
@@ -97,6 +108,9 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
       ...splitter.outputs.map(output => fiberEndKey(output.fiber)),
     ]) ?? [],
   ])
+  const bulkLeft = cables.find(item => item.id === bulkLeftId)
+  const bulkRight = cables.find(item => item.id === bulkRightId)
+  const bulkPreview = previewConnections(bulkLeft, bulkRight, bulkLeftStart, bulkRightStart, bulkCount, occupied)
   const selectedSplitter = document?.splitters.find(item => item.id === selectedSplitterId) ?? null
   const byId = new Map(cables.map(item => [item.id, item]))
   const routeNames = new Map(routes.map(route => [route.id, route.name]))
@@ -107,6 +121,15 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
     const fiber = tube?.fibers[end.fiberIndex]
     return `${cable ? cableLabel(cable) : 'Kabel'} · ${tube?.name ?? 'Tuba'} · ${fiber?.name ?? 'Vlákno'}`
   }
+  const schematicTerm = schematicQuery.trim().toLocaleLowerCase('cs')
+  const schematicConnections = document?.connections.filter(connection => !schematicTerm
+    || `${describe(connection.left)} ${describe(connection.right)} ${connection.kind}`
+      .toLocaleLowerCase('cs').includes(schematicTerm)) ?? []
+  const schematicSplitters = document?.splitters.filter(splitter => !schematicTerm
+    || `${splitter.name} ${splitter.input ? describe(splitter.input) : ''} ${splitter.outputs.map(output => describe(output.fiber)).join(' ')}`
+      .toLocaleLowerCase('cs').includes(schematicTerm)) ?? []
+  const tracedItems = new Set(tracedPath?.steps.filter(step => step.kind === 'cable' && step.itemId)
+    .map(step => step.itemId!) ?? [])
   const refresh = () => {
     setLoading(true)
     setError('')
@@ -139,6 +162,14 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
     setDocument({ ...document, connections: [...document.connections,
       { id: crypto.randomUUID(), left, right, kind }] })
     setLeft(null); setRight(null); setError(''); setSaved(false)
+  }
+  const addBulkConnections = () => {
+    if (!document || bulkPreview.length !== bulkCount || bulkPreview.some(row => row.conflict)) return
+    const connections = connectionsFromPreview(bulkPreview, kind)
+    if (!connections.length || document.connections.length + connections.length > 1000) return
+    setDocument({ ...document, connections: [...document.connections, ...connections] })
+    setBulkLeftId(''); setBulkRightId(''); setBulkLeftStart(0); setBulkRightStart(0)
+    setSaved(false); setError('')
   }
   const updateSplitter = (next: OpticalSplitter) => {
     if (!document) return
@@ -224,6 +255,8 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
             onClick={() => setActiveTab('splitters')}>Splittery {document.splitters.length > 0 ? `(${document.splitters.length})` : ''}</button>
           <button type="button" aria-pressed={activeTab === 'reserves'}
             onClick={() => setActiveTab('reserves')}>Rezervy</button>
+          <button type="button" aria-pressed={activeTab === 'schematic'}
+            onClick={() => setActiveTab('schematic')}>Schéma</button>
         </div>
         {activeTab === 'connections' && <>
         {throughRuns.length > 0 && <section className="splice-through-runs" aria-label="Průchozí kabely">
@@ -252,6 +285,35 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
             <option value="fusion">Svar</option><option value="connector">Konektorové spojení</option>
           </select></label><button type="button" className="move-button" disabled={!left || !right}
             onClick={addConnection}><Plus size={16} /> Přidat spoj</button></div>
+        </section>}
+        {cables.length >= 2 && <section className="splice-bulk" aria-label="Hromadně spojit vlákna">
+          <div><h3>Hromadné spojení</h3><p>Vyberte dva kabely a počáteční vlákna. Náhled ukáže všechna párování; při konfliktu se nepřidá žádný spoj.</p></div>
+          <div className="splice-bulk-fields">
+            <label>První kabel<select value={bulkLeftId} onChange={event => { setBulkLeftId(event.target.value); setBulkLeftStart(0) }}>
+              <option value="">Vyberte kabel</option>{cables.map(item => <option key={item.id} value={item.id}>{cableLabel(item)}</option>)}
+            </select></label>
+            <label>Od vlákna<select value={bulkLeftStart} disabled={!bulkLeft} onChange={event => setBulkLeftStart(Number(event.target.value))}>
+              {bulkLeft && cableFibers(bulkLeft).map((choice, index) => <option key={fiberEndKey(choice.end)} value={index}>{choice.label}</option>)}
+            </select></label>
+            <label>Druhý kabel<select value={bulkRightId} onChange={event => { setBulkRightId(event.target.value); setBulkRightStart(0) }}>
+              <option value="">Vyberte kabel</option>{cables.map(item => <option key={item.id} value={item.id}>{cableLabel(item)}</option>)}
+            </select></label>
+            <label>Od vlákna<select value={bulkRightStart} disabled={!bulkRight} onChange={event => setBulkRightStart(Number(event.target.value))}>
+              {bulkRight && cableFibers(bulkRight).map((choice, index) => <option key={fiberEndKey(choice.end)} value={index}>{choice.label}</option>)}
+            </select></label>
+            <label>Počet párů<input type="number" min="1" max="96" value={bulkCount}
+              onChange={event => setBulkCount(Number(event.target.value))} /></label>
+          </div>
+          {bulkLeft && bulkRight && (bulkPreview.length === bulkCount ? <div className="splice-bulk-preview">
+            <strong>Náhled · {bulkCount} {bulkCount === 1 ? 'spoj' : 'spojů'}</strong>
+            <p>{cableLabel(bulkLeft)} ↔ {cableLabel(bulkRight)}</p>
+            <ol>{bulkPreview.map((row, index) => <li key={index} className={row.conflict ? 'conflict' : ''}>
+              <span>{row.left.label} ↔ {row.right.label}</span>{row.conflict && <small>{row.conflict}</small>}
+            </li>)}</ol>
+          </div> : <p className="form-error">Zvolený rozsah přesahuje konec kabelu nebo je počet mimo 1–96.</p>)}
+          <button type="button" className="move-button" disabled={bulkPreview.length !== bulkCount || bulkPreview.some(row => row.conflict)
+            || !document || document.connections.length + bulkCount > 1000} onClick={addBulkConnections}>
+            <Plus size={16} /> Přidat všechna párování</button>
         </section>}
         <section className="splice-connections"><h3>Evidované spoje</h3>
           {document.connections.length === 0 ? <p className="splice-empty">Zatím žádné propojení. Vlákna zůstávají volná.</p>
@@ -326,6 +388,44 @@ export function OpticalSpliceEditor({ pointId, pointName, routes, installations,
                 setDocument({ ...document, reserves }); setSaved(false)
               }} /> m</span></label>)}</div></section>
           : <p className="splice-empty">V šachtě zatím není žádný kabel pro evidenci rezervy.</p>)}
+        {activeTab === 'schematic' && <section className="splice-schematic" aria-label="Schéma optických návazností v šachtě">
+          <div className="splice-schematic-head"><div><h3>Schéma spojky</h3>
+            <p>Projděte sousední úseky a propojení vláken. Obě části vycházejí z uložené sítě.</p></div>
+            <span>{document.connections.length} spojů · {document.splitters.length} splitterů</span></div>
+          <InfrastructureSchematic pointId={pointId} pointName={pointName} pointNames={pointNames}
+            routes={routes} installations={installations} tracedRouteIds={tracedPath?.routeIds ?? []}
+            onOpenRoute={onOpenRoute} />
+          <h4 className="splice-schematic-subtitle">Logické návaznosti vláken</h4>
+          {(document.connections.length + document.splitters.length > 8) && <label className="splice-schematic-search">Najít vlákno nebo kabel
+            <input type="search" value={schematicQuery} onChange={event => setSchematicQuery(event.target.value)}
+              placeholder="Tuba, vlákno, trasa…" /></label>}
+          {document.connections.length === 0 && document.splitters.length === 0
+            && <p className="splice-empty">Zatím zde nejsou evidované optické návaznosti.</p>}
+          {schematicTerm && schematicConnections.length + schematicSplitters.length === 0
+            && <p className="splice-empty">Žádné spojení neodpovídá hledání.</p>}
+          <div className="splice-schematic-list">
+            {schematicConnections.map(connection => <div className={`splice-schematic-link${tracedItems.has(connection.left.itemId)
+              && tracedItems.has(connection.right.itemId) ? ' traced' : ''}`} key={connection.id}>
+              <button type="button" onClick={() => {
+                const routeId = byId.get(connection.left.itemId)?.routeId
+                if (routeId) onOpenRoute(routeId)
+              }}>{describe(connection.left)}<small>Otevřít úsek na mapě</small></button>
+              <span>{connection.kind === 'fusion' ? 'Svar' : 'Konektor'} ↔</span>
+              <button type="button" onClick={() => {
+                const routeId = byId.get(connection.right.itemId)?.routeId
+                if (routeId) onOpenRoute(routeId)
+              }}>{describe(connection.right)}<small>Otevřít úsek na mapě</small></button>
+            </div>)}
+            {schematicSplitters.map(splitter => <div className={`splice-schematic-splitter${tracedPath?.steps.some(step =>
+              step.splitterId === splitter.id) ? ' traced' : ''}`} key={splitter.id}>
+              <strong>{splitter.name} · 1:{splitter.outputCount}</strong>
+              <div className="splice-schematic-branches"><span>{splitter.input ? describe(splitter.input) : 'Vstup nepřipojen'}</span>
+                <span>→</span><div>{splitter.outputs.length ? splitter.outputs.map(output =>
+                  <span key={output.position}>Výstup {output.position} · {describe(output.fiber)}</span>)
+                  : <span>Výstupy nepřipojeny</span>}</div></div>
+            </div>)}
+          </div>
+        </section>}
       </>}
       {error && <p className="form-error" role="alert">{error} <button type="button" onClick={refresh}><RefreshCw size={14} /> Načíst znovu</button></p>}
       {saved && <p className="installation-saved" role="status"><Check size={15} /> Spojka uložena.</p>}

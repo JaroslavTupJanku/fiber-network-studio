@@ -5,6 +5,7 @@ using FiberNetworkStudio.Api.BuildingDistribution;
 using FiberNetworkStudio.Api.Customers;
 using FiberNetworkStudio.Api.DuctCatalog;
 using FiberNetworkStudio.Api.OpticalSplices;
+using FiberNetworkStudio.Api.FiberAllocations;
 using FiberNetworkStudio.Api.RouteInstallations;
 using FiberNetworkStudio.Api.UndergroundRoutes;
 using System.Text.Json;
@@ -24,6 +25,9 @@ builder.Services.AddSingleton(new RouteInstallationStore(installationDataPath));
 var spliceDataPath = builder.Configuration["OpticalSplices:Path"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "optical-splices.json");
 builder.Services.AddSingleton(new OpticalSpliceStore(spliceDataPath));
+var allocationDataPath = builder.Configuration["FiberAllocations:Path"]
+    ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "fiber-allocations.json");
+builder.Services.AddSingleton(new FiberAllocationStore(allocationDataPath));
 var equipmentDataPath = builder.Configuration["BuildingEquipment:Path"]
     ?? Path.Combine(builder.Environment.ContentRootPath, "App_Data", "building-equipment.json");
 builder.Services.AddSingleton(new BuildingEquipmentStore(equipmentDataPath));
@@ -50,6 +54,7 @@ app.Use(async (context, next) =>
         && !path.StartsWithSegments("/api/underground-routes")
         && !path.StartsWithSegments("/api/route-installations")
         && !path.StartsWithSegments("/api/optical-splices")
+        && !path.StartsWithSegments("/api/fiber-allocations")
         && !path.StartsWithSegments("/api/building-equipment")
         && !path.StartsWithSegments("/api/building-distribution"))
     {
@@ -70,6 +75,7 @@ app.MapDuctCatalog();
 app.MapUndergroundRoutes();
 app.MapRouteInstallations();
 app.MapOpticalSplices();
+app.MapFiberAllocations();
 app.MapBuildingEquipment();
 app.MapBuildingDistribution();
 app.MapCustomers();
