@@ -35,11 +35,29 @@ public static class BuildingEquipmentEndpoints
             var protectedIds = protectedPorts.Select(item => item.Id)
                 .Concat(protectedPorts.Where(item => item.PatchPortId is not null)
                     .Select(item => item.PatchPortId!.Value)).ToHashSet();
+            var guardedPorts = current.Ports.Where(port => protectedIds.Contains(port.Id)).ToArray();
+            var guardedShelfIds = guardedPorts.Select(port =>
+                current.Cards.FirstOrDefault(card => card.Id == port.ParentId)?.ShelfId ?? port.ParentId)
+                .ToHashSet();
+            var guardedCards = current.Cards.Where(card => guardedPorts.Any(port => port.ParentId == card.Id));
             if (request.Version == current.Version && protectedIds.Count > 0
-                && (current.Ports.Where(port => protectedIds.Contains(port.Id))
-                        .Any(port => request.Ports?.FirstOrDefault(next => next?.Id == port.Id) != port)
+                && (guardedPorts.Any(port =>
+                    {
+                        var next = request.Ports?.FirstOrDefault(item => item?.Id == port.Id);
+                        return next is null || next.ParentId != port.ParentId || next.Fiber != port.Fiber
+                            || next.PatchPortId != port.PatchPortId;
+                    })
                     || request.Shelves is null || request.Cards is null
-                    || current.Shelves.Except(request.Shelves).Any() || current.Cards.Except(request.Cards).Any()))
+                    || current.Shelves.Where(shelf => guardedShelfIds.Contains(shelf.Id)).Any(shelf =>
+                    {
+                        var next = request.Shelves.FirstOrDefault(item => item?.Id == shelf.Id);
+                        return next is null || next.RackId != shelf.RackId || next.Kind != shelf.Kind;
+                    })
+                    || guardedCards.Any(card =>
+                    {
+                        var next = request.Cards.FirstOrDefault(item => item?.Id == card.Id);
+                        return next is null || next.ShelfId != card.ShelfId;
+                    })))
                 return Results.Conflict(new { error = "Vybavení je součástí rezervované nebo využité optické cesty. Nejprve uvolněte přiřazení vláken." });
             var result = await store.SaveAsync(pointId, request, await routes.ListAsync(),
                 allInstallations, await distribution.GetAsync(pointId));
