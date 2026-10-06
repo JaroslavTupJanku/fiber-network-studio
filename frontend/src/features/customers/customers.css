@@ -119,6 +119,11 @@
 .customer-message-status.done { background: #e6f4eb; color: #2b7655; }
 .customer-save-bar { position: sticky; bottom: -26px; display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: auto -26px -26px; padding: 12px 26px; border-top: 1px solid #e2ebe4; background: rgb(255 255 255 / 97%); }
 .customer-save-bar.is-dirty { display: grid; }
+.customer-connection { display: grid; gap: 6px; padding: 12px 14px; border: 1px solid #d7e4da; border-radius: 9px; background: #f2f8f4; color: #315f4c; }
+.customer-connection strong { font-size: 13px; }
+.customer-connection p { margin: 0; font-size: 12px; line-height: 1.5; }
+.customer-connection small, .customer-field-hint { color: #61796b; font-size: 12px; line-height: 1.5; }
+.customer-field-hint { margin: 0; }
 .customer-save-bar .primary-button { justify-content: center; min-height: 38px; font-size: 12px; }
 .customer-save-bar .primary-button:disabled { opacity: .55; cursor: not-allowed; }
 .customer-saved { display: inline-flex; align-items: center; gap: 6px; color: #40785a; font-size: 12px; font-weight: 650; }

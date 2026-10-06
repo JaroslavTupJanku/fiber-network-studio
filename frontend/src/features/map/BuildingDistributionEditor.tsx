@@ -155,7 +155,7 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
     </header>
     <div className="distribution-summary"><span>{countCzech(draft?.risers.length ?? 0, 'stoupačka', 'stoupačky', 'stoupaček')}</span>
       <span>{countCzech(draft?.boxes.length ?? 0, 'podlažní box', 'podlažní boxy', 'podlažních boxů')}</span>
-      <span>Připojená HP <strong>{connected}/{draft?.premises.length ?? 0}</strong></span></div>
+      <span>Místa s přiřazeným vláknem <strong>{connected}/{draft?.premises.length ?? 0}</strong></span></div>
     <nav className="distribution-mobile-tabs" aria-label="Zobrazení domovního rozvodu">
       <button type="button" aria-pressed={mobileView === 'list'} onClick={() => setMobileView('list')}>Přehled</button>
       <button type="button" aria-pressed={mobileView === 'detail'} disabled={!selection}
@@ -167,7 +167,7 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
           <button type="button" className="move-button" onClick={addRiser} disabled={!draft}><Plus size={15} /> Stoupačka</button></div>
         {!draft && !error && <p>Načítání rozvodu…</p>}
         {draft?.risers.length === 0 && <div className="distribution-empty"><Building2 size={28} />
-          <strong>Začněte stoupačkou</strong><p>Pro každý vchod můžete vytvořit vlastní stoupačku. Do ní přidáte boxy na podlažích a přípojná místa bytů.</p></div>}
+          <strong>Začněte vchodem nebo stoupačkou</strong><p>Postup: vchod či stoupačka → box → přípojné místo (HP). Potom přiřaďte přívodní kabel a vlákno. Plán rozvodu můžete uložit i bez kabelu.</p></div>}
         {draft?.risers.map(riser => <div className="distribution-riser" key={riser.id}>
           <button type="button" className={`distribution-row${selection?.id === riser.id ? ' selected' : ''}`}
             onClick={() => select({ kind: 'riser', id: riser.id })}><Building2 size={17} /><span><strong>{riser.name}</strong><small>{riser.cableItemId ? 'Přívodní kabel přiřazen' : 'Bez přívodního kabelu'}</small></span></button>
@@ -199,6 +199,7 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
                 {cableEnds.map(item => <option key={item.id} value={item.id}
                   disabled={draft?.risers.some(riser => riser.id !== selectedRiser.id && riser.cableItemId === item.id)}>{item.label}</option>)}</select></label>
             <p className="equipment-note">Změna kabelu vrátí přípojná místa této stoupačky do stavu plánováno.</p>
+            {cableEnds.length === 0 && <p className="equipment-note">V budově zatím nekončí žádný dostupný kabel. V mapě vyberte trasu vedoucí do této budovy a v záložce Osazení vložte kabel nebo navazující pokračování.</p>}
             <button type="button" className="move-button" onClick={() => addBox(selectedRiser.id)}><Plus size={15} /> Přidat box na podlaží</button></>}
           {selectedBox && <><label className="equipment-field">Označení boxu
             <input maxLength={80} value={selectedBox.name} onChange={event => setBox({ ...selectedBox, name: event.target.value })} /></label>
@@ -222,8 +223,9 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
                 {fiberOptions.map(option => <option key={fiberEndKey(option.end)} value={fiberEndKey(option.end)}
                   disabled={occupied.has(fiberEndKey(option.end))}>{option.label}</option>)}</select>
               {!selectedPremise.fiber && <small>Vyberte vlákno, aby bylo možné HP uložit jako připojené.</small>}</label>}
-            {!selectedCable && <p className="equipment-note">Pro připojení nejdříve vyberte přívodní kabel u stoupačky.</p>}
-            <p className="equipment-note">HP eviduje cílové místo. Číslo bytu ani jméno obyvatele nemusíte zadávat.</p>
+            {!selectedCable && <><p className="equipment-note">Pro připojení nejdříve vyberte přívodní kabel u vchodu nebo stoupačky. Přípojné místo lze zatím uložit jako plánované.</p>
+              {premiseRiser && <button type="button" className="move-button" onClick={() => select({ kind: 'riser', id: premiseRiser.id })}>Vybrat přívodní kabel</button>}</>}
+            <p className="equipment-note">HP je přípojné místo bytu nebo prostoru. Zákazníka k němu přiřadíte v evidenci Zákazníci; zde zadáváte technické připojení.</p>
             <IndoorCableFields run={selectedPremise.indoorCable} cables={catalogCables} catalogError={catalogError}
               onChange={indoorCable => setPremise({ ...selectedPremise, indoorCable })} />
             <div className="distribution-trace-action"><button type="button" className="move-button"

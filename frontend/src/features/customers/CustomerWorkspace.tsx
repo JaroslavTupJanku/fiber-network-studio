@@ -11,6 +11,8 @@ export function CustomerWorkspace({ buildingId, onShowBuilding, onDirtyChange }:
   const [buildings, setBuildings] = useState<NetworkPoint[]>([])
   const [distributions, setDistributions] = useState<BuildingDistributionDocument[]>([])
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [reload, setReload] = useState(0)
 
   useEffect(() => {
     let live = true
@@ -18,13 +20,15 @@ export function CustomerWorkspace({ buildingId, onShowBuilding, onDirtyChange }:
       if (!live) return
       setBuildings(points.filter(point => point.kind === 'building').sort((a, b) => a.name.localeCompare(b.name, 'cs')))
       setDistributions(loadedDistributions)
-    }).catch(() => { if (live) setError('Budovy se nepodařilo načíst. Zkuste stránku obnovit.') })
+      setLoading(false)
+    }).catch(() => { if (live) { setError('Budovy a přípojná místa se nepodařilo načíst.'); setLoading(false) } })
     return () => { live = false }
-  }, [])
+  }, [reload])
 
   return <main className="customer-workspace" aria-label="Evidence zákazníků">
-    {error && <p className="customer-error" role="alert">{error}</p>}
-    <CustomerPanel buildingId={buildingId} buildings={buildings} distributions={distributions}
-      onShowBuilding={onShowBuilding} onDirtyChange={onDirtyChange} />
+    {loading ? <p role="status">Načítání budov a přípojných míst…</p> : error ? <div role="alert"><p>{error}</p>
+      <button type="button" className="primary-button" onClick={() => { setLoading(true); setError(''); setReload(value => value + 1) }}>Načíst znovu</button></div>
+      : <CustomerPanel buildingId={buildingId} buildings={buildings} distributions={distributions}
+        onShowBuilding={onShowBuilding} onDirtyChange={onDirtyChange} />}
   </main>
 }
