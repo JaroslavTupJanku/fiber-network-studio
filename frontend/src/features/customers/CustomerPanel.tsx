@@ -169,9 +169,10 @@ export function CustomerPanel({ buildingId, buildings, distributions, onShowBuil
         <h1>{draft.name.trim() || 'Nový zákazník'}</h1>
         <span className={`customer-status ${draft.status}`}>{draft.status === 'active' ? 'Aktivní' : 'Zájemce'}</span></header>
       <section className="customer-connection" aria-label="Optické připojení">
-        <strong>{!draft.premiseId ? 'Přípojné místo není přiřazeno' : !selectedPremise ? 'Přípojné místo již neexistuje'
+        <strong>{!draft.buildingPointId ? 'Nejprve vyberte budovu' : !draft.premiseId ? 'Přípojné místo není přiřazeno' : !selectedPremise ? 'Přípojné místo již neexistuje'
           : isConnectedPremise(selectedPremise) ? 'Přípojné místo má přiřazené vlákno' : 'Přípojné místo je zatím plánované'}</strong>
-        <p>{!draft.premiseId ? 'Vyberte přípojné místo v údajích zákazníka. Pokud v nabídce chybí, založte ho v mapě v domovním rozvodu budovy.'
+        <p>{!draft.buildingPointId ? 'V údajích zákazníka vyberte budovu, ve které bude připojen. Potom se zobrazí její přípojná místa.'
+          : !draft.premiseId ? 'Vyberte přípojné místo v údajích zákazníka. Pokud v nabídce chybí, založte ho v mapě v domovním rozvodu budovy.'
           : !selectedPremise ? 'V údajích zákazníka vyberte platné přípojné místo.'
           : isConnectedPremise(selectedPremise) ? 'Celou cestu k OLT ověříte v domovním rozvodu budovy pomocí Sledovat cestu k OLT.'
           : 'V domovním rozvodu budovy přiřaďte přívodní kabel a volné vlákno. Záznam zákazníka můžete uložit už nyní.'}</p>
