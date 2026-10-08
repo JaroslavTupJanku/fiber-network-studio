@@ -330,7 +330,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
         </div>
 
         {!routeDraft && <div className="point-counts" aria-label="Počet objektů">
-          <span><Box size={15} /> Skříně <strong>{visibleCabinets.length}</strong></span>
+          <span><Box size={15} /> Skříně <strong>{points.filter(point => point.kind === 'cabinet').length}</strong></span>
           <span><House size={15} aria-hidden="true" /> Budovy <strong>{buildings}</strong></span>
           <span><UtilityPole size={15} aria-hidden="true" /> Sloupy <strong>{poles}</strong></span>
           <span><CircleDot size={15} aria-hidden="true" /> Šachty <strong>{chambers}</strong></span>
