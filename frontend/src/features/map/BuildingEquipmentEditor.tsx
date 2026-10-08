@@ -284,7 +284,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
       <div className="equipment-tree"><div className="equipment-section-title"><div><small>VYBAVENÍ V BUDOVĚ</small><h3>Stojany a zařízení</h3></div>
         <button type="button" className="move-button" onClick={addRack}><Plus size={15} /> Stojan</button></div>
         {!draft && !error && <p>Načítání vybavení…</p>}
-        {draft?.racks.length === 0 && <p className="equipment-empty">Začněte stojanem. Do něj vložíte ODF nebo OLT.</p>}
+        {draft?.racks.length === 0 && <p className="equipment-empty">Začněte stojanem. ODF je optický rozvaděč pro ukončení vláken, OLT je aktivní zařízení poskytovatele. Přidejte jen vybavení, které v budově skutečně je.</p>}
         {draft && <label className="equipment-search">Hledat ve vybavení
           <input type="search" value={portQuery} onChange={event => setPortQuery(event.target.value)}
             placeholder="Stojan, ODF, OLT, karta nebo port" /></label>}

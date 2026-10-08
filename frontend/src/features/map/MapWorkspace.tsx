@@ -483,7 +483,8 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               onChange={event => route.setDraft(current => current ? { ...current, name: event.target.value } : current)}
               onKeyDown={event => acceptExampleOnArrowRight(event, name => route.setDraft(current => current ? { ...current, name } : current))}
               title="Šipka doprava převezme šedý příklad"
-              placeholder="Např. Šachta S-01 – Dům 12" />
+              placeholder={routeKind(routeDraft) === 'aerial' ? 'Např. Sloup S-01 – Dům 12' : 'Např. Šachta S-01 – Dům 12'} />
+            {route.drawing && <p className="route-help">Před uložením zvolte Dokončit kreslení. Trasa se uloží až tlačítkem Uložit.</p>}
             {!route.drawing && routeDraft.id && <button type="button" className="move-button"
               disabled={splitActive || splitBusy} onClick={route.startEditing}><RouteIcon size={16} /> Upravit průběh trasy</button>}
             {route.error && <p className="form-error" role="alert">{route.error}</p>}
@@ -531,16 +532,18 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
                   ? `${countLabel(selectedEquipment.racks.length, 'stojan', 'stojany', 'stojanů')} · ${countLabel(selectedEquipment.ports.length, 'port', 'porty', 'portů')}`
                   : 'V budově zatím není evidováno'}</p></div></div>
               <div className="chamber-splice-actions"><button type="button" className="move-button" onClick={() => setEquipmentOpen(true)}>
-                {selectedEquipment ? 'Otevřít vybavení' : 'Přidat stojan, ODF a OLT'}</button>
+                {selectedEquipment ? 'Otevřít vybavení' : 'Přidat optické vybavení'}</button>
                 {tracedPath && <button type="button" className="move-button" onClick={() => setTracedPath(null)}>Skrýt zvýraznění cesty</button>}</div>
             </section>}
             {editor.id && editor.kind === 'building' && <section className="chamber-splice-card" aria-labelledby="building-distribution-heading">
               <div className="chamber-splice-heading"><span className="chamber-splice-icon"><Building2 size={17} aria-hidden="true" /></span>
-                <div><h2 id="building-distribution-heading">Domovní FTTH rozvody</h2><p>{selectedDistribution
+                <div><h2 id="building-distribution-heading">Domovní rozvod a přípojná místa</h2><p>{selectedDistribution
                   ? `${countLabel(selectedDistribution.risers.length, 'stoupačka', 'stoupačky', 'stoupaček')} · ${selectedDistribution.premises.filter(isConnectedPremise).length}/${selectedDistribution.premises.length} připojených míst`
                   : 'Zatím bez stoupaček a přípojných míst'}</p></div></div>
               <div className="chamber-splice-actions"><button type="button" className="move-button" onClick={() => setDistributionOpen(true)}>
-                {selectedDistribution ? 'Otevřít rozvod' : 'Navrhnout domovní rozvod'}</button></div>
+                {selectedDistribution ? 'Otevřít rozvod' : 'Navrhnout domovní rozvod'}</button>
+                <button type="button" className="move-button" onClick={() => onOpenCustomers(editor.id!)}>Zákazníci této budovy</button></div>
+              <p className="equipment-note">Zde založíte přípojné místo (HP) a přiřadíte mu vlákno. Kontakty a komunikaci zákazníka vedete v evidenci Zákazníci.</p>
             </section>}
             {editor.id && (editor.kind === 'chamber' || editor.kind === 'pole') && <section className="chamber-splice-card" aria-labelledby="chamber-splice-heading">
               <div className="chamber-splice-heading">
