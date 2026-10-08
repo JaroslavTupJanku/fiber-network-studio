@@ -796,3 +796,33 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .demo-guide-link { flex: none; padding: 5px 9px; border-radius: 6px; background: #fff2d5; color: #754800; font-size: 12px; font-weight: 650; text-decoration: none; }
 .demo-guide-link:hover { background: #ffe5ab; text-decoration: underline; }
 @media (max-width: 700px) { .demo-guide-link { font-size: 11px; padding: 4px 6px; } }
+
+.point-key.cabinet, .kind-dot.cabinet { background: #286da8; border-radius: 2px; }
+.placement-cursor.cabinet .placement-cursor-figure { background: #e8f2fc; color: #286da8; }
+.placement-cursor.cabinet .placement-cursor-target { background: #286da8; }
+
+.network-scheme-dialog, .fiber-trace-dialog { width: min(1200px, 94vw); max-width: 94vw; max-height: 92vh; padding: 20px; border: 1px solid #c8d9d2; border-radius: 14px; color: #25473b; background: #fcfefd; }
+.network-scheme-dialog::backdrop, .fiber-trace-dialog::backdrop { background: rgb(18 38 31 / 45%); }
+.network-scheme-dialog header, .fiber-trace-dialog header { display: flex; justify-content: space-between; align-items: start; gap: 14px; }
+.network-scheme-dialog h2, .fiber-trace-dialog h2 { margin: 0 0 7px; }
+.network-scheme-dialog p, .fiber-trace-dialog p { font-size: 13px; line-height: 1.5; }
+.network-scheme-controls { display: flex; flex-wrap: wrap; align-items: end; gap: 10px; margin: 12px 0; }
+.network-scheme-controls label, .fiber-trace-fields label { display: grid; gap: 5px; font-size: 12px; min-width: 0; }
+.network-scheme-controls select, .fiber-trace-fields select { max-width: 100%; min-width: 0; padding: 8px; border: 1px solid #c7d8d1; border-radius: 6px; background: white; font: inherit; }
+.network-scheme-controls button { padding: 8px 12px; border: 1px solid #c7d8d1; border-radius: 6px; background: white; color: #315c4e; cursor: pointer; }
+.network-scheme-controls button[aria-pressed="true"] { background: #e2f1eb; border-color: #35856b; font-weight: 650; }
+.network-scheme-canvas { height: min(60vh, 650px); overflow: auto; border: 1px solid #d9e5df; border-radius: 10px; background: #f2f7f5; cursor: grab; }
+.network-scheme-canvas svg { display: block; }
+.scheme-edge line { stroke: #688e80; stroke-width: 2; }
+.scheme-edge .scheme-edge-hit { stroke: transparent; stroke-width: 18; }
+.scheme-edge text { font-size: 10px; fill: #42675a; paint-order: stroke; stroke: #f2f7f5; stroke-width: 4; }
+.scheme-edge.clickable { cursor: pointer; }
+.scheme-node { cursor: pointer; }
+.scheme-node rect { fill: white; stroke: #53937c; stroke-width: 1.5; }
+.scheme-node:hover rect, .scheme-node:focus rect { stroke: #1e6450; stroke-width: 3; }
+.scheme-node text { fill: #264f40; font-size: 13px; font-weight: 650; pointer-events: none; }
+.scheme-node .scheme-node-detail { font-size: 11px; font-weight: 400; fill: #5d736b; }
+.fiber-trace-dialog { width: min(820px, 94vw); }
+.fiber-trace-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.fiber-trace-fields label:last-child { grid-column: 1 / -1; }
+@media (max-width: 650px) { .network-scheme-dialog, .fiber-trace-dialog { padding: 12px; } .network-scheme-controls label { width: 100%; } .fiber-trace-fields { grid-template-columns: 1fr; } }

@@ -1,4 +1,5 @@
 using FiberNetworkStudio.Api.RouteInstallations;
+using FiberNetworkStudio.Api.OpticalSplices;
 using FiberNetworkStudio.Api.BuildingDistribution;
 using FiberNetworkStudio.Api.UndergroundRoutes;
 using FiberNetworkStudio.Api.FiberAllocations;
@@ -13,16 +14,22 @@ public static class BuildingEquipmentEndpoints
             Results.Ok(await store.ListAsync()));
         app.MapGet("/api/building-equipment/{pointId:guid}", async (Guid pointId,
             NetworkPointStore points, BuildingEquipmentStore store) =>
-            (await points.ListAsync()).Any(point => point.Id == pointId && point.Kind == "building")
+            (await points.ListAsync()).Any(point => point.Id == pointId && point.Kind is "building" or "cabinet" or "chamber")
                 ? Results.Ok(await store.GetAsync(pointId))
-                : Results.NotFound(new { error = "Budova neexistuje." }));
+                : Results.NotFound(new { error = "Bod pro optické vybavení neexistuje." }));
         app.MapPut("/api/building-equipment/{pointId:guid}", async (Guid pointId,
             SaveBuildingEquipmentRequest request, NetworkPointStore points, BuildingEquipmentStore store,
             UndergroundRouteStore routes, RouteInstallationStore installations,
-            BuildingDistributionStore distribution, FiberAllocationStore allocations) =>
+            BuildingDistributionStore distribution, FiberAllocationStore allocations, OpticalSpliceStore splices) =>
         {
-            if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind == "building"))
-                return Results.NotFound(new { error = "Vybavení lze umístit jen do budovy." });
+            if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind is "building" or "cabinet" or "chamber"))
+                return Results.NotFound(new { error = "Vybavení lze umístit do budovy, optické skříně nebo šachty." });
+            var splice = await splices.GetAsync(pointId);
+            var occupied = (splice?.Connections.SelectMany(connection => new[] { connection.Left, connection.Right }) ?? [])
+                .Concat(splice?.Splitters.SelectMany(splitter => splitter.Outputs.Select(output => output.Fiber)
+                    .Concat(splitter.Input is null ? [] : new[] { splitter.Input })) ?? []).ToHashSet();
+            if (request.Ports?.Any(port => port?.Fiber is not null && occupied.Contains(port.Fiber)) == true)
+                return Results.Conflict(new { error = "Vlákno už je použité ve spojce tohoto bodu. Nejprve uvolněte jeho propojení." });
             var allInstallations = await installations.ListAsync();
             var current = await store.GetAsync(pointId);
             var runByItem = allInstallations.SelectMany(document => document.Items)

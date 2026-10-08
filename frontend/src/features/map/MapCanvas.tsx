@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { CircleDot, UtilityPole, House, Info, Route as RouteIcon } from 'lucide-react'
+import { CircleDot, Box, UtilityPole, House, Info, Route as RouteIcon } from 'lucide-react'
 import { MapToolbox, type BaseMap, type CadastreStatus, type OrthophotoStatus, type PlacementPointer } from './MapToolbox'
 import { GeoJSONSource, LngLatBounds, Map, Marker, NavigationControl, setWorkerUrl, type ErrorEvent, type MapMouseEvent, type MapSourceDataEvent } from 'maplibre-gl'
 import workerUrl from 'maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url'
@@ -798,7 +798,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
   useEffect(() => {
     if (!preview || selectedPointId || !mapRef.current) return
     const draggable = Boolean(preview.kind)
-    const marker = new Marker({ color: preview.kind === 'pole' ? '#75529c' : preview.kind === 'chamber' ? '#b8613e' : '#24796d', draggable })
+    const marker = new Marker({ color: preview.kind === 'cabinet' ? '#286da8' : preview.kind === 'pole' ? '#75529c' : preview.kind === 'chamber' ? '#b8613e' : '#24796d', draggable })
       .setLngLat([preview.longitude, preview.latitude])
       .addTo(mapRef.current)
     if (draggable) {
@@ -892,13 +892,13 @@ export function MapCanvas({ points, routes, installations, splices, installation
       <div className="map-canvas" ref={container} aria-label="Mapa" />
       {cursorPreview && (
         <div className={`placement-cursor ${cursorPreview.kind}`} style={{ left: cursorPreview.x, top: cursorPreview.y }} aria-hidden="true">
-          <span className="placement-cursor-figure">{cursorPreview.kind === 'building' ? <House size={38} strokeWidth={2.5} /> : cursorPreview.kind === 'pole' ? <UtilityPole size={34} /> : <CircleDot size={30} strokeWidth={2.4} />}</span>
+          <span className="placement-cursor-figure">{cursorPreview.kind === 'cabinet' ? <Box size={32} /> : cursorPreview.kind === 'building' ? <House size={38} strokeWidth={2.5} /> : cursorPreview.kind === 'pole' ? <UtilityPole size={34} /> : <CircleDot size={30} strokeWidth={2.4} />}</span>
           <span className="placement-cursor-target" />
         </div>
       )}
       {placementActive && (
         <div className="placement-guide" role="status">
-          <span>{activeTool ? `${activeTool === 'building' ? 'Budova' : activeTool === 'pole' ? 'Sloup' : 'Šachta'}: klikněte do mapy pro umístění` : 'Přesun objektu: klikněte na nové místo'}</span>
+          <span>{activeTool ? `${activeTool === 'cabinet' ? 'Optická skříň' : activeTool === 'building' ? 'Budova' : activeTool === 'pole' ? 'Sloup' : 'Šachta'}: klikněte do mapy pro umístění` : 'Přesun objektu: klikněte na nové místo'}</span>
           <button type="button" onClick={() => onToolChange(null)}>Zrušit · Esc</button>
         </div>
       )}
@@ -941,6 +941,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
             <span><i className="point-key building" /> Budova</span>
             <span><i className="point-key chamber" /> Šachta</span>
             <span><i className="point-key pole" /> Sloup</span>
+            <span><i className="point-key cabinet" /> Optická skříň</span>
             <span>Plná čára: podzemní · přerušovaná: nadzemní</span>
             {splices.length > 0 && <span><i className="point-key chamber with-splice" /> Fialový okraj: optická spojka</span>}
             {routes.length > 0 && <>

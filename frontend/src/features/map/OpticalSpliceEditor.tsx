@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { listBuildingEquipment } from './buildingEquipment'
 import { Cable, Check, Plus, RefreshCw, Save, Trash2, X } from 'lucide-react'
 import type { InstalledItem, RouteInstallationDocument } from './routeInstallations'
 import type { UndergroundRoute } from './undergroundRoutes'
@@ -60,10 +61,11 @@ function FiberPicker({ label, cables, value, onChange, occupied, cableLabel }: {
 }
 
 export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, installations, tracedPath,
-  onInstallationsUpdated, onClose, onSaved, onDeleted, onOpenRoute }: {
+  onInstallationsUpdated, onTraceFiber, onClose, onSaved, onDeleted, onOpenRoute }: {
   pointId: string; pointName: string; pointNames: Record<string, string>; routes: UndergroundRoute[]
   tracedPath: OpticalPath | null
   installations: RouteInstallationDocument[]; onInstallationsUpdated: (documents: RouteInstallationDocument[]) => void
+  onTraceFiber: () => void
   onClose: () => void
   onSaved: (document: OpticalSpliceDocument) => void; onDeleted: (pointId: string) => void
   onOpenRoute: (routeId: string) => void
@@ -74,6 +76,7 @@ export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, in
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [saved, setSaved] = useState(false)
+  const [equipmentOccupied, setEquipmentOccupied] = useState<string[]>([])
   const [left, setLeft] = useState<FiberEnd | null>(null)
   const [right, setRight] = useState<FiberEnd | null>(null)
   const [kind, setKind] = useState<'fusion' | 'connector'>('fusion')
@@ -102,6 +105,7 @@ export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, in
   }
   const reserveCables = [...reserveRuns.values()]
   const occupied = new Set([
+    ...equipmentOccupied,
     ...document?.connections.flatMap(connection => [fiberEndKey(connection.left), fiberEndKey(connection.right)]) ?? [],
     ...document?.splitters.flatMap(splitter => [
       ...(splitter.input ? [fiberEndKey(splitter.input)] : []),
@@ -144,7 +148,10 @@ export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, in
   }, [])
   useEffect(() => {
     let active = true
-    loadOpticalSplice(pointId).then(value => { if (active) setDocument(value) })
+    Promise.all([loadOpticalSplice(pointId), listBuildingEquipment()]).then(([value, equipment]) => { if (active) {
+      setDocument(value); setSaved(true)
+      setEquipmentOccupied(equipment.filter(doc => doc.pointId === pointId).flatMap(doc => doc.ports.filter(port => port.fiber).map(port => fiberEndKey(port.fiber!))))
+    } })
       .catch(reason => { if (active) setError(reason instanceof Error ? reason.message : 'Spojku se nepodařilo načíst.') })
       .finally(() => { if (active) setLoading(false) })
     return () => { active = false }
@@ -432,7 +439,7 @@ export function OpticalSpliceEditor({ pointId, pointName, pointNames, routes, in
     </div>
     <footer className="splice-editor-footer"><div>{document && document.version > 0 && <button type="button" className="danger-button"
       disabled={busy} onClick={() => void remove()}><Trash2 size={16} /> Smazat spojku</button>}</div>
-      <div><button type="button" className="move-button" onClick={onClose}>Zavřít</button>
+      <div><button type="button" className="move-button" onClick={onTraceFiber} disabled={busy || !saved} title="Trasování používá uložené zapojení; nejprve uložte změny.">Sledovat vlákno</button><button type="button" className="move-button" onClick={onClose}>Zavřít</button>
         <button type="button" className="primary-button" disabled={!document?.name.trim() || busy}
           onClick={() => void save()}><Save size={16} /> {busy ? 'Ukládání…' : 'Uložit spojku'}</button></div>
     </footer>

@@ -1,4 +1,5 @@
 using FiberNetworkStudio.Api.RouteInstallations;
+using FiberNetworkStudio.Api.BuildingEquipment;
 using FiberNetworkStudio.Api.UndergroundRoutes;
 using FiberNetworkStudio.Api.FiberAllocations;
 using System.Text.Json;
@@ -21,14 +22,21 @@ public static class OpticalSpliceEndpoints
         app.MapPut("/api/optical-splices/{pointId:guid}", async (Guid pointId,
             SaveOpticalSpliceRequest request, NetworkPointStore points, OpticalSpliceStore store,
             UndergroundRouteStore routes, RouteInstallationStore installations,
-            FiberAllocationStore allocations) =>
+            FiberAllocationStore allocations, BuildingEquipmentStore equipment) =>
         {
             if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind is "chamber" or "pole"))
                 return Results.NotFound(new { error = "Spojku lze umístit do existující šachty nebo na sloup." });
             var allRoutes = await routes.ListAsync();
             var allInstallations = await installations.ListAsync();
             var current = await store.GetAsync(pointId);
-            if (request.Version == current.Version
+            var occupied = (await equipment.GetAsync(pointId)).Ports.Where(port => port.Fiber is not null)
+                .Select(port => port.Fiber!).ToHashSet();
+            var requestedFibers = (request.Connections?.SelectMany(connection => new[] { connection.Left, connection.Right }) ?? [])
+                .Concat((request.Splitters ?? current?.Splitters ?? []).SelectMany(splitter => splitter.Outputs.Select(output => output.Fiber)
+                    .Concat(splitter.Input is null ? [] : new[] { splitter.Input })));
+            if (requestedFibers.Any(occupied.Contains))
+                return Results.Conflict(new { error = "Vlákno už je ukončené v ODF tohoto bodu. Nejprve je z portu odpojte." });
+            if (current is not null && request.Version == current.Version
                 && (JsonSerializer.Serialize(current.Connections) != JsonSerializer.Serialize(request.Connections)
                     || JsonSerializer.Serialize(current.Splitters) != JsonSerializer.Serialize(request.Splitters ?? current.Splitters))
                 && await HasAllocatedRunAtPoint(pointId, allRoutes, allInstallations, allocations))
@@ -44,7 +52,7 @@ public static class OpticalSpliceEndpoints
 
         app.MapPost("/api/optical-splices/{pointId:guid}/split-cable", async (Guid pointId,
             SplitInstalledRunRequest request, NetworkPointStore points, UndergroundRouteStore routes,
-            RouteInstallationStore installations, FiberAllocationStore allocations) =>
+            RouteInstallationStore installations, FiberAllocationStore allocations, BuildingEquipmentStore equipment) =>
         {
             if (!(await points.ListAsync()).Any(point => point.Id == pointId && point.Kind is "chamber" or "pole"))
                 return Results.NotFound(new { error = "Kabel lze rozdělit v existující šachtě nebo na sloupu." });

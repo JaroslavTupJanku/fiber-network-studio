@@ -278,7 +278,7 @@ test('equipment API checks physical hierarchy, fiber termination and concurrency
       { id: oltId, parentId: cardId, position: 1, label: 'OLT 1/1', fiber: null, patchPortId: odfId },
     ]
     const endpoint = `/building-equipment/${a.id}`
-    assert.equal((await request(`/building-equipment/${b.id}`, 'PUT', document)).status, 404)
+    assert.equal((await request(`/building-equipment/${b.id}`)).status, 200)
     assert.equal((await request(endpoint, 'PUT', { ...document,
       ports: document.ports.map(item => ({ ...item, fiber: { itemId: crypto.randomUUID(), tubeIndex: 0, fiberIndex: 0 } })) })).status, 400)
     const savedResponse = await request(endpoint, 'PUT', document)
