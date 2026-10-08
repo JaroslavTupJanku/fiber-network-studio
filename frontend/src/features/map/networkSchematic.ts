@@ -72,19 +72,26 @@ export function schemeComponents(scheme: Scheme): string[][] {
 
 export function layoutScheme(scheme: Scheme) {
   const positions = new Map<string, { x: number; y: number }>()
-  let offset = 50, maxDepth = 0
+  let offset = 30, maxColumn = 0
   const adjacency = new Map(scheme.nodes.map(node => [node.id, [] as string[]]))
   for (const edge of scheme.edges) { adjacency.get(edge.from)?.push(edge.to); adjacency.get(edge.to)?.push(edge.from) }
   for (const component of schemeComponents(scheme)) {
     const depths = new Map([[component[0], 0]]), queue = [component[0]], rows = new Map<number, number>()
     for (let index = 0; index < queue.length; index++) for (const next of adjacency.get(queue[index]) ?? [])
       if (!depths.has(next)) { depths.set(next, depths.get(queue[index])! + 1); queue.push(next) }
+    for (const depth of depths.values()) rows.set(depth, (rows.get(depth) ?? 0) + 1)
+    const bandHeights = new Map<number, number>()
+    for (const [depth, count] of rows) bandHeights.set(Math.floor(depth / 3), Math.max(bandHeights.get(Math.floor(depth / 3)) ?? 0, count * 155))
+    const bandOffsets = new Map<number, number>()
+    let height = 0
+    for (const [band, bandHeight] of [...bandHeights].sort(([a], [b]) => a - b)) { bandOffsets.set(band, height); height += bandHeight }
+    rows.clear()
     for (const id of component) {
-      const depth = depths.get(id) ?? 0, row = rows.get(depth) ?? 0
-      positions.set(id, { x: 30 + depth * 350, y: offset + row * 155 })
-      rows.set(depth, row + 1); maxDepth = Math.max(maxDepth, depth)
+      const depth = depths.get(id) ?? 0, row = rows.get(depth) ?? 0, column = depth % 3
+      positions.set(id, { x: 30 + column * 350, y: offset + (bandOffsets.get(Math.floor(depth / 3)) ?? 0) + row * 155 })
+      rows.set(depth, row + 1); maxColumn = Math.max(maxColumn, column)
     }
-    offset += Math.max(...rows.values(), 1) * 155 + 50
+    offset += height + 40
   }
-  return { positions, width: 330 + maxDepth * 350, height: offset + 20 }
+  return { positions, width: 310 + maxColumn * 350, height: offset + 20 }
 }
