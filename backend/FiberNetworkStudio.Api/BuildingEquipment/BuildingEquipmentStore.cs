@@ -116,7 +116,7 @@ public sealed class BuildingEquipmentStore(string path)
                     || fiber.TubeIndex >= cable.Cable!.Tubes.Length || fiber.FiberIndex < 0
                     || fiber.FiberIndex >= cable.Cable.Tubes[fiber.TubeIndex].Fibers.Length
                     || !usedFibers.Add(fiber))
-                    return new(400, null, "ODF port musí končit jedinečným vláknem kabelu přivedeného do budovy.");
+                    return new(400, null, "ODF port musí končit jedinečným vláknem kabelu přivedeného do tohoto objektu.");
             }
             var portById = ports.ToDictionary(item => item.Id);
             foreach (var port in ports.Where(item => item.PatchPortId is not null))

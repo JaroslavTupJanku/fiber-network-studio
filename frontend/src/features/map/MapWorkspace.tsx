@@ -1,7 +1,10 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { ArrowLeft, Building2, Cable, ChevronDown, CircleDot, UtilityPole, Copy, Crosshair, FileDown, House, MapPin, Network, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, Users, X } from 'lucide-react'
+import { ArrowLeft, Box, Building2, Cable, ChevronDown, CircleDot, UtilityPole, Copy, Crosshair, FileDown, House, MapPin, Network, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, Users, X } from 'lucide-react'
 import { CustomerQuickPanel } from '../customers/CustomerQuickPanel'
 import { MapCanvas, type MapSnapshot } from './MapCanvas'
+import { NetworkSchematicDialog } from './NetworkSchematicDialog'
+import { FiberTraceDialog } from './FiberTraceDialog'
+import { InfrastructureSchematic } from './InfrastructureSchematic'
 import { NetworkExportDialog } from './NetworkExportDialog'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
@@ -21,7 +24,7 @@ import type { NetworkPoint, NetworkPointKind } from './networkPoints'
 import { aerialSplitPreview, type AerialSplitOptions, routeKind, routeKindLabel, acceptsRouteEndpoint, routeCoordinates, routeLengthMeters, splitUndergroundRoute, type RouteSplitPosition } from './undergroundRoutes'
 import { acceptExampleOnArrowRight } from '../../shared/acceptExample'
 
-const kindLabel = (kind: NetworkPointKind) => kind === 'building' ? 'Budova' : kind === 'pole' ? 'Sloup' : 'Šachta'
+const kindLabel = (kind: NetworkPointKind) => kind === 'cabinet' ? 'Optická skříň' : kind === 'building' ? 'Budova' : kind === 'pole' ? 'Sloup' : 'Šachta'
 const pointKindLabel = (point: Pick<NetworkPoint, 'kind' | 'buildingType'>) =>
   point.kind === 'building' && point.buildingType === 'apartment' ? 'Bytový dům' : kindLabel(point.kind)
 const countLabel = (count: number, one: string, few: string, many: string) =>
@@ -38,6 +41,8 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
   const [spliceOpen, setSpliceOpen] = useState(false)
   const [equipmentOpen, setEquipmentOpen] = useState(false)
   const [distributionOpen, setDistributionOpen] = useState(false)
+  const [schemeOpen, setSchemeOpen] = useState(false)
+  const [fiberTrace, setFiberTrace] = useState<{ routeId?: string; pointId?: string } | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [snapshotRequest, setSnapshotRequest] = useState(0)
   const [mapSnapshot, setMapSnapshot] = useState<MapSnapshot | null>(null)
@@ -55,7 +60,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
     return () => { live = false }
   }, [])
   const [routeTab, setRouteTab] = useState<'installations' | 'route'>('installations')
-  const [expandedLists, setExpandedLists] = useState({ building: true, chamber: true, pole: true, route: true })
+  const [expandedLists, setExpandedLists] = useState({ building: true, chamber: true, pole: true, cabinet: true, route: true })
   const [splitActive, setSplitActive] = useState(false)
   const [splitSelection, setSplitSelection] = useState<RouteSplitPosition | null>(null)
   const [splitName, setSplitName] = useState('')
@@ -232,6 +237,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
   const filteredRoutes = route.visibleRoutes.filter(item => item.name.toLocaleLowerCase('cs').includes(query.toLocaleLowerCase('cs')))
   const visibleBuildings = visiblePoints.filter(point => point.kind === 'building')
   const visibleChambers = visiblePoints.filter(point => point.kind === 'chamber')
+  const visibleCabinets = visiblePoints.filter(point => point.kind === 'cabinet')
   const visiblePoles = visiblePoints.filter(point => point.kind === 'pole')
 
   return (
@@ -315,14 +321,16 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               <ArrowLeft size={16} aria-hidden="true" /> {editor && route.drawing ? 'Zpět k trase' : route.drawing && routeDraft?.id ? 'Zpět k trase' : 'Zpět na přehled'}
             </button>}
             <span className="section-label">{editor && route.drawing ? 'Přidat během kreslení' : routeDraft?.id && !editor ? routeKindLabel(routeDraft) : selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
-            <h1>{editor ? editor.id ? pointKindLabel(editor) : editor.kind === 'pole' ? 'Nový sloup' : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : routeDraft ? routeDraft.id ? routeDraft.name || routeKindLabel(routeDraft) : `Nová ${routeKind(routeDraft) === 'aerial' ? 'nadzemní' : 'podzemní'} trasa` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
+            <h1>{editor ? editor.id ? pointKindLabel(editor) : editor.kind === 'cabinet' ? 'Nová optická skříň' : editor.kind === 'pole' ? 'Nový sloup' : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : routeDraft ? routeDraft.id ? routeDraft.name || routeKindLabel(routeDraft) : `Nová ${routeKind(routeDraft) === 'aerial' ? 'nadzemní' : 'podzemní'} trasa` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
           </div>
+          <button type="button" className="move-button" disabled={route.drawing || saving || !!editor && (!editor.id || editor.name !== points.find(point => point.id === editor.id)?.name)} title="Schéma používá uloženou síť. Nejprve dokončete rozpracované změny." onClick={() => setSchemeOpen(true)}><Network size={16} /> Schéma sítě</button>
           <button type="button" className="panel-export-button move-button" title="Tisk a export mapy, schémat a přehledů"
             onClick={() => { setMapSnapshot(null); setSnapshotRequest(value => value + 1); setExportOpen(true) }}>
             <FileDown size={16} /> Výstupy</button>
         </div>
 
         {!routeDraft && <div className="point-counts" aria-label="Počet objektů">
+          <span><Box size={15} /> Skříně <strong>{points.filter(point => point.kind === 'cabinet').length}</strong></span>
           <span><House size={15} aria-hidden="true" /> Budovy <strong>{buildings}</strong></span>
           <span><UtilityPole size={15} aria-hidden="true" /> Sloupy <strong>{poles}</strong></span>
           <span><CircleDot size={15} aria-hidden="true" /> Šachty <strong>{chambers}</strong></span>
@@ -369,6 +377,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           <div className="route-tab-panel" id="route-panel-installations" role="tabpanel"
             aria-labelledby="route-tab-installations" hidden={activeRouteTab !== 'installations'}>
             <RouteInstallationPanel key={selectedSavedRoute.id} route={selectedSavedRoute}
+              onTraceFiber={() => setFiberTrace({ routeId: selectedSavedRoute.id })}
               routes={route.routes} editable={!route.drawing && route.preview === null} installations={installations} />
           </div>
         </>}
@@ -501,7 +510,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             <label htmlFor="point-name">Název</label>
             <input id="point-name" autoFocus required maxLength={80} value={editor.name} onChange={(event) => setEditor({ ...editor, name: event.target.value })}
               onKeyDown={event => acceptExampleOnArrowRight(event, name => setEditor(current => current ? { ...current, name } : current))}
-              title="Šipka doprava převezme šedý příklad" placeholder={editor.kind === 'building' ? 'Např. Dům 12' : editor.kind === 'pole' ? 'Např. Sloup P-01' : 'Např. Šachta S-01'} />
+              title="Šipka doprava převezme šedý příklad" placeholder={editor.kind === 'building' ? 'Např. Dům 12' : editor.kind === 'cabinet' ? 'Např. Skříň R-01' : editor.kind === 'pole' ? 'Např. Sloup P-01' : 'Např. Šachta S-01'} />
             <div className="point-kind">{editor.kind === 'building' && editor.buildingType === 'apartment'
               ? <Building2 size={16} aria-hidden="true" /> : <span className={`kind-dot ${editor.kind}`} />}{pointKindLabel(editor)}</div>
             {editor.kind === 'building' && <label className="building-type-field" htmlFor="building-type">Typ budovy
@@ -523,17 +532,26 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               setMoving((value) => !value)
               setActiveTool(null)
             }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Klikněte na nové místo' : 'Změnit polohu kliknutím'}</button>
+            {editor.id && <button type="button" className="move-button" disabled={saving || editor.name !== points.find(point => point.id === editor.id)?.name} title="Trasování používá uloženou síť. Nejprve uložte změny objektu." onClick={() => setFiberTrace({ pointId: editor.id! })}><Cable size={16} /> Sledovat vlákno v navazujícím kabelu</button>}
             {editor.id && editor.kind === 'chamber' && <ChamberConduitPanel key={editor.id}
               pointId={editor.id} routes={route.routes} documents={installations.documents}
               onUpdated={installations.replaceDocuments} onOpenRoute={selectSavedRoute} />}
-            {editor.id && editor.kind === 'building' && <section className="chamber-splice-card" aria-labelledby="building-equipment-heading">
+            {editor.id && ['building', 'cabinet', 'chamber'].includes(editor.kind) && <section className="chamber-splice-card" aria-labelledby="building-equipment-heading">
               <div className="chamber-splice-heading"><span className="chamber-splice-icon"><Cable size={17} aria-hidden="true" /></span>
                 <div><h2 id="building-equipment-heading">Optické vybavení</h2><p>{selectedEquipment
                   ? `${countLabel(selectedEquipment.racks.length, 'stojan', 'stojany', 'stojanů')} · ${countLabel(selectedEquipment.ports.length, 'port', 'porty', 'portů')}`
-                  : 'V budově zatím není evidováno'}</p></div></div>
+                  : 'V objektu zatím není evidováno'}</p></div></div>
               <div className="chamber-splice-actions"><button type="button" className="move-button" onClick={() => setEquipmentOpen(true)}>
                 {selectedEquipment ? 'Otevřít vybavení' : 'Přidat optické vybavení'}</button>
                 {tracedPath && <button type="button" className="move-button" onClick={() => setTracedPath(null)}>Skrýt zvýraznění cesty</button>}</div>
+            </section>}
+            {editor.id && editor.kind === 'cabinet' && <section className="chamber-conduit-card">
+              <p className="chamber-conduit-intro">Skříň ukončuje kabely v optickém rozvaděči ODF. Připojte trasu, osaďte kabel a přiřaďte jeho vlákno k portu ODF.</p>
+              <div className="chamber-splice-actions">{(['underground', 'aerial'] as const).map(kind => <button type="button" className="move-button" key={kind} disabled={saving || editor.name !== points.find(point => point.id === editor.id)?.name}
+                onClick={() => { const pointId = editor.id!; selectRouteTab('route'); handleRouteToolChange(kind); route.setDraft({ kind, name: '', startPointId: pointId, endPointId: null, waypoints: [] }) }}>
+                {kind === 'aerial' ? 'Připojit nadzemní trasou' : 'Připojit podzemní trasou'}</button>)}</div>
+              <InfrastructureSchematic pointId={editor.id} pointName={editor.name} pointNames={Object.fromEntries(points.map(point => [point.id, point.name]))}
+                routes={route.routes} installations={installations.documents} tracedRouteIds={tracedPath?.routeIds ?? []} onOpenRoute={selectSavedRoute} />
             </section>}
             {editor.id && editor.kind === 'building' && <section className="chamber-splice-card" aria-labelledby="building-distribution-heading">
               <div className="chamber-splice-heading"><span className="chamber-splice-icon"><Building2 size={17} aria-hidden="true" /></span>
@@ -582,6 +600,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             {selectedParcel && <dl className="parcel-facts"><div><dt>Katastrální území</dt><dd>{selectedParcel.cadastralAreaName ?? selectedParcel.cadastralAreaCode}</dd></div><div><dt>Výměra</dt><dd>{selectedParcel.areaSquareMeters?.toLocaleString('cs-CZ') ?? '–'} m²</dd></div></dl>}
             <div className="coordinates-row"><span>{selectedLocation.latitude.toFixed(6)}°, {selectedLocation.longitude.toFixed(6)}°</span><button type="button" className="icon-button" onClick={() => copyCoordinates(selectedLocation)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button></div>
             <div className="quick-add">
+              <button type="button" onClick={() => startDraft('cabinet', selectedLocation)}><Box size={16} /> Optická skříň</button>
               <button type="button" onClick={() => startDraft('building', selectedLocation)}><House size={16} aria-hidden="true" /> Budova</button>
               <button type="button" onClick={() => startDraft('chamber', selectedLocation)}><CircleDot size={16} aria-hidden="true" /> Šachta</button>
             </div>
@@ -592,12 +611,13 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           <div className="point-list">
             <label className="search-field"><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => {
               setQuery(event.target.value)
-              if (event.target.value.trim()) setExpandedLists({ building: true, chamber: true, pole: true, route: true })
+              if (event.target.value.trim()) setExpandedLists({ building: true, chamber: true, pole: true, cabinet: true, route: true })
             }} placeholder="Hledat objekt nebo trasu" aria-label="Hledat objekt nebo trasu" /></label>
             {loading ? <p className="empty-selection">Načítání objektů…</p> : query && visiblePoints.length + filteredRoutes.length === 0
               ? <p className="empty-selection">Nic nenalezeno.</p> : <>
               {([{ key: 'building', title: 'Budovy', items: visibleBuildings },
                 { key: 'chamber', title: 'Šachty', items: visibleChambers },
+                { key: 'cabinet', title: 'Optické skříně', items: visibleCabinets },
                 { key: 'pole', title: 'Sloupy', items: visiblePoles }] as const).map(group => {
                 const expanded = expandedLists[group.key]
                 return (!query || group.items.length > 0) && <section className="network-list-group" key={group.key}>
@@ -607,7 +627,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
                     <ChevronDown size={16} className={expanded ? 'open' : ''} aria-hidden="true" />
                   </button>
                   <div id={`network-list-${group.key}`} className="network-list-content" hidden={!expanded}>
-                    {group.items.length === 0 ? <p className="network-list-empty">Zatím žádné {group.key === 'building' ? 'budovy' : group.key === 'pole' ? 'sloupy' : 'šachty'}.</p>
+                    {group.items.length === 0 ? <p className="network-list-empty">Zatím žádné {group.key === 'cabinet' ? 'optické skříně' : group.key === 'building' ? 'budovy' : group.key === 'pole' ? 'sloupy' : 'šachty'}.</p>
                       : <ul>{group.items.map(point => <li key={point.id}><button type="button" className={mapHoveredPointId === point.id ? 'map-linked-hover' : undefined}
                         onMouseEnter={() => setListHoveredPointId(point.id)} onMouseLeave={() => setListHoveredPointId(null)}
                         onFocus={() => setListHoveredPointId(point.id)} onBlur={() => setListHoveredPointId(null)}
@@ -653,18 +673,28 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           onOpenCustomers={onOpenCustomers} />
         </div>
       </aside>
+      <NetworkSchematicDialog open={schemeOpen} points={points} routes={route.routes} installations={installations.documents}
+        equipment={equipment} splices={splices} distributions={distributions} onClose={() => setSchemeOpen(false)}
+        onOpenPoint={id => { setSchemeOpen(false); handlePointSelect(id); setPointFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
+        onOpenRoute={id => { setSchemeOpen(false); selectSavedRoute(id); setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }} />
+      {fiberTrace && <FiberTraceDialog points={points} routes={route.routes} installations={installations.documents}
+        initialPointId={fiberTrace.pointId} initialRouteId={fiberTrace.routeId} onTrace={setTracedPath}
+        onClose={() => { setFiberTrace(null); setTracedPath(null) }}
+        onViewMap={() => { setFiberTrace(null); setSpliceOpen(false) }}
+        onOpenRoute={id => { setFiberTrace(null); setSpliceOpen(false); selectSavedRoute(id); setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }} />}
       {spliceOpen && editor?.id && (editor.kind === 'chamber' || editor.kind === 'pole') && <OpticalSpliceEditor key={editor.id}
         pointId={editor.id} pointName={editor.name}
         pointNames={Object.fromEntries(points.map(point => [point.id, point.name]))} routes={route.routes}
         tracedPath={tracedPath}
         installations={installations.documents} onInstallationsUpdated={installations.replaceDocuments}
+        onTraceFiber={() => setFiberTrace({ pointId: editor.id! })}
         onClose={() => setSpliceOpen(false)}
         onOpenRoute={id => { setSpliceOpen(false); selectSavedRoute(id)
           setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
         onSaved={document => setSplices(current => [...current.filter(item => item.pointId !== document.pointId), document])}
         onDeleted={pointId => setSplices(current => current.filter(item => item.pointId !== pointId))} />}
-      {equipmentOpen && editor?.id && editor.kind === 'building' && <BuildingEquipmentEditor key={editor.id}
-        pointId={editor.id} pointName={editor.name}
+      {equipmentOpen && editor?.id && ['building', 'cabinet', 'chamber'].includes(editor.kind) && <BuildingEquipmentEditor key={editor.id}
+        pointKindLabel={kindLabel(editor.kind)} pointId={editor.id} pointName={editor.name}
         pointNames={Object.fromEntries(points.map(point => [point.id, point.name]))}
         routes={route.routes} installations={installations.documents}
         onClose={() => setEquipmentOpen(false)}

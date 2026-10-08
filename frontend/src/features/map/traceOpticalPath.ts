@@ -12,9 +12,24 @@ export type PathStep = { kind: 'cable' | 'indoor-cable' | 'splice' | 'connector'
   losses?: Pick<SplitterOutput, 'loss1270Db' | 'loss1310Db' | 'loss1490Db' | 'loss1550Db' | 'loss1577Db'> }
 export type BranchChoice = { splitterId: string; position: number; label: string }
 export type OpticalPath = { status: 'connected' | 'open' | 'ambiguous'; endPortId: string | null;
+  endPointId?: string | null;
   endPremiseId?: string | null;
   steps: PathStep[]; routeIds: string[]; message: string; branchChoices: BranchChoice[] }
 type Edge = { to: string; step: PathStep; splitterFrom?: 'input' | 'output' }
+
+export function traceFiberPath(pointId: string, itemId: string, tubeIndex: number, fiberIndex: number,
+  equipment: BuildingEquipmentDocument[], routes: UndergroundRoute[], installations: RouteInstallationDocument[],
+  splices: OpticalSpliceDocument[], selectedOutputs: Record<string, number> = {},
+  distributions: BuildingDistributionDocument[] = []): OpticalPath {
+  const item = installations.flatMap(doc => doc.items).find(item => item.id === itemId)
+  const route = routes.find(route => route.id === item?.routeId)
+  if (!item?.cable?.tubes[tubeIndex]?.fibers[fiberIndex] || !route
+    || (pointId !== route.startPointId && pointId !== route.endPointId)) return {
+    status: 'open', endPortId: null, steps: [], routeIds: [], branchChoices: [], message: 'Vybrané vlákno nebo konec kabelu už neexistuje.',
+  }
+  return tracePath(`fiber:${pointId}:${itemId}:${tubeIndex}:${fiberIndex}`, equipment, routes,
+    installations, splices, selectedOutputs, distributions, itemId)
+}
 
 export function traceOpticalPath(startPortId: string, equipment: BuildingEquipmentDocument[],
   routes: UndergroundRoute[], installations: RouteInstallationDocument[],
@@ -86,7 +101,73 @@ function indoorSteps(label: string, run?: IndoorCableRun | null): PathStep[] {
 function tracePath(start: string, equipment: BuildingEquipmentDocument[],
   routes: UndergroundRoute[], installations: RouteInstallationDocument[],
   splices: OpticalSpliceDocument[], selectedOutputs: Record<string, number>,
-  distributions: BuildingDistributionDocument[]): OpticalPath {
+  distributions: BuildingDistributionDocument[], firstItemId?: string): OpticalPath {
+  const { graph, portById, odfParentIds, oltPortIds } = buildOpticalGraph(equipment, routes, installations, splices, distributions)
+  const startPortId = start.startsWith('port:') ? start.slice(5) : null
+  const startPremiseId = start.startsWith('premise:') ? start.slice(8) : null
+  if (startPortId && !portById.has(startPortId)) return { status: 'open', endPortId: null, steps: [], routeIds: [],
+    message: 'Vybraný port už neexistuje.', branchChoices: [] }
+  if (startPremiseId && !graph.has(start)) return { status: 'open', endPortId: null,
+    endPremiseId: startPremiseId, steps: [], routeIds: [], branchChoices: [],
+    message: 'Přiřazené vlákno přípojného místa už není v evidenci kabelů.' }
+  const steps: PathStep[] = []
+  const branchChoices: BranchChoice[] = []
+  const visited = new Set<string>([start])
+  let previous: string | null = null
+  let current = start
+  let fromSplitterOutput: string | null = null
+  while (true) {
+    let candidates: Edge[] = (graph.get(current) ?? []).filter(edge => edge.to !== previous)
+      .filter(edge => current !== start || !firstItemId || edge.step.itemId === firstItemId && !!edge.step.routeId)
+      .filter(edge => !fromSplitterOutput || edge.step.splitterId !== fromSplitterOutput
+        || edge.splitterFrom !== 'input')
+      .filter(edge => current !== start || !startPortId || !odfParentIds.has(portById.get(startPortId)!.parentId)
+        || edge.step.kind !== 'patch' || !(graph.get(current) ?? []).some(item => item.step.kind === 'connector'))
+    if (candidates.length > 1) {
+      const splitterId = candidates[0].step.splitterId
+      if (splitterId && candidates.every(edge => edge.step.splitterId === splitterId
+        && edge.splitterFrom === 'input')) {
+        branchChoices.push(...candidates.map(edge => ({ splitterId,
+          position: edge.step.outputPosition!, label: edge.step.label })))
+        const selected = candidates.find(edge => edge.step.outputPosition === selectedOutputs[splitterId])
+        if (selected) candidates = [selected]
+        else return result('ambiguous', null, 'Splitter má více výstupů. Vyberte větev, kterou chcete sledovat.')
+      } else return result('ambiguous', null, 'Cesta má větvení. Zkontrolujte propojení.')
+    }
+    if (candidates.some(edge => visited.has(edge.to)))
+      return result('ambiguous', null, 'Cesta tvoří smyčku. Zkontrolujte propojení.')
+    if (candidates.length === 0) {
+      const endPortId = current !== start && current.startsWith('port:') ? current.slice(5) : null
+      const endPremiseId = current !== start && current.startsWith('premise:') ? current.slice(8) : null
+      const connected = startPremiseId ? !!endPortId && oltPortIds.has(endPortId)
+        : !!endPortId || !!endPremiseId
+      return result(connected ? 'connected' : 'open', endPortId,
+        connected ? endPremiseId ? premiseMessage(endPremiseId, distributions)
+          : startPremiseId ? premiseMessage(startPremiseId, distributions)
+            : 'Cesta končí na dalším portu.'
+          : endPortId ? 'Cesta končí na portu bez pokračování k OLT.' : 'Cesta končí volným vláknem nebo portem.',
+        endPremiseId ?? startPremiseId)
+    }
+    const next: Edge = candidates[0]
+    steps.push(next.step)
+    previous = current
+    current = next.to
+    fromSplitterOutput = next.splitterFrom === 'output' ? next.step.splitterId ?? null : null
+    visited.add(current)
+  }
+  function result(status: OpticalPath['status'], endPortId: string | null, message: string,
+    endPremiseId: string | null = startPremiseId): OpticalPath {
+    return { status, endPortId, endPremiseId, endPointId: current.startsWith('fiber:') ? current.split(':')[1]
+      : equipment.find(doc => doc.ports.some(port => `port:${port.id}` === current))?.pointId
+        ?? distributions.find(doc => doc.premises.some(premise => `premise:${premise.id}` === current))?.pointId ?? null,
+      steps, routeIds: [...new Set(steps.map(step => step.routeId).filter((id): id is string => !!id))],
+      message, branchChoices }
+  }
+}
+
+export function buildOpticalGraph(equipment: BuildingEquipmentDocument[], routes: UndergroundRoute[],
+  installations: RouteInstallationDocument[], splices: OpticalSpliceDocument[],
+  distributions: BuildingDistributionDocument[] = []) {
   const graph = new Map<string, Edge[]>()
   const ports = equipment.flatMap(document => document.ports)
   const portById = new Map(ports.map(port => [port.id, port]))
@@ -187,60 +268,5 @@ function tracePath(start: string, equipment: BuildingEquipmentDocument[],
       previousNode = nextNode
     })
   }
-  const startPortId = start.startsWith('port:') ? start.slice(5) : null
-  const startPremiseId = start.startsWith('premise:') ? start.slice(8) : null
-  if (startPortId && !portById.has(startPortId)) return { status: 'open', endPortId: null, steps: [], routeIds: [],
-    message: 'Vybraný port už neexistuje.', branchChoices: [] }
-  if (startPremiseId && !graph.has(start)) return { status: 'open', endPortId: null,
-    endPremiseId: startPremiseId, steps: [], routeIds: [], branchChoices: [],
-    message: 'Přiřazené vlákno přípojného místa už není v evidenci kabelů.' }
-  const steps: PathStep[] = []
-  const branchChoices: BranchChoice[] = []
-  const visited = new Set<string>([start])
-  let previous: string | null = null
-  let current = start
-  let fromSplitterOutput: string | null = null
-  while (true) {
-    let candidates: Edge[] = (graph.get(current) ?? []).filter(edge => edge.to !== previous)
-      .filter(edge => !fromSplitterOutput || edge.step.splitterId !== fromSplitterOutput
-        || edge.splitterFrom !== 'input')
-      .filter(edge => current !== start || !startPortId || !odfParentIds.has(portById.get(startPortId)!.parentId)
-        || edge.step.kind !== 'patch' || !(graph.get(current) ?? []).some(item => item.step.kind === 'connector'))
-    if (candidates.length > 1) {
-      const splitterId = candidates[0].step.splitterId
-      if (splitterId && candidates.every(edge => edge.step.splitterId === splitterId
-        && edge.splitterFrom === 'input')) {
-        branchChoices.push(...candidates.map(edge => ({ splitterId,
-          position: edge.step.outputPosition!, label: edge.step.label })))
-        const selected = candidates.find(edge => edge.step.outputPosition === selectedOutputs[splitterId])
-        if (selected) candidates = [selected]
-        else return result('ambiguous', null, 'Splitter má více výstupů. Vyberte větev, kterou chcete sledovat.')
-      } else return result('ambiguous', null, 'Cesta má větvení. Zkontrolujte propojení.')
-    }
-    if (candidates.some(edge => visited.has(edge.to)))
-      return result('ambiguous', null, 'Cesta tvoří smyčku. Zkontrolujte propojení.')
-    if (candidates.length === 0) {
-      const endPortId = current !== start && current.startsWith('port:') ? current.slice(5) : null
-      const endPremiseId = current !== start && current.startsWith('premise:') ? current.slice(8) : null
-      const connected = startPremiseId ? !!endPortId && oltPortIds.has(endPortId)
-        : !!endPortId || !!endPremiseId
-      return result(connected ? 'connected' : 'open', endPortId,
-        connected ? endPremiseId ? premiseMessage(endPremiseId, distributions)
-          : startPremiseId ? premiseMessage(startPremiseId, distributions)
-            : 'Cesta končí na dalším portu.'
-          : endPortId ? 'Cesta končí na portu bez pokračování k OLT.' : 'Cesta končí volným vláknem nebo portem.',
-        endPremiseId ?? startPremiseId)
-    }
-    const next: Edge = candidates[0]
-    steps.push(next.step)
-    previous = current
-    current = next.to
-    fromSplitterOutput = next.splitterFrom === 'output' ? next.step.splitterId ?? null : null
-    visited.add(current)
-  }
-  function result(status: OpticalPath['status'], endPortId: string | null, message: string,
-    endPremiseId: string | null = startPremiseId): OpticalPath {
-    return { status, endPortId, endPremiseId, steps, routeIds: [...new Set(steps.map(step => step.routeId).filter((id): id is string => !!id))],
-      message, branchChoices }
-  }
+  return { graph, portById, odfParentIds, oltPortIds }
 }

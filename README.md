@@ -67,6 +67,26 @@ Po výběru uložené trasy se otevře záložka **Osazení** se stručným pře
 
 V panelu mapy lze přepnout podklad mezi běžnou mapou a **Ortofotem ČR** od ČÚZK. **Katastr** je samostatná vrstva, kterou lze zapnout nad kterýmkoli podkladem. Přepnutí podkladu nemění uložené ani rozpracované objekty. Ortofoto je online služba pro území ČR; při jejím výpadku lze přepnout zpět na mapu. [Zdroj a podmínky služby ČÚZK](https://geoportal.cuzk.gov.cz/Default.aspx?metadataID=CZ-CUZK-WMTS-ORTOFOTO_900913&metadataXSL=metadata.sluzba&mode=TextMeta&side=wmts.uvod).
 
+## Skříně, schéma sítě a trasování vlákna
+
+Nástroj **Optická skříň** přidá samostatný rozvaděč na mapu. Jeho detail nabízí
+připojení podzemní nebo nadzemní trasou a osazení ODF. Optické vybavení lze vložit
+také do šachty. Stejné vlákno v jednom bodě nelze současně použít v ODF a spojce.
+Vybavený bod nelze smazat bez předchozího odebrání vybavení a navazujících tras.
+
+**Schéma sítě** přepíná mezi body a trasami a skutečným optickým propojením.
+Oddělené části, jednotlivá vlákna a větve splitterů zůstávají oddělené. Nezapojená
+vlákna jsou pro čitelnost volitelná. Schéma lze posouvat, přibližovat, přizpůsobit
+oknu a otevřít z něj bod či trasu na mapě. Při návratu zachová zvolený pohled.
+
+**Sledovat vlákno** je v přehledu osazení trasy, detailu bodu a uložené spojce.
+Výběr obsahuje kabel, tubu, číslo a barvu vlákna a směr podle názvů koncových bodů.
+Trasování používá uložené zapojení, nabídne výstup splitteru a označí otevřený konec
+nebo smyčku. Cestu lze zvýraznit na mapě a exportovat do CSV; rezervace se nemění.
+
+Zdroj rozsahu: dodané Školení NetStork, str. 12 (trasování), 13 (schémata),
+21 (optické rozvaděče). Jde o doplnění optického prototypu v issues #55–#57.
+
 ## Lokální spuštění
 
 1. API: `dotnet run --project backend/FiberNetworkStudio.Api --launch-profile http`

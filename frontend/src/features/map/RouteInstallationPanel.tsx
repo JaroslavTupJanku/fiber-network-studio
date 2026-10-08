@@ -91,8 +91,8 @@ function InstallationIllustration({ item }: { item: InstalledItem }) {
   </svg>
 }
 
-export function RouteInstallationPanel({ route, routes, editable, installations }: {
-  route: UndergroundRoute; routes: UndergroundRoute[]; editable: boolean;
+export function RouteInstallationPanel({ route, routes, editable, installations, onTraceFiber }: {
+  onTraceFiber: () => void; route: UndergroundRoute; routes: UndergroundRoute[]; editable: boolean;
   installations: ReturnType<typeof useRouteInstallations>
 }) {
   const aerial = routeKind(route) === 'aerial'
@@ -417,7 +417,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
   const allCollapsed = expandableIds.length > 0 && expandableIds.every(id => collapsedIds.has(id))
   const editorContent = <section className="installation-panel installation-editor-panel" aria-label="Osazení trasy" ref={sectionRef}>
     <div className="installation-heading"><div><span className="section-label">Prvky v úseku</span>
-      <h2>Uspořádání prvků</h2></div><div className="installation-heading-actions">
+      <h2>Uspořádání prvků</h2><button type="button" className="move-button" onClick={() => { setEditorOpen(false); onTraceFiber() }} disabled={!document.items.some(item => item.cable) || busy}>Sledovat vlákno</button></div><div className="installation-heading-actions">
         <button type="button" className="move-button" aria-expanded={addOpen} aria-controls="installation-add-form"
           onClick={() => {
             setAddOpen(current => !current)
@@ -633,6 +633,7 @@ export function RouteInstallationPanel({ route, routes, editable, installations 
           <button type="submit" className="primary-button" disabled={!editable || busy || !quickType}>
             {busy ? 'Ukládání…' : 'Přidat prvek'}</button></div>
       </form>}
+      {!loading && !error && document.items.some(item => item.cable) && <button type="button" className="move-button" onClick={onTraceFiber}>Sledovat vlákno</button>}
       {loading ? <p className="installation-muted">Načítání osazení…</p>
         : error ? <div className="panel-error" role="alert"><span>{error}</span><button type="button" onClick={refresh}>Načíst znovu</button></div>
           : roots.length === 0 ? <><p className="installation-empty">{aerial ? 'Úsek zatím nemá kabel. Přidejte kabel přímo do úseku.' : 'Úsek zatím nemá žádné uložené prvky. Přidejte první chráničku nebo mikrotrubičku.'}</p>

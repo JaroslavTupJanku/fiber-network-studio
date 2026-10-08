@@ -79,8 +79,8 @@ public static class UndergroundRouteEndpoints
                 errors["endpoints"] = ["Koncový bod sítě neexistuje."];
             else if (request.Kind == "aerial" && allPoints.Any(point =>
                 (point.Id == request.StartPointId || point.Id == request.EndPointId)
-                && point.Kind is not ("building" or "pole")))
-                errors["endpoints"] = ["Nadzemní trasa musí spojovat budovy nebo sloupy."];
+                && point.Kind is not ("building" or "pole" or "cabinet")))
+                errors["endpoints"] = ["Nadzemní trasa musí spojovat budovy, sloupy nebo optické skříně."];
         }
         if (request.Waypoints is null || request.Waypoints.Count > 200
             || request.Waypoints.Any(vertex => vertex is null || !double.IsFinite(vertex.Latitude)

@@ -1,5 +1,5 @@
 import { useRef, useState, type Dispatch, type PointerEvent, type SetStateAction } from 'react'
-import { AlertCircle, CheckCircle2, ChevronDown, CircleDot, UtilityPole, HousePlus, Layers3, LoaderCircle, MousePointer2, Route, RefreshCw, X, ZoomIn, type LucideIcon } from 'lucide-react'
+import { AlertCircle, CheckCircle2, ChevronDown, CircleDot, Box, UtilityPole, HousePlus, Layers3, LoaderCircle, MousePointer2, Route, RefreshCw, X, ZoomIn, type LucideIcon } from 'lucide-react'
 import type { NetworkPointKind } from './networkPoints'
 import type { RouteKind } from './undergroundRoutes'
 import { crossedDragThreshold } from './interactions'
@@ -11,6 +11,7 @@ export type PlacementPointer = { kind: NetworkPointKind, x: number, y: number }
 type ToolDrag = { kind: NetworkPointKind, pointerId: number, startX: number, startY: number, dragging: boolean }
 
 const POINT_TOOLS: { kind: NetworkPointKind; label: string; Icon: LucideIcon; hint: string }[] = [
+  { kind: 'cabinet', label: 'Optická skříň', Icon: Box, hint: 'Venkovní rozvaděč pro ukončení a propojení vláken v ODF' },
   { kind: 'pole', label: 'Sloup', Icon: UtilityPole, hint: 'Podpora nadzemního kabelu; může nést optickou spojku' },
   { kind: 'building', label: 'Budova', Icon: HousePlus, hint: 'Přidat budovu nebo ji přetáhnout na mapu' },
   { kind: 'chamber', label: 'Šachta', Icon: CircleDot, hint: 'Přístupný podzemní prostor; kabel jím může procházet, uvnitř může být spojka' },

@@ -82,13 +82,17 @@ export function pointCollection(points: NetworkPoint[], selectedPointId: string 
 }
 
 export function initializeMapLayers(map: Map) {
-  for (const type of ['house', 'apartment', 'pole'] as const) {
+  for (const type of ['house', 'apartment', 'pole', 'cabinet'] as const) {
     const canvas = document.createElement('canvas')
     canvas.width = 32; canvas.height = 32
     const context = canvas.getContext('2d')!
     context.strokeStyle = '#fff'; context.fillStyle = '#fff'; context.lineWidth = 2.8
     context.lineJoin = 'round'; context.lineCap = 'round'
-    if (type === 'pole') {
+    if (type === 'cabinet') {
+      context.strokeRect(9, 7, 14, 19)
+      context.beginPath(); context.moveTo(16, 8); context.lineTo(16, 25); context.stroke()
+      context.fillRect(18, 16, 2, 3)
+    } else if (type === 'pole') {
       context.beginPath(); context.moveTo(16, 6); context.lineTo(16, 27)
       context.moveTo(6, 11); context.lineTo(26, 11)
       context.moveTo(9, 16); context.lineTo(23, 16); context.stroke()
@@ -151,11 +155,14 @@ export function initializeMapLayers(map: Map) {
     source: POINT_SOURCE_ID,
     paint: {
       'circle-radius': 11,
-      'circle-color': ['match', ['get', 'kind'], 'building', '#24796d', 'chamber', '#b8613e', 'pole', '#75529c', '#64716d'],
+      'circle-color': ['match', ['get', 'kind'], 'building', '#24796d', 'chamber', '#b8613e', 'pole', '#75529c', 'cabinet', '#286da8', '#64716d'],
       'circle-stroke-color': ['case', ['get', 'hasSplice'], '#704b92', '#ffffff'],
       'circle-stroke-width': ['case', ['get', 'hasSplice'], 3, 2],
     },
   })
+  map.addLayer({ id: 'network-point-cabinet-icons', type: 'symbol', source: POINT_SOURCE_ID,
+    filter: ['==', ['get', 'kind'], 'cabinet'], layout: { 'icon-image': 'point-cabinet',
+      'icon-size': 0.8, 'icon-allow-overlap': true, 'icon-ignore-placement': true } })
   map.addLayer({ id: 'network-point-pole-icons', type: 'symbol', source: POINT_SOURCE_ID,
     filter: ['==', ['get', 'kind'], 'pole'], layout: { 'icon-image': 'point-pole',
       'icon-size': 0.75, 'icon-allow-overlap': true, 'icon-ignore-placement': true } })

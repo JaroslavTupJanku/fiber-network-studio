@@ -4,7 +4,7 @@ export type RouteKind = 'underground' | 'aerial'
 export const routeKind = (route: { kind?: RouteKind }) => route.kind ?? 'underground'
 export const routeKindLabel = (route: { kind?: RouteKind }) => routeKind(route) === 'aerial' ? 'Nadzemní trasa' : 'Podzemní trasa'
 export const acceptsRouteEndpoint = (route: { kind?: RouteKind }, point: NetworkPoint) =>
-  routeKind(route) !== 'aerial' || point.kind === 'building' || point.kind === 'pole'
+  routeKind(route) !== 'aerial' || point.kind === 'building' || point.kind === 'pole' || point.kind === 'cabinet'
 
 export type UndergroundRouteInput = {
   kind?: RouteKind

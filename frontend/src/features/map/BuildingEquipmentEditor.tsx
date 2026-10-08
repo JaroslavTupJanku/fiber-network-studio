@@ -33,8 +33,8 @@ function PortButton({ port, document, selected, onSelect }: {
     onClick={onSelect}><strong>P{port.position}</strong><span>{status}</span></button>
 }
 
-export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes, installations, onClose, onSaved, onTrace, onBudget, onOpenRoute, onViewMap }: {
-  pointId: string; pointName: string; routes: UndergroundRoute[]; installations: RouteInstallationDocument[]
+export function BuildingEquipmentEditor({ pointId, pointName, pointKindLabel = 'Budova', pointNames, routes, installations, onClose, onSaved, onTrace, onBudget, onOpenRoute, onViewMap }: {
+  pointId: string; pointName: string; pointKindLabel?: string; routes: UndergroundRoute[]; installations: RouteInstallationDocument[]
   pointNames: Record<string, string>
   onClose: () => void; onSaved: (document: BuildingEquipmentDocument) => void
   onTrace: (path: OpticalPath | null) => void; onBudget: (path: OpticalPath) => void
@@ -129,7 +129,21 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
   }
   const bulkCable = cables.find(item => item.id === bulkCableId)
   const bulkPorts = draft?.ports.filter(port => port.parentId === selectedShelf?.id) ?? []
+  for (const splice of splices.filter(item => item.pointId === pointId)) {
+    for (const connection of splice.connections) { occupied.add(fiberEndKey(connection.left)); occupied.add(fiberEndKey(connection.right)) }
+    for (const splitter of splice.splitters) {
+      if (splitter.input) occupied.add(fiberEndKey(splitter.input))
+      for (const output of splitter.outputs) occupied.add(fiberEndKey(output.fiber))
+    }
+  }
   const bulkOccupied = new Set(draft?.ports.filter(port => port.fiber).map(port => fiberEndKey(port.fiber!)) ?? [])
+  for (const splice of splices.filter(item => item.pointId === pointId)) {
+    for (const connection of splice.connections) { bulkOccupied.add(fiberEndKey(connection.left)); bulkOccupied.add(fiberEndKey(connection.right)) }
+    for (const splitter of splice.splitters) {
+      if (splitter.input) bulkOccupied.add(fiberEndKey(splitter.input))
+      for (const output of splitter.outputs) bulkOccupied.add(fiberEndKey(output.fiber))
+    }
+  }
   for (const premise of distributions.find(document => document.pointId === pointId)?.premises ?? []) {
     if (isConnectedPremise(premise)) bulkOccupied.add(fiberEndKey(premise.fiber!))
   }
@@ -269,7 +283,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
   return createPortal(<dialog ref={dialogRef} className="splice-editor-dialog network-structure-dialog equipment-dialog"
     aria-labelledby="equipment-title" onCancel={event => { event.preventDefault(); close() }}>
     <header className="splice-editor-header"><span className="splice-editor-emblem"><Cable size={23} /></span>
-      <div><small>Budova · {pointName}</small><h2 id="equipment-title">Optické vybavení</h2></div>
+      <div><small>{pointKindLabel} · {pointName}</small><h2 id="equipment-title">Optické vybavení</h2></div>
       <button type="button" className="icon-button" onClick={close} aria-label="Zavřít editor"><X size={19} /></button>
     </header>
     <div className="distribution-summary"><span>{countCzech(draft?.racks.length ?? 0, 'stojan', 'stojany', 'stojanů')}</span>
@@ -281,10 +295,10 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
         onClick={() => setMobileView('detail')}>Detail prvku</button>
     </nav>
     <div className="equipment-layout" data-mobile-view={mobileView}>
-      <div className="equipment-tree"><div className="equipment-section-title"><div><small>VYBAVENÍ V BUDOVĚ</small><h3>Stojany a zařízení</h3></div>
+      <div className="equipment-tree"><div className="equipment-section-title"><div><small>VYBAVENÍ V OBJEKTU</small><h3>Stojany a zařízení</h3></div>
         <button type="button" className="move-button" onClick={addRack}><Plus size={15} /> Stojan</button></div>
         {!draft && !error && <p>Načítání vybavení…</p>}
-        {draft?.racks.length === 0 && <p className="equipment-empty">Začněte stojanem. ODF je optický rozvaděč pro ukončení vláken, OLT je aktivní zařízení poskytovatele. Přidejte jen vybavení, které v budově skutečně je.</p>}
+        {draft?.racks.length === 0 && <p className="equipment-empty">Začněte stojanem. ODF je optický rozvaděč pro ukončení vláken, OLT je aktivní zařízení poskytovatele. Přidejte jen vybavení, které v tomto objektu skutečně je.</p>}
         {draft && <label className="equipment-search">Hledat ve vybavení
           <input type="search" value={portQuery} onChange={event => setPortQuery(event.target.value)}
             placeholder="Stojan, ODF, OLT, karta nebo port" /></label>}
@@ -339,7 +353,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
       <div className="equipment-detail">
         {!selected && <div className="equipment-empty"><CircleHelp size={25} /><h3>Vyberte prvek vlevo</h3>
           <p>Vyberte stojan, ODF, OLT, kartu nebo port. V detailu uvidíte jeho umístění a dostupné akce.</p></div>}
-        {cables.length === 0 && <p className="equipment-note">Do budovy zatím nevede koncový kabel. Porty můžete připravit; vlákno připojíte po osazení trasy.</p>}
+        {cables.length === 0 && <p className="equipment-note">Do objektu zatím nevede koncový kabel. Porty můžete připravit; vlákno připojíte po osazení trasy.</p>}
         {selected && draft && <><div className="equipment-detail-heading"><div><small>VYBRANÝ PRVEK · {selection?.kind === 'port' ? `${selectedOdf ? 'ODF' : 'OLT'} PORT` : selection?.kind === 'card' ? 'OLT KARTA' : selection?.kind === 'shelf' ? selectedShelf?.kind.toUpperCase() : 'STOJAN'}</small>
           <h3>{'label' in selected ? selected.label : selected.name}</h3></div></div>
           <p className="equipment-location" aria-label="Umístění vybraného prvku">{selectedLocation}</p>
