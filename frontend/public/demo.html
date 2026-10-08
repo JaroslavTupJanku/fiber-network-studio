@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="cs">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vyzkoušejte připojení domu</title>
+<style>
+:root{--ink:#183e36;--muted:#5d6d65;--line:#d9e4de;--bg:#f9fbf8;--accent:#1a7665}
+body{margin:0 auto;padding:32px 20px 64px;max-width:46rem;background:var(--bg);color:var(--ink);font:16px/1.6 system-ui,sans-serif}
+h1{font-size:1.8rem;line-height:1.2}h2{font-size:1.2rem;margin-top:2rem}p{margin:0 0 .9rem}a{color:var(--accent)}
+.lead{font-size:1.1rem}.note{padding:16px;background:#fff2d5;border-radius:8px;color:#754800}li{margin-bottom:.6rem}
+dt{font-weight:700}dd{margin:0 0 .8rem}abbr{text-decoration:underline dotted} .sources{font-size:.85rem;color:var(--muted)}
+@media(prefers-color-scheme:dark){:root{--ink:#e2ede7;--muted:#acbcb3;--line:#45544b;--bg:#16241d;--accent:#80d1bd}}
+@media print{body{padding:0;background:white;color:black}.note{border:1px solid #ccc}}
+</style></head>
+<body>
+<h1>Vyzkoušejte připojení domu</h1>
+<p class="lead">Otevřete mapu, prohlédněte si připravenou síť a připojte další dům. Všechny objekty, zákazníci a vyplněné délky jsou smyšlené ukázky.</p>
+<p class="note">Změny se ukládají. Chybějící délky a útlumy zůstávají neznámé: úplná evidovaná cesta sama nepotvrzuje, že spoj vyhovuje. Do této ukázky nezadávejte skutečné zákaznické údaje.</p>
+<h2>Nejprve si prohlédněte hotovou přípojku</h2>
+<p>V seznamu budov vyberte „Ukázka · rodinný dům“. Otevřete „Domovní rozvod a přípojná místa“, vyberte „Přípojka domu“ a zvolte „Sledovat cestu k <abbr title="Zařízení poskytovatele, ze kterého vede optická síť">OLT</abbr>“. Cesta vede přes kabel po sloupu a podzemní přívod. Z detailu ji můžete zvýraznit na mapě nebo přenést do kalkulačky.</p>
+<p>V evidenci Zákazníci najdete připojený dům a plánovaný byt. „Aktivní“ je stav zákazníka; přiřazení vlákna a dohledání cesty jsou samostatné informace. Bytový dům ukazuje skutečný postup přes stoupačku a podlažní box.</p>
+<h2>Teď připojte další dům</h2>
+<ol>
+<li>Vyberte „Ukázka · dům k připojení“. Nakreslete nadzemní trasu od uzlu OLT k tomuto domu. Dokončete kreslení a trasu uložte.</li>
+<li>V Osazení trasy vložte kabel. Označení je vaše; pro ukázku stačí obecná šablona. Skutečný kabel se vybírá podle jeho dokumentace.</li>
+<li>V domě otevřete přípojná místa a přidejte „Přímá přípojka domu“. Zvolte „Připojeno k vláknu“, vyberte kabel a volné vlákno a uložte. Stoupačku ani box rodinný dům nepotřebuje.</li>
+<li>V uzlu OLT otevřete vybavení. Do <abbr title="Rozvaděč, na jehož portech končí optická vlákna">ODF</abbr> přidejte port a přiřaďte stejné vlákno nového kabelu. Přidejte volný port na kartě OLT, propojte jej s novým portem ODF a uložte vybavení.</li>
+<li>Z detailu domu otevřete jeho zákazníky. Založte smyšleného zákazníka, vyberte nové přípojné místo a uložte.</li>
+<li>Vraťte se k přípojce a dohledáním ověřte cestu k OLT. Obnovte stránku a přesvědčte se, že údaje zůstaly uložené.</li>
+</ol>
+<h2>Co nám říct po vyzkoušení</h2>
+<p>Zapište, kde jste nevěděli, co udělat dál, kterému názvu jste nerozuměli nebo kde jste potřebovali pomoc. Přidejte, co jste očekávali a co aplikace udělala. Zajímá nás, zda celý postup dokončíte samostatně; není to zkouška vašich znalostí.</p>
+<h2>Slovník</h2><dl>
+<dt>OLT</dt><dd>Zařízení poskytovatele, ze kterého vede optická síť k zákazníkům.</dd>
+<dt>ODF</dt><dd>Rozvaděč s porty pro ukončení a propojení optických vláken.</dd>
+</dl>
+<div class="sources"><p>Ukázka vychází z funkcí tohoto prototypu. Dodané školení NetStork, část 6–7, popisuje dohledání cest a rozvod bytového domu. Přímá přípojka je zjednodušení podle zadání pro malého poskytovatele. Souvislosti evidence kabelů, spojek a zakončení: <a href="https://netstork.globema.cz/5-kroku-k-navrhu-vasi-telco-site-primo-v-netstorku-nasem-evidencnim-systemu/">Globema: návrh telco sítě</a>.</p></div>
+</body></html>

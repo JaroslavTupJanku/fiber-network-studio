@@ -1,0 +1,483 @@
+[
+  {
+    "routeId": "de000000-0000-4000-8000-000000000010",
+    "version": 1,
+    "items": [
+      {
+        "id": "de000000-0000-4000-8000-000000000020",
+        "routeId": "de000000-0000-4000-8000-000000000010",
+        "runId": "de000000-0000-4000-8000-000000000090",
+        "parentId": null,
+        "slotIndex": null,
+        "label": "Ukázková mikrotrubička",
+        "catalogId": "20000000-0000-4000-8000-000000000002",
+        "duct": {
+          "id": "20000000-0000-4000-8000-000000000002",
+          "name": "Samostatná mikrotrubička",
+          "kind": "microduct",
+          "manufacturer": "",
+          "model": "",
+          "color": "#256f9e",
+          "outerDiameterMm": null,
+          "innerDiameterMm": null,
+          "rows": 1,
+          "columns": 1,
+          "slots": [],
+          "notes": "Obecná šablona. Rozměry a provedení doplňte podle konkrétního výrobku.",
+          "sourceUrl": "",
+          "isPreset": true,
+          "version": 1
+        },
+        "cable": null,
+        "actualLengthMeters": null,
+        "lengthBeforeSplitMeters": null
+      },
+      {
+        "id": "de000000-0000-4000-8000-000000000021",
+        "routeId": "de000000-0000-4000-8000-000000000010",
+        "runId": "de000000-0000-4000-8000-000000000091",
+        "parentId": "de000000-0000-4000-8000-000000000020",
+        "slotIndex": null,
+        "label": "Ukázkový přívodní kabel",
+        "catalogId": "10000000-0000-4000-8000-000000000001",
+        "duct": null,
+        "cable": {
+          "id": "10000000-0000-4000-8000-000000000001",
+          "name": "Optický kabel 12 vláken",
+          "manufacturer": "",
+          "notes": "Obecná šablona, nikoliv konkrétní výrobek. Značení určují profily níže; provedení ověřte podle technického listu kabelu.",
+          "tubes": [
+            {
+              "name": "Tuba 1",
+              "color": "#2563eb",
+              "fibers": [
+                {
+                  "name": "Vlákno 1",
+                  "color": "#2563eb",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 2",
+                  "color": "#f97316",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 3",
+                  "color": "#16a34a",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 4",
+                  "color": "#92400e",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 5",
+                  "color": "#64748b",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 6",
+                  "color": "#ffffff",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 7",
+                  "color": "#dc2626",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 8",
+                  "color": "#171717",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 9",
+                  "color": "#eab308",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 10",
+                  "color": "#9333ea",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 11",
+                  "color": "#ec4899",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 12",
+                  "color": "#06b6d4",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                }
+              ],
+              "marking": "none",
+              "markerColor": null,
+              "markingSpacingMm": null,
+              "transparent": false
+            }
+          ],
+          "isPreset": true,
+          "version": 1,
+          "fiberColorCode": "tia-598-12",
+          "tubeColorCode": "tia-598-12",
+          "sourceUrl": "",
+          "attenuation1310DbPerKm": null,
+          "attenuation1550DbPerKm": null,
+          "outerDiameterMm": null,
+          "minimumDuctInnerDiameterMm": null
+        },
+        "actualLengthMeters": 150,
+        "lengthBeforeSplitMeters": null
+      }
+    ]
+  },
+  {
+    "routeId": "de000000-0000-4000-8000-000000000011",
+    "version": 1,
+    "items": [
+      {
+        "id": "de000000-0000-4000-8000-000000000022",
+        "routeId": "de000000-0000-4000-8000-000000000011",
+        "runId": "de000000-0000-4000-8000-000000000094",
+        "parentId": null,
+        "slotIndex": null,
+        "label": "Ukázkový kabel rodinného domu",
+        "catalogId": "10000000-0000-4000-8000-000000000001",
+        "duct": null,
+        "cable": {
+          "id": "10000000-0000-4000-8000-000000000001",
+          "name": "Optický kabel 12 vláken",
+          "manufacturer": "",
+          "notes": "Obecná šablona, nikoliv konkrétní výrobek. Značení určují profily níže; provedení ověřte podle technického listu kabelu.",
+          "tubes": [
+            {
+              "name": "Tuba 1",
+              "color": "#2563eb",
+              "fibers": [
+                {
+                  "name": "Vlákno 1",
+                  "color": "#2563eb",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 2",
+                  "color": "#f97316",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 3",
+                  "color": "#16a34a",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 4",
+                  "color": "#92400e",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 5",
+                  "color": "#64748b",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 6",
+                  "color": "#ffffff",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 7",
+                  "color": "#dc2626",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 8",
+                  "color": "#171717",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 9",
+                  "color": "#eab308",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 10",
+                  "color": "#9333ea",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 11",
+                  "color": "#ec4899",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 12",
+                  "color": "#06b6d4",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                }
+              ],
+              "marking": "none",
+              "markerColor": null,
+              "markingSpacingMm": null,
+              "transparent": false
+            }
+          ],
+          "isPreset": true,
+          "version": 1,
+          "fiberColorCode": "tia-598-12",
+          "tubeColorCode": "tia-598-12",
+          "sourceUrl": "",
+          "attenuation1310DbPerKm": null,
+          "attenuation1550DbPerKm": null,
+          "outerDiameterMm": null,
+          "minimumDuctInnerDiameterMm": null
+        },
+        "actualLengthMeters": 140,
+        "lengthBeforeSplitMeters": null
+      }
+    ]
+  },
+  {
+    "routeId": "de000000-0000-4000-8000-000000000012",
+    "version": 1,
+    "items": [
+      {
+        "id": "de000000-0000-4000-8000-000000000023",
+        "routeId": "de000000-0000-4000-8000-000000000012",
+        "runId": "de000000-0000-4000-8000-000000000092",
+        "parentId": null,
+        "slotIndex": null,
+        "label": "Ukázková mikrotrubička",
+        "catalogId": "20000000-0000-4000-8000-000000000002",
+        "duct": {
+          "id": "20000000-0000-4000-8000-000000000002",
+          "name": "Samostatná mikrotrubička",
+          "kind": "microduct",
+          "manufacturer": "",
+          "model": "",
+          "color": "#256f9e",
+          "outerDiameterMm": null,
+          "innerDiameterMm": null,
+          "rows": 1,
+          "columns": 1,
+          "slots": [],
+          "notes": "Obecná šablona. Rozměry a provedení doplňte podle konkrétního výrobku.",
+          "sourceUrl": "",
+          "isPreset": true,
+          "version": 1
+        },
+        "cable": null,
+        "actualLengthMeters": null,
+        "lengthBeforeSplitMeters": null
+      },
+      {
+        "id": "de000000-0000-4000-8000-000000000024",
+        "routeId": "de000000-0000-4000-8000-000000000012",
+        "runId": "de000000-0000-4000-8000-000000000093",
+        "parentId": "de000000-0000-4000-8000-000000000023",
+        "slotIndex": null,
+        "label": "Ukázkový kabel bytového domu",
+        "catalogId": "10000000-0000-4000-8000-000000000001",
+        "duct": null,
+        "cable": {
+          "id": "10000000-0000-4000-8000-000000000001",
+          "name": "Optický kabel 12 vláken",
+          "manufacturer": "",
+          "notes": "Obecná šablona, nikoliv konkrétní výrobek. Značení určují profily níže; provedení ověřte podle technického listu kabelu.",
+          "tubes": [
+            {
+              "name": "Tuba 1",
+              "color": "#2563eb",
+              "fibers": [
+                {
+                  "name": "Vlákno 1",
+                  "color": "#2563eb",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 2",
+                  "color": "#f97316",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 3",
+                  "color": "#16a34a",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 4",
+                  "color": "#92400e",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 5",
+                  "color": "#64748b",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 6",
+                  "color": "#ffffff",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 7",
+                  "color": "#dc2626",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 8",
+                  "color": "#171717",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 9",
+                  "color": "#eab308",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 10",
+                  "color": "#9333ea",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 11",
+                  "color": "#ec4899",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                },
+                {
+                  "name": "Vlákno 12",
+                  "color": "#06b6d4",
+                  "marking": "none",
+                  "markerColor": null,
+                  "markingSpacingMm": null,
+                  "transparent": false
+                }
+              ],
+              "marking": "none",
+              "markerColor": null,
+              "markingSpacingMm": null,
+              "transparent": false
+            }
+          ],
+          "isPreset": true,
+          "version": 1,
+          "fiberColorCode": "tia-598-12",
+          "tubeColorCode": "tia-598-12",
+          "sourceUrl": "",
+          "attenuation1310DbPerKm": null,
+          "attenuation1550DbPerKm": null,
+          "outerDiameterMm": null,
+          "minimumDuctInnerDiameterMm": null
+        },
+        "actualLengthMeters": null,
+        "lengthBeforeSplitMeters": null
+      }
+    ]
+  }
+]

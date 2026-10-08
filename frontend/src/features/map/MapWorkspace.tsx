@@ -538,10 +538,10 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             {editor.id && editor.kind === 'building' && <section className="chamber-splice-card" aria-labelledby="building-distribution-heading">
               <div className="chamber-splice-heading"><span className="chamber-splice-icon"><Building2 size={17} aria-hidden="true" /></span>
                 <div><h2 id="building-distribution-heading">Domovní rozvod a přípojná místa</h2><p>{selectedDistribution
-                  ? `${countLabel(selectedDistribution.risers.length, 'stoupačka', 'stoupačky', 'stoupaček')} · ${selectedDistribution.premises.filter(isConnectedPremise).length}/${selectedDistribution.premises.length} připojených míst`
-                  : 'Zatím bez stoupaček a přípojných míst'}</p></div></div>
+                  ? `${selectedDistribution.premises.filter(isConnectedPremise).length}/${selectedDistribution.premises.length} míst s přiřazeným vláknem${selectedDistribution.risers.length ? ` · ${countLabel(selectedDistribution.risers.length, 'stoupačka', 'stoupačky', 'stoupaček')}` : ''}`
+                  : 'Zatím bez přípojných míst'}</p></div></div>
               <div className="chamber-splice-actions"><button type="button" className="move-button" onClick={() => setDistributionOpen(true)}>
-                {selectedDistribution ? 'Otevřít rozvod' : 'Navrhnout domovní rozvod'}</button>
+                {selectedDistribution ? 'Otevřít přípojná místa' : 'Přidat přípojné místo'}</button>
                 <button type="button" className="move-button" onClick={() => onOpenCustomers(editor.id!)}>Zákazníci této budovy</button></div>
               <p className="equipment-note">Zde založíte přípojné místo (HP) a přiřadíte mu vlákno. Kontakty a komunikaci zákazníka vedete v evidenci Zákazníci.</p>
             </section>}
@@ -679,7 +679,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
         pointId={editor.id} pointName={editor.name} routes={route.routes} installations={installations.documents}
         onClose={() => setDistributionOpen(false)}
         onSaved={document => setDistributions(current => [...current.filter(item => item.pointId !== document.pointId),
-          ...(document.risers.length ? [document] : [])])}
+          ...(document.risers.length || document.premises.length ? [document] : [])])}
         onTrace={path => setTracedPath(path)}
         onOpenRoute={id => { setDistributionOpen(false); selectSavedRoute(id)
           setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}

@@ -1,0 +1,39 @@
+[
+  {
+    "pointId": "de000000-0000-4000-8000-000000000002",
+    "version": 1,
+    "name": "Ukázka · spojka na sloupu",
+    "connections": [
+      {
+        "id": "de000000-0000-4000-8000-000000000050",
+        "kind": "fusion",
+        "left": {
+          "itemId": "de000000-0000-4000-8000-000000000021",
+          "tubeIndex": 0,
+          "fiberIndex": 0
+        },
+        "right": {
+          "itemId": "de000000-0000-4000-8000-000000000022",
+          "tubeIndex": 0,
+          "fiberIndex": 0
+        }
+      },
+      {
+        "id": "de000000-0000-4000-8000-000000000051",
+        "kind": "fusion",
+        "left": {
+          "itemId": "de000000-0000-4000-8000-000000000021",
+          "tubeIndex": 0,
+          "fiberIndex": 1
+        },
+        "right": {
+          "itemId": "de000000-0000-4000-8000-000000000024",
+          "tubeIndex": 0,
+          "fiberIndex": 0
+        }
+      }
+    ],
+    "reserves": [],
+    "splitters": []
+  }
+]

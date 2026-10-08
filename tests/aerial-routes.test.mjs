@@ -11,7 +11,7 @@ import { aerialSplitPreview, routeCoordinates, routeLengthMeters, routeKind,
   waypointsAfterPointMove } from '../frontend/src/features/map/undergroundRoutes.ts'
 import { crossingBuildingFootprints } from '../frontend/src/features/map/buildingFootprints.ts'
 import { canPlaceItem } from '../frontend/src/features/map/routeInstallations.ts'
-import { traceOpticalPath } from '../frontend/src/features/map/traceOpticalPath.ts'
+import { traceOpticalPath, tracePremisePath } from '../frontend/src/features/map/traceOpticalPath.ts'
 import { routeCollection } from '../frontend/src/features/map/mapLayers.ts'
 import { routeExportRows } from '../frontend/src/features/map/networkExports.ts'
 
@@ -135,7 +135,7 @@ test('mixed network keeps cable continuity through poles, batch splits and far-e
       await ok(await request(`/building-distribution/${b.id}`, 'PUT', { version: 0,
         risers: [{ id: riserId, name: 'Vchod', cableItemId: airCable.id }],
         boxes: [{ id: boxId, riserId, name: 'Podlaží', floor: 1 }],
-        premises: [{ id: hpId, boxId, label: 'Byt', status: 'connected', fiber: { ...fiber(airCable), fiberIndex: 1 } }] }))
+        premises: [{ id: hpId, boxId: null, label: 'Dům', status: 'connected', fiber: { ...fiber(airCable), fiberIndex: 1 } }] }))
       const splitRequest = { expectedRoute: saved, installationVersion: air.version, chamberName: 'P', poleCount: 2 }
       const beforeCount = (await ok(await request('/network-points'))).length
       assert.equal((await request(`/underground-routes/${aerial.id}/split`, 'POST', { ...splitRequest, poleCount: 101 })).status, 400)
@@ -160,6 +160,9 @@ test('mixed network keeps cable continuity through poles, batch splits and far-e
       const distribution = await ok(await request('/building-distribution'))
       assert.equal(distribution[0].risers[0].cableItemId, cables.at(-1).id)
       assert.equal(distribution[0].premises[0].fiber.itemId, cables.at(-1).id)
+      assert.equal(distribution[0].premises[0].boxId, null)
+      const directPath = tracePremisePath(hpId, equipment, allRoutes, docs, await ok(await request('/optical-splices')), distribution)
+      assert.ok(directPath.routeIds.includes(aerial.id))
       const path = traceOpticalPath(startPortId, equipment, allRoutes, docs, await ok(await request('/optical-splices')))
       assert.equal(path.status, 'connected')
       assert.equal(path.endPortId, endPortId)

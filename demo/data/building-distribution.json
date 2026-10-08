@@ -1,0 +1,63 @@
+[
+  {
+    "pointId": "de000000-0000-4000-8000-000000000003",
+    "version": 1,
+    "risers": [],
+    "boxes": [],
+    "premises": [
+      {
+        "id": "de000000-0000-4000-8000-000000000040",
+        "boxId": null,
+        "label": "Přípojka domu",
+        "status": "connected",
+        "fiber": {
+          "itemId": "de000000-0000-4000-8000-000000000022",
+          "tubeIndex": 0,
+          "fiberIndex": 0
+        },
+        "indoorCable": null
+      }
+    ]
+  },
+  {
+    "pointId": "de000000-0000-4000-8000-000000000004",
+    "version": 1,
+    "risers": [
+      {
+        "id": "de000000-0000-4000-8000-000000000041",
+        "name": "Vchod A",
+        "cableItemId": "de000000-0000-4000-8000-000000000024"
+      }
+    ],
+    "boxes": [
+      {
+        "id": "de000000-0000-4000-8000-000000000042",
+        "riserId": "de000000-0000-4000-8000-000000000041",
+        "name": "Box 1",
+        "floor": 1
+      }
+    ],
+    "premises": [
+      {
+        "id": "de000000-0000-4000-8000-000000000043",
+        "boxId": "de000000-0000-4000-8000-000000000042",
+        "label": "Byt 101",
+        "status": "connected",
+        "fiber": {
+          "itemId": "de000000-0000-4000-8000-000000000024",
+          "tubeIndex": 0,
+          "fiberIndex": 0
+        },
+        "indoorCable": null
+      },
+      {
+        "id": "de000000-0000-4000-8000-000000000044",
+        "boxId": "de000000-0000-4000-8000-000000000042",
+        "label": "Byt 102",
+        "status": "planned",
+        "fiber": null,
+        "indoorCable": null
+      }
+    ]
+  }
+]

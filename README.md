@@ -77,6 +77,40 @@ API odpovídá na `http://localhost:5291/api/health`; objekty přes `/api/networ
 
 ### Ukázka na jedné adrese
 
+Pro připravenou **smyšlenou síť** použijte z kořene projektu:
+
+```sh
+docker compose -f compose.demo.yaml up --build -d --wait
+```
+
+Na Windows lze místo toho spustit `./scripts/demo.ps1`. Vyžaduje běžící Docker Desktop;
+zákazník otevírá pouze `http://127.0.0.1:8080`. Odkaz **Ukázková síť · Jak začít**
+v aplikaci vysvětluje ukázku a postup připojení dalšího domu. Obsahuje uzel OLT/ODF,
+spojku na sloupu, nadzemní i podzemní přípojku, rodinný a bytový dům a zákazníky.
+Vyplněné délky jsou ilustrační; neuvedené délky, útlumy a domovní přívody zůstávají neznámé.
+
+Ukázka používá vlastní svazek `fiber-network-studio-demo_demo-data`. Data se vloží jen
+při jeho prvním, prázdném spuštění; další start zachová úpravy i identifikátory a vztahy.
+Zastavení: `docker compose -f compose.demo.yaml down` (nebo `./scripts/demo.ps1 -Action stop`).
+Stav a poslední chyby: `./scripts/demo.ps1 -Action status` / `-Action logs`.
+Jiný místní port: `./scripts/demo.ps1 -Port 8081`; adresu pak otevírejte s tímto portem.
+
+**Obnovení ukázky smaže její úpravy.** Výslovný příkaz na Windows je
+`./scripts/demo.ps1 -Action reset -ConfirmDemoReset`. Na jiném systému spusťte
+`docker compose -f compose.demo.yaml down --volumes` a potom výše uvedený start.
+Tím se odstraňuje pouze svazek této Compose ukázky, nikoli běžné úložiště aplikace.
+Kalkulačka a profily zařízení zůstávají v prohlížeči; obnovení serverové ukázky je nemaže.
+
+Přímé přípojné místo lze vytvořit bez stoupačky a boxu. U bytového domu lze dál použít
+stoupačku a podlažní boxy. Umístění místa lze změnit při zachování jeho ID a zákaznické vazby;
+přesun do boxu s jiným kabelem vyžaduje nové přiřazení vlákna.
+
+Ukázka je dostupná jen na tomto počítači. Vzdálené předání vyžaduje dohodnutý hosting
+a omezení přístupu; přihlášení, oprávnění a ověřené zálohy nejsou zatím připravené pro skutečná data.
+Samostatné vyzkoušení se zákazníkem sleduje issue #53; návod a naše ověření nenahrazují jeho zpětnou vazbu.
+
+Pro prázdný prototyp bez předvyplněné sítě lze dále použít následující postup.
+
 Kontejner sestaví frontend a API do jedné aplikace. Pro místní zákaznický proklik spusťte z kořene projektu:
 
 ```sh

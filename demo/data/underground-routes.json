@@ -1,0 +1,26 @@
+[
+  {
+    "id": "de000000-0000-4000-8000-000000000010",
+    "kind": "underground",
+    "name": "Ukázka · podzemní přívod",
+    "startPointId": "de000000-0000-4000-8000-000000000001",
+    "endPointId": "de000000-0000-4000-8000-000000000002",
+    "waypoints": []
+  },
+  {
+    "id": "de000000-0000-4000-8000-000000000011",
+    "kind": "aerial",
+    "name": "Ukázka · přípojka po sloupu",
+    "startPointId": "de000000-0000-4000-8000-000000000002",
+    "endPointId": "de000000-0000-4000-8000-000000000003",
+    "waypoints": []
+  },
+  {
+    "id": "de000000-0000-4000-8000-000000000012",
+    "kind": "underground",
+    "name": "Ukázka · přípojka bytového domu",
+    "startPointId": "de000000-0000-4000-8000-000000000002",
+    "endPointId": "de000000-0000-4000-8000-000000000004",
+    "waypoints": []
+  }
+]

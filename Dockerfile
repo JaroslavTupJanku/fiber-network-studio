@@ -17,8 +17,10 @@ RUN dotnet publish backend/FiberNetworkStudio.Api/FiberNetworkStudio.Api.csproj 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 COPY --from=api-build /out/ ./
+COPY demo/data/ /app/Demo_Data/
+COPY docker/demo-entrypoint.sh /app/demo-entrypoint.sh
 RUN mkdir -p /app/App_Data && chown -R $APP_UID:$APP_UID /app/App_Data
 USER $APP_UID
 ENV ASPNETCORE_URLS=http://+:8080
 EXPOSE 8080
-ENTRYPOINT ["dotnet", "FiberNetworkStudio.Api.dll"]
+ENTRYPOINT ["sh", "/app/demo-entrypoint.sh"]

@@ -1,0 +1,24 @@
+[
+  {
+    "id": "de000000-0000-4000-8000-000000000060",
+    "version": 1,
+    "buildingPointId": "de000000-0000-4000-8000-000000000003",
+    "premiseId": "de000000-0000-4000-8000-000000000040",
+    "name": "Ukázka · připojený dům",
+    "status": "active",
+    "note": "Smyšlený záznam pro vyzkoušení prototypu.",
+    "contacts": [],
+    "messages": []
+  },
+  {
+    "id": "de000000-0000-4000-8000-000000000061",
+    "version": 1,
+    "buildingPointId": "de000000-0000-4000-8000-000000000004",
+    "premiseId": "de000000-0000-4000-8000-000000000044",
+    "name": "Ukázka · plánovaný byt",
+    "status": "lead",
+    "note": "Smyšlený záznam pro vyzkoušení prototypu.",
+    "contacts": [],
+    "messages": []
+  }
+]

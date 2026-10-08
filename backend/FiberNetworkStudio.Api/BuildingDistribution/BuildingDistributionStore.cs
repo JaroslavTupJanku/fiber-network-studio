@@ -13,7 +13,7 @@ public sealed record IndoorLosses(double? Loss1270, double? Loss1310, double? Lo
 public sealed record IndoorCableRun(string CableName, Guid? CatalogCableId, double? LengthMeters,
     IndoorLosses? AttenuationDbPerKm, int? SpliceCount, IndoorLosses? SpliceLossDb,
     int? ConnectorPairCount, IndoorLosses? ConnectorLossDb, string? Source);
-public sealed record HomePremise(Guid Id, Guid BoxId, string Label, string Status, FiberEnd? Fiber,
+public sealed record HomePremise(Guid Id, Guid? BoxId, string Label, string Status, FiberEnd? Fiber,
     IndoorCableRun? IndoorCable = null);
 public sealed record BuildingDistributionDocument(Guid PointId, int Version, List<BuildingRiser> Risers,
     List<FloorBox> Boxes, List<HomePremise> Premises);
@@ -63,7 +63,8 @@ public sealed class BuildingDistributionStore(string path)
     public async Task<bool> HasDistributionAsync(Guid pointId)
     {
         await gate.WaitAsync();
-        try { return (await ReadAsync()).Any(item => item.PointId == pointId && item.Risers.Count > 0); }
+        try { return (await ReadAsync()).Any(item => item.PointId == pointId
+            && (item.Risers.Count > 0 || item.Premises.Count > 0)); }
         finally { gate.Release(); }
     }
 
@@ -82,7 +83,8 @@ public sealed class BuildingDistributionStore(string path)
         var ids = pointIds.ToHashSet();
         await gate.WaitAsync();
         try { return (await ReadAsync()).Any(document => ids.Contains(document.PointId)
-            && document.Risers.Any(riser => riser.CableItemId == itemId)); }
+            && (document.Risers.Any(riser => riser.CableItemId == itemId)
+                || document.Premises.Any(premise => premise.Fiber?.ItemId == itemId))); }
         finally { gate.Release(); }
     }
 
@@ -117,7 +119,7 @@ public sealed class BuildingDistributionStore(string path)
             if (premises.Any(item => item.Status == "connected" && item.Fiber is null))
                 return new(400, null, "U připojeného přípojného místa vyberte konkrétní vlákno přívodního kabelu.");
             if (boxes.Any(item => !riserIds.Contains(item.RiserId) || item.Floor is < -10 or > 150)
-                || premises.Any(item => !boxById.ContainsKey(item.BoxId)
+                || premises.Any(item => item.BoxId is Guid boxId && !boxById.ContainsKey(boxId)
                     || item.Status is not ("planned" or "connected")
                     || (item.Status == "planned" && item.Fiber is not null)
                     || (item.Status == "connected" && item.Fiber is null)))
@@ -144,17 +146,20 @@ public sealed class BuildingDistributionStore(string path)
             {
                 if (premise.Fiber is null) continue;
                 var fiber = premise.Fiber;
-                var riser = riserById[boxById[premise.BoxId].RiserId];
-                if (riser.CableItemId != fiber.ItemId || !cableById.TryGetValue(fiber.ItemId, out var cable)
+                var riser = premise.BoxId is Guid boxId ? riserById[boxById[boxId].RiserId] : null;
+                if ((riser is not null && riser.CableItemId != fiber.ItemId)
+                    || !cableById.TryGetValue(fiber.ItemId, out var cable)
+                    || throughRuns.Contains(cable.RunId)
                     || fiber.TubeIndex < 0 || fiber.TubeIndex >= cable.Cable!.Tubes.Length
                     || fiber.FiberIndex < 0 || fiber.FiberIndex >= cable.Cable.Tubes[fiber.TubeIndex].Fibers.Length
                     || !usedFibers.Add(fiber))
-                    return new(400, null, "Připojené místo potřebuje volné vlákno kabelu přiřazeného ke stoupačce.");
+                    return new(400, null, "Připojené místo potřebuje volné vlákno kabelu končícího v budově; u podlažního boxu použijte kabel jeho stoupačky.");
             }
-            var updated = new BuildingDistributionDocument(pointId, risers.Count == 0 ? 0 : request.Version + 1,
+            var hasElements = risers.Count > 0 || premises.Count > 0;
+            var updated = new BuildingDistributionDocument(pointId, hasElements ? request.Version + 1 : 0,
                 risers, boxes, premises);
             documents.RemoveAll(item => item.PointId == pointId);
-            if (risers.Count > 0) documents.Add(updated);
+            if (hasElements) documents.Add(updated);
             await WriteAsync(documents);
             return new(200, updated, null);
         }
