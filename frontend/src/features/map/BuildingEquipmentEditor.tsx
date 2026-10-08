@@ -120,7 +120,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointNames, routes
     .map(premise => {
       const box = document.boxes.find(item => item.id === premise.boxId)
       const riser = document.risers.find(item => item.id === box?.riserId)
-      return { id: premise.id, label: `${pointNames[document.pointId] ?? 'Budova'} / ${riser?.name ?? 'Vchod'} / ${box?.name ?? 'Box'} / ${premise.label}` }
+      return { id: premise.id, label: [pointNames[document.pointId] ?? 'Budova', riser?.name, box?.name, premise.label].filter(Boolean).join(' / ') }
     })).sort((a, b) => a.label.localeCompare(b.label, 'cs'))
   const occupied = new Set(draft?.ports.filter(port => port.id !== selectedPort?.id && port.fiber)
     .map(port => fiberEndKey(port.fiber!)) ?? [])

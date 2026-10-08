@@ -9,6 +9,11 @@ import type { Scenario } from './features/optical-budget/model'
 import './App.css'
 
 function App() {
+  const [demo, setDemo] = useState(false)
+  useEffect(() => {
+    void fetch('/api/demo').then(response => response.ok ? response.json() : null)
+      .then(value => setDemo(value?.enabled === true)).catch(() => { /* optional demo badge */ })
+  }, [])
   const [section, setSection] = useState<'map' | 'catalog' | 'ducts' | 'budget' | 'customers'>('map')
   const [customerScope, setCustomerScope] = useState<string | null>(null)
   const [customerVisit, setCustomerVisit] = useState(0)
@@ -37,6 +42,7 @@ function App() {
     <div className="app-shell">
       <header className="app-header">
         <div className="app-brand"><Network size={21} strokeWidth={2} aria-hidden="true" /><span>Fiber Network Studio</span></div>
+        {demo && <a className="demo-guide-link" href="/demo.html" target="_blank" rel="noopener noreferrer">Ukázková síť · Jak začít</a>}
         <nav className="workspace-navigation" aria-label="Hlavní navigace" ref={navigationRef}>
           <button type="button" aria-pressed={section === 'map'} onClick={() => navigate('map')}><MapPin size={15} />Mapa</button>
           <button type="button" aria-pressed={section === 'catalog'} onClick={() => { if (navigate('catalog')) setCatalogOpened(true) }}><Cable size={15} />Katalog kabelů</button>

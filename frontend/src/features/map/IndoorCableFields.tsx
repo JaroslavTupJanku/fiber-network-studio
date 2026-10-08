@@ -4,6 +4,7 @@ import { emptyIndoorLosses, indoorRunFromCatalog, indoorWavelengths, newIndoorCa
   type IndoorCableRun, type IndoorLosses, type IndoorLossKey } from './indoorCable'
 
 type Props = {
+  direct?: boolean
   run: IndoorCableRun | null | undefined
   cables: CableSpecification[]
   catalogError: string
@@ -25,22 +26,22 @@ function LossFields({ title, values, unit, onChange }: {
     })}</div></div>
 }
 
-export function IndoorCableFields({ run, cables, catalogError, onChange }: Props) {
+export function IndoorCableFields({ run, cables, catalogError, onChange, direct = false }: Props) {
   const selectedCatalogMissing = !!run?.catalogCableId && !cables.some(cable => cable.id === run.catalogCableId)
   return <section className="distribution-indoor" aria-label="Domovní přívod k HP">
     <div className="distribution-indoor-heading"><div><small>OPTICKÁ CESTA V BUDOVĚ</small><h4>Domovní přívod k HP</h4></div>
       {run && <button type="button" className="icon-button" title="Odebrat evidenci přívodu" aria-label="Odebrat evidenci domovního přívodu"
         onClick={() => { if (window.confirm('Odebrat evidenci domovního přívodu k tomuto HP?')) onChange(null) }}><Trash2 size={16} /></button>}</div>
-    {!run ? <><p>Od podlažního boxu k HP zatím není evidován kabel ani jeho ztráty.</p>
+    {!run ? <><p>{direct ? 'Přívod uvnitř domu a jeho ztráty zatím nejsou evidované. Doplňte je, pokud je mezi přívodním kabelem a zákazníkem další úsek.' : 'Od podlažního boxu k HP zatím není evidován kabel ani jeho ztráty.'}</p>
       <button type="button" className="move-button" onClick={() => onChange(newIndoorCableRun())}><Plus size={15} /> Evidovat přívod</button></>
       : <>
         <p>Zadejte údaje použitého přívodu. Prázdné pole znamená neznámou hodnotu; nula znamená potvrzenou nulu.</p>
         <label className="equipment-field">Označení domovního přívodu
-          <input maxLength={120} value={run.cableName} placeholder="Např. kabel od boxu k HP"
+          <input maxLength={120} value={run.cableName} placeholder={direct ? 'Např. přívod uvnitř domu' : 'Např. kabel od boxu k HP'}
             onChange={event => onChange({ ...run, cableName: event.target.value })} /></label>
         <details className="distribution-indoor-more">
           <summary>Převzít kabel z katalogu</summary>
-          <p>Vyberte jen typ, který je skutečně použitý mezi boxem a HP. Výchozí katalog obsahuje i kabely pro venkovní trasu.</p>
+          <p>{direct ? 'Vyberte jen typ skutečně použitého přívodu uvnitř domu.' : 'Vyberte jen typ, který je skutečně použitý mezi boxem a HP.'} Výchozí katalog obsahuje i kabely pro venkovní trasu.</p>
           <label className="equipment-field">Katalogový typ
           <select value={run.catalogCableId ?? ''} onChange={event => {
             const cable = cables.find(item => item.id === event.target.value)

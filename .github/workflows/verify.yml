@@ -48,3 +48,12 @@ jobs:
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/)" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/customers/example)" = 200
           test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:18080/api/not-a-route)" = 404
+      - name: Smoke test fictional demo initialization
+        run: |
+          docker run --rm -d --name fiber-network-studio-demo-ci -p 127.0.0.1:18081:8080 -e FNS_DEMO_SEED=1 -v /app/App_Data fiber-network-studio-preview:ci
+          trap 'docker stop fiber-network-studio-demo-ci' EXIT
+          for attempt in {1..30}; do
+            if curl -fsS http://127.0.0.1:18081/api/health > /dev/null; then break; fi
+            sleep 1
+          done
+          FNS_DEMO_URL=http://127.0.0.1:18081 node scripts/check-demo.mjs

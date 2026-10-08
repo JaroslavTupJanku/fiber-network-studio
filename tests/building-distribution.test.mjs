@@ -29,7 +29,8 @@ test('building distribution keeps apartment identity and valid fiber assignments
         NetworkPoints__Path: join(directory, 'points.json'), UndergroundRoutes__Path: join(directory, 'routes.json'),
         RouteInstallations__Path: join(directory, 'installed.json'), OpticalSplices__Path: join(directory, 'splices.json'),
         BuildingEquipment__Path: join(directory, 'equipment.json'), BuildingDistribution__Path: join(directory, 'distribution.json'),
-        CableCatalog__Path: join(directory, 'cables.json'), DuctCatalog__Path: join(directory, 'ducts.json') },
+        CableCatalog__Path: join(directory, 'cables.json'), DuctCatalog__Path: join(directory, 'ducts.json'),
+        Customers__Path: join(directory, 'customers.json'), FiberAllocations__Path: join(directory, 'allocations.json') },
       stdio: ['ignore', 'pipe', 'pipe'],
     })
     server.stdout.on('data', chunk => { logs += chunk })
@@ -91,6 +92,28 @@ test('building distribution keeps apartment identity and valid fiber assignments
       racks: [{ id: rackId, name: 'Stojan' }], shelves: [{ id: shelfId, rackId, kind: 'odf', name: 'ODF' }],
       cards: [], ports: [{ id: crypto.randomUUID(), parentId: shelfId, position: 1, label: 'Port 1',
         fiber, patchPortId: null }] })).status, 400)
+    // A direct house premise retains its identity and fiber without fictional infrastructure.
+    const direct = { ...home, boxId: null, indoorCable: null }
+    document = await (await request(path, 'PUT', { ...document, risers: [], boxes: [], premises: [direct] })).json()
+    assert.equal(document.version, 3)
+    assert.equal(document.premises[0].id, home.id)
+    assert.equal(document.premises[0].boxId, null)
+    assert.deepEqual((await (await request(path)).json()).premises[0].fiber, fiber)
+    assert.equal((await request(path, 'PUT', { ...document, version: 2 })).status, 409)
+    assert.equal((await request(path, 'PUT', { ...document, premises: [direct, { ...direct, id: crypto.randomUUID() }] })).status, 400)
+    assert.equal((await request(path, 'PUT', { ...document, premises: [{ ...direct, boxId: crypto.randomUUID() }] })).status, 400)
+    assert.equal((await request(path, 'PUT', { ...document, premises: [{ ...direct, fiber: { ...fiber, itemId: crypto.randomUUID() } }] })).status, 400)
+    assert.equal((await request(`/network-points/${building.id}`, 'DELETE')).status, 409)
+    assert.equal((await request(`/route-installations/${route.id}/items/${cableItem.id}?version=${installed.version}`, 'DELETE')).status, 409)
+    const customer = await (await request('/customers', 'POST', { version: 0, buildingPointId: building.id,
+      premiseId: home.id, name: 'Ukázkový zákazník', status: 'lead', note: '', contacts: [], messages: [] })).json()
+    assert.equal(customer.premiseId, home.id)
+    assert.equal((await request(path, 'PUT', { ...document, premises: [] })).status, 409)
+    // Moving into a real floor box keeps customer links and the same stable premise ID.
+    document = await (await request(path, 'PUT', { ...document, risers: [riser], boxes: [box], premises: [home] })).json()
+    assert.equal(document.premises[0].id, customer.premiseId)
+    assert.deepEqual(document.premises[0].fiber, fiber)
+    assert.equal((await request(`/customers/${customer.id}?version=${customer.version}`, 'DELETE')).status, 204)
     document = await (await request(path, 'PUT', { ...document, risers: [], boxes: [], premises: [] })).json()
     assert.equal(document.version, 0)
     const changed = await (await request(`/network-points/${building.id}`, 'PUT', {

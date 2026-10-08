@@ -10,6 +10,18 @@ using FiberNetworkStudio.Api.RouteInstallations;
 using FiberNetworkStudio.Api.UndergroundRoutes;
 using System.Text.Json;
 
+if (args.Contains("--healthcheck"))
+{
+    try
+    {
+        using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(3) };
+        var response = await client.GetAsync("http://127.0.0.1:8080/api/health");
+        Environment.ExitCode = response.IsSuccessStatusCode ? 0 : 1;
+    }
+    catch { Environment.ExitCode = 1; }
+    return;
+}
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddCableCatalog(builder.Configuration, builder.Environment.ContentRootPath);
 builder.Services.AddDuctCatalog(builder.Configuration, builder.Environment.ContentRootPath);
@@ -56,7 +68,8 @@ app.Use(async (context, next) =>
         && !path.StartsWithSegments("/api/optical-splices")
         && !path.StartsWithSegments("/api/fiber-allocations")
         && !path.StartsWithSegments("/api/building-equipment")
-        && !path.StartsWithSegments("/api/building-distribution"))
+        && !path.StartsWithSegments("/api/building-distribution")
+        && !path.StartsWithSegments("/api/customers"))
     {
         await next(context);
         return;
@@ -81,6 +94,7 @@ app.MapBuildingDistribution();
 app.MapCustomers();
 
 app.MapGet("/api/health", () => Results.Ok(new { status = "ok" }));
+app.MapGet("/api/demo", () => Results.Ok(new { enabled = builder.Configuration["FNS_DEMO_SEED"] == "1" }));
 app.MapGet("/api/parcels/at", async (double latitude, double longitude, ParcelLookup lookup,
     ILogger<ParcelLookup> logger, CancellationToken cancellationToken) =>
 {

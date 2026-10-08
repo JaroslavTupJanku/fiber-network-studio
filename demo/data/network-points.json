@@ -1,0 +1,42 @@
+[
+  {
+    "id": "de000000-0000-4000-8000-000000000001",
+    "kind": "building",
+    "name": "Ukázka · uzel OLT",
+    "latitude": 50.088,
+    "longitude": 14.421,
+    "buildingType": "standard"
+  },
+  {
+    "id": "de000000-0000-4000-8000-000000000002",
+    "kind": "pole",
+    "name": "Ukázka · sloup P1",
+    "latitude": 50.088,
+    "longitude": 14.423,
+    "buildingType": null
+  },
+  {
+    "id": "de000000-0000-4000-8000-000000000003",
+    "kind": "building",
+    "name": "Ukázka · rodinný dům",
+    "latitude": 50.089,
+    "longitude": 14.424,
+    "buildingType": "standard"
+  },
+  {
+    "id": "de000000-0000-4000-8000-000000000004",
+    "kind": "building",
+    "name": "Ukázka · bytový dům",
+    "latitude": 50.087,
+    "longitude": 14.424,
+    "buildingType": "apartment"
+  },
+  {
+    "id": "de000000-0000-4000-8000-000000000005",
+    "kind": "building",
+    "name": "Ukázka · dům k připojení",
+    "latitude": 50.089,
+    "longitude": 14.422,
+    "buildingType": "standard"
+  }
+]

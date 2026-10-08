@@ -206,7 +206,7 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .distribution-summary { display: flex; flex-wrap: wrap; gap: 10px; padding: 13px 25px; border-bottom: 1px solid #e0ebe4; background: #fbfdfb; }
 .distribution-summary span { padding: 6px 10px; border-radius: 6px; background: #edf5ef; color: #496b5a; font-size: 12px; }
 .distribution-summary strong { color: #176759; }
-.distribution-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 340px); grid-template-rows: minmax(0, 1fr); height: min(500px, calc(100dvh - 230px)); overflow: hidden; }
+.distribution-layout { display: grid; grid-template-columns: minmax(260px, .8fr) minmax(0, 1.2fr); grid-template-rows: minmax(0, 1fr); height: min(500px, calc(100dvh - 230px)); overflow: hidden; }
 .distribution-list { min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 22px; border-right: 1px solid #dce8e1; background: #f5f9f6; }
 .distribution-detail { min-height: 0; overflow-y: auto; scrollbar-gutter: stable; padding: 24px; }
 .distribution-list-heading, .distribution-detail-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
@@ -793,3 +793,6 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .point-key.pole, .kind-dot.pole { background: #75529c; }
 .placement-cursor.pole .placement-cursor-figure { background: #f2ebfa; color: #75529c; }
 .placement-cursor.pole .placement-cursor-target { background: #75529c; }
+.demo-guide-link { flex: none; padding: 5px 9px; border-radius: 6px; background: #fff2d5; color: #754800; font-size: 12px; font-weight: 650; text-decoration: none; }
+.demo-guide-link:hover { background: #ffe5ab; text-decoration: underline; }
+@media (max-width: 700px) { .demo-guide-link { font-size: 11px; padding: 4px 6px; } }

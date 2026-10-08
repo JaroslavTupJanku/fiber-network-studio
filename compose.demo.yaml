@@ -1,0 +1,19 @@
+name: fiber-network-studio-demo
+services:
+  app:
+    build: .
+    ports:
+      - "127.0.0.1:${FNS_DEMO_PORT:-8080}:8080"
+    environment:
+      FNS_DEMO_SEED: "1"
+    volumes:
+      - demo-data:/app/App_Data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "dotnet", "FiberNetworkStudio.Api.dll", "--healthcheck"]
+      interval: 10s
+      timeout: 5s
+      start_period: 10s
+      retries: 6
+volumes:
+  demo-data:
