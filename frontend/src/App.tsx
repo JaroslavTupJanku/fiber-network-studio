@@ -7,6 +7,7 @@ import { CustomerWorkspace } from './features/customers/CustomerWorkspace'
 import { OpticalBudgetPage } from './features/optical-budget/OpticalBudgetPage'
 import type { Scenario } from './features/optical-budget/model'
 import './App.css'
+import './features/map/networkSchematic.css'
 
 function App() {
   const [demo, setDemo] = useState(false)
