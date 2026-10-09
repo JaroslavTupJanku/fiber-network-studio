@@ -1,0 +1,70 @@
+.details-panel .panel-heading { flex-wrap: wrap; gap: 8px; padding-bottom: 18px; }
+.details-panel .panel-heading > div { flex: 1 0 100%; min-width: 0; }
+.details-panel .panel-heading h1 { margin: 8px 0 0; font-size: 23px; overflow-wrap: anywhere; }
+.details-panel .panel-heading > button { flex: 1; justify-content: center; border-radius: 8px; }
+.point-detail-form { gap: 14px; }
+.point-basics { display: grid; gap: 10px; min-width: 0; margin: 0; padding: 16px; border: 1px solid #dce6e1; border-radius: 12px; background: #f8faf9; }
+.point-basics legend, .point-section-label { color: #71847b; font-size: 10px; font-weight: 750; letter-spacing: .09em; text-transform: uppercase; }
+.point-basics legend { padding: 0 5px; }
+.point-detail-form .point-kind { margin: 0; font-size: 11px; }
+.point-detail-form input, .point-detail-form select { border-radius: 7px; }
+.point-detail-form > .form-actions { margin: 0; }
+.point-detail-form > .form-actions .danger-button { flex: 0 0 auto; padding-inline: 12px; }
+.point-position { padding: 13px 15px; border: 1px solid #e0e7e3; border-radius: 10px; background: #fff; }
+.point-position > summary { color: #42665a; font-size: 12px; font-weight: 650; cursor: pointer; }
+.point-position .coordinates-row { margin-top: 12px; }
+.point-position .move-button { width: 100%; justify-content: center; }
+.point-section-label { margin-top: 12px; }
+.point-detail-form > .move-button { justify-content: center; border-radius: 8px; }
+.point-detail-form .chamber-splice-card { margin: 0; border-radius: 12px; box-shadow: 0 2px 8px rgb(31 65 51 / 3%); }
+.point-detail-form .chamber-splice-heading h2 { font-size: 14px; }
+.point-detail-form .equipment-note { font-size: 11px; line-height: 1.6; }
+.point-detail-form .point-dependencies { padding: 14px; border: 1px solid #e0e7e3; border-radius: 12px; background: #f8faf9; }
+.fiber-trace-dialog { padding: 0; overflow: auto; border-radius: 20px; background: #f7f9f8; }
+.fiber-trace-dialog > header { padding: 24px; border-bottom: 1px solid #e0e7e3; background: white; }
+.fiber-trace-dialog > header p { margin-bottom: 0; color: #74827b; }
+.trace-eyebrow { display: block; margin-bottom: 10px; color: #71847b; font-size: 10px; font-weight: 750; letter-spacing: .12em; }
+.fiber-trace-fields { padding: 22px 24px 8px; gap: 16px; }
+.fiber-trace-fields select { min-height: 40px; border-radius: 8px; }
+.fiber-trace-dialog > .equipment-note { margin: 8px 24px 20px; color: #74827b; }
+.trace-selected-fiber { display: flex; align-items: center; gap: 8px; margin: 8px 24px 12px; color: #526b60; font-size: 12px; }
+.trace-result { padding: 0 24px 24px; }
+.trace-status { padding: 16px 18px; border: 1px solid #e1dac7; border-radius: 12px; background: #fffbef; }
+.trace-status-connected { border-color: #cce1d6; background: #edf7f1; }
+.trace-status h3 { margin: 0 0 6px; font-size: 15px; }
+.trace-status p { margin: 0; }
+.trace-result > label { display: grid; gap: 7px; margin-top: 16px; font-size: 13px; }
+.trace-result > label select { padding: 10px; border: 1px solid #c7d8d1; border-radius: 8px; background: white; font: inherit; }
+.trace-result h4 { margin: 24px 0 14px; font-size: 12px; color: #74827b; }
+.trace-result .equipment-path-schematic { display: grid; gap: 12px; margin: 0; padding: 0; list-style: none; }
+.trace-result .equipment-path-schematic li { position: relative; gap: 14px; padding: 14px; border-color: #dfe7e2; border-radius: 12px; box-shadow: 0 2px 6px rgb(31 65 51 / 3%); }
+.trace-result .equipment-path-schematic li:not(:last-child)::after { content: ''; position: absolute; left: 29px; top: 100%; height: 13px; border-left: 2px solid #d4e2db; }
+.equipment-path-schematic .trace-step-number { flex: none; display: grid; place-items: center; width: 28px; height: 28px; border-radius: 9px; background: #edf4f0; color: #39705c; font-size: 12px; font-weight: 700; }
+.trace-result li[data-step-kind='splitter'] .trace-step-number { background: #f1eafa; color: #805e9e; }
+.trace-result .equipment-path-schematic li > div { flex: 1; overflow-wrap: anywhere; }
+.trace-result .equipment-path-schematic li strong { font-size: 13px; }
+.trace-result .fiber-path-status { font-size: 11px; color: #74827b; }
+.trace-actions { gap: 10px; margin-top: 22px; padding-top: 18px; border-top: 1px solid #e0e7e3; }
+.trace-actions button { border-radius: 8px; }
+.ob-missing > p { margin: 6px 0 12px; font-size: 12px; }
+.ob-missing > ul { list-style: none; padding: 0; margin: 0; }
+.ob-missing > ul li + li { border-top: 1px solid #eadfc5; }
+.ob-missing a { display: grid; gap: 3px; padding: 10px 0; color: #675327; text-decoration: none; }
+.ob-missing a span { font-weight: 650; font-size: 12px; }
+.ob-missing a small { font-size: 11px; }
+.ob-missing a:hover span { text-decoration: underline; }
+.ob-missing details { margin-top: 12px; font-size: 11px; }
+.ob-missing summary { cursor: pointer; }
+.ob-row { scroll-margin-top: 24px; }
+.ob-row:target { outline: 2px solid #5e9b85; outline-offset: 4px; }
+@media (max-width: 650px) {
+  .fiber-trace-dialog { padding: 0; }
+  .fiber-trace-dialog > header { padding: 20px 16px; }
+  .fiber-trace-fields { padding: 18px 16px 8px; }
+  .fiber-trace-dialog > .equipment-note { margin-inline: 16px; }
+  .trace-result { padding: 0 16px 20px; }
+  .trace-result .equipment-path-schematic li { flex-wrap: wrap; }
+  .trace-result .equipment-path-schematic li > div { flex-basis: calc(100% - 42px); }
+  .trace-result .equipment-path-schematic li button { margin-left: 42px; }
+  .trace-actions { flex-direction: column; align-items: stretch; }
+}

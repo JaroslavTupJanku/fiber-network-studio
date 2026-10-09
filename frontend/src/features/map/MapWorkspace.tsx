@@ -105,6 +105,9 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
   }, [active, customerMapFocus, handlePointSelect])
   const routeDraft = route.draft
   useEffect(() => {
+    if (editor?.kind) detailsPanelRef.current?.scrollTo({ top: 0 })
+  }, [editor?.id, editor?.kind])
+  useEffect(() => {
     const id = routeDraft?.id ?? null
     if (id && id !== lastRouteId.current) {
       setRouteTab('installations')
@@ -329,7 +332,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             <FileDown size={16} /> Výstupy</button>
         </div>
 
-        {!routeDraft && <div className="point-counts" aria-label="Počet objektů">
+        {!routeDraft && !editor && <div className="point-counts" aria-label="Počet objektů">
           <span><Box size={15} /> Skříně <strong>{points.filter(point => point.kind === 'cabinet').length}</strong></span>
           <span><House size={15} aria-hidden="true" /> Budovy <strong>{buildings}</strong></span>
           <span><UtilityPole size={15} aria-hidden="true" /> Sloupy <strong>{poles}</strong></span>
@@ -506,9 +509,10 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
         )}
 
         {editor && (
-          <form className="point-form" onSubmit={savePoint}>
+          <form className="point-form point-detail-form" onSubmit={savePoint}>
+            <fieldset className="point-basics"><legend>Základní údaje</legend>
             <label htmlFor="point-name">Název</label>
-            <input id="point-name" autoFocus required maxLength={80} value={editor.name} onChange={(event) => setEditor({ ...editor, name: event.target.value })}
+            <input id="point-name" autoFocus={!editor.id} required maxLength={80} value={editor.name} onChange={(event) => setEditor({ ...editor, name: event.target.value })}
               onKeyDown={event => acceptExampleOnArrowRight(event, name => setEditor(current => current ? { ...current, name } : current))}
               title="Šipka doprava převezme šedý příklad" placeholder={editor.kind === 'building' ? 'Např. Dům 12' : editor.kind === 'cabinet' ? 'Např. Skříň R-01' : editor.kind === 'pole' ? 'Např. Sloup P-01' : 'Např. Šachta S-01'} />
             <div className="point-kind">{editor.kind === 'building' && editor.buildingType === 'apartment'
@@ -518,6 +522,12 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
                 onChange={event => setEditor({ ...editor, buildingType: event.target.value as 'standard' | 'apartment' })}>
                 <option value="standard">Běžná budova</option><option value="apartment">Bytový dům</option>
               </select><small>Ikona bytového domu usnadní orientaci na mapě. Domovní rozvod lze evidovat u obou typů.</small></label>}
+            </fieldset>
+            <div className="form-actions">
+              <button className="primary-button" type="submit" disabled={saving || !editor.name.trim()}><Save size={16} aria-hidden="true" /> {saving ? 'Ukládání…' : 'Uložit'}</button>
+            {editor.id && <button className="danger-button" type="button" disabled={saving} onClick={removePoint} title="Smazat objekt"><Trash2 size={16} aria-hidden="true" /> Smazat</button>}
+            </div>
+            <details className="point-position" open={!editor.id || moving}><summary>Poloha na mapě</summary>
             <div className="coordinates-row">
               <span>{editor.latitude.toFixed(6)}°, {editor.longitude.toFixed(6)}°</span>
               <button type="button" className="icon-button" onClick={() => copyCoordinates(editor)} title="Kopírovat souřadnice" aria-label="Kopírovat souřadnice"><Copy size={16} /></button>
@@ -532,7 +542,9 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               setMoving((value) => !value)
               setActiveTool(null)
             }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Klikněte na nové místo' : 'Změnit polohu kliknutím'}</button>
-            {editor.id && <button type="button" className="move-button" disabled={saving || editor.name !== points.find(point => point.id === editor.id)?.name} title="Trasování používá uloženou síť. Nejprve uložte změny objektu." onClick={() => setFiberTrace({ pointId: editor.id! })}><Cable size={16} /> Sledovat vlákno v navazujícím kabelu</button>}
+            </details>
+            <div className="point-section-label">Zapojení a návaznosti</div>
+            {editor.id && <button type="button" className="move-button" disabled={saving || editor.name !== points.find(point => point.id === editor.id)?.name} title="Trasování používá uloženou síť. Nejprve uložte změny objektu." onClick={() => setFiberTrace({ pointId: editor.id! })}><Cable size={16} /> Sledovat vlákno</button>}
             {editor.id && editor.kind === 'chamber' && <ChamberConduitPanel key={editor.id}
               pointId={editor.id} routes={route.routes} documents={installations.documents}
               onUpdated={installations.replaceDocuments} onOpenRoute={selectSavedRoute} />}
@@ -584,10 +596,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               <p>Před smazáním objektu odstraňte nebo přepojte tyto trasy a jejich osazení.</p>
               {attachedRoutes.map(item => <button type="button" key={item.id} onClick={() => selectSavedRoute(item.id)}>{item.name} →</button>)}
             </div>}
-            <div className="form-actions">
-              <button className="primary-button" type="submit" disabled={saving || !editor.name.trim()}><Save size={16} aria-hidden="true" /> {saving ? 'Ukládání…' : 'Uložit'}</button>
-              {editor.id && <button className="danger-button" type="button" disabled={saving} onClick={removePoint} title="Smazat objekt"><Trash2 size={16} aria-hidden="true" /> Smazat</button>}
-            </div>
+
           </form>
         )}
 

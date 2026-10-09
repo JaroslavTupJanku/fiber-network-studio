@@ -20,8 +20,8 @@ export function OpticalPathSteps({ path, allocations, onOpenRoute }: {
       const key = step.runId !== undefined && step.tubeIndex !== undefined && step.fiberIndex !== undefined
         ? allocatedFiberKey({ runId: step.runId, tubeIndex: step.tubeIndex, fiberIndex: step.fiberIndex }) : null
       const allocation = key ? assigned.get(key) : null
-      return <li key={`${step.kind}-${step.itemId ?? step.routeId ?? index}-${index}`}>
-        <div><span>{kindLabel(step.kind)}</span><strong>{step.label}</strong>
+      return <li data-step-kind={step.kind} key={`${step.kind}-${step.itemId ?? step.routeId ?? index}-${index}`}>
+        <span className="trace-step-number" aria-hidden="true">{index + 1}</span><div><span>{kindLabel(step.kind)}</span><strong>{step.label}</strong>
           {key && <small className="fiber-path-status">{allocation
             ? `${allocation.status === 'used' ? 'Obsazeno' : 'Rezervováno'}: ${allocation.label}`
             : 'Volné pro službu'}</small>}</div>
