@@ -87,7 +87,8 @@ export function layoutScheme(scheme: Scheme) {
     for (const [band, bandHeight] of [...bandHeights].sort(([a], [b]) => a - b)) { bandOffsets.set(band, height); height += bandHeight }
     rows.clear()
     for (const id of component) {
-      const depth = depths.get(id) ?? 0, row = rows.get(depth) ?? 0, column = depth % 3
+      const depth = depths.get(id) ?? 0, row = rows.get(depth) ?? 0
+      const column = Math.floor(depth / 3) % 2 ? 2 - depth % 3 : depth % 3
       positions.set(id, { x: 30 + column * 350, y: offset + (bandOffsets.get(Math.floor(depth / 3)) ?? 0) + row * 155 })
       rows.set(depth, row + 1); maxColumn = Math.max(maxColumn, column)
     }
