@@ -2,13 +2,18 @@ import { calculate, directionLabel, ponWavelengths, type Scenario } from './mode
 
 const format = (value: number) => value.toLocaleString('cs-CZ', { maximumFractionDigits: 6 })
 export function BudgetResult({ result, scenario, onAdvanced }: { result: ReturnType<typeof calculate>; scenario: Scenario; onAdvanced: () => void }) {
+  const incomplete = result.rows.filter(row => row.loss === null)
   const titles = { unknown: 'Posouzení není úplné', pass: 'Ztráta v limitu včetně rezervy', fail: 'Zadaný limit nestačí', boundary: 'Přesně na hranici limitu' }
   return <aside className="ob-result ob-panel" aria-label="Výsledek výpočtu">
     <span className="ob-eyebrow">BILANCE · {scenario.wavelength} nm</span><h2>Odhad ztráty trasy</h2>
     <p className="ob-source">{directionLabel(scenario)}</p>
     <div className="ob-total" aria-live="polite">{result.total === null ? '—' : format(result.total)} <small>dB</small></div>
     <p className="ob-muted">Součet kabelů a pasivních prvků. Bez návrhové rezervy.</p>
-    {result.errors.length > 0 && <div className="ob-message"><strong>Doplňte zadání</strong><ul>{result.errors.map((error, i) => <li key={i}>{error}</li>)}</ul></div>}
+    {result.errors.length > 0 && <div className="ob-message ob-missing"><strong>Ještě zbývá doplnit</strong>
+      <p>Bez těchto údajů nelze ztrátu spočítat.</p>
+      {incomplete.length > 0 && <ul>{incomplete.map(row => <li key={row.id}><a href={`#budget-row-${encodeURIComponent(row.id)}`}><span>{row.name}</span><small>{row.category === 'fiber' ? 'Délka a útlum kabelu' : 'Počet a ztráta prvku'} →</small></a></li>)}</ul>}
+      <details><summary>Podrobnosti ({result.errors.length})</summary><ul>{result.errors.map((error, i) => <li key={i}>{error}</li>)}</ul></details>
+    </div>}
     {result.rows.length > 0 && <div className="ob-breakdown">{result.rows.map(row => <div key={row.id}>
       <div><span>{row.name}</span><strong>{row.loss === null ? 'Neuvedeno' : `${format(row.loss)} dB`}</strong></div>
       <div className="ob-bar" aria-hidden="true"><i style={{ width: `${result.total && row.loss !== null ? row.loss / result.total * 100 : 0}%` }} /></div>

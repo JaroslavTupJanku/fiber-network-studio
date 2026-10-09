@@ -67,7 +67,7 @@ export function OpticalBudgetPage({ incoming, onIncomingHandled }: {
         <p className="ob-muted">Zadejte skutečnou délku kabelu včetně kabelových rezerv. Výběr z katalogu převezme údaje; katalog tím nezměníte.</p>
         {state.catalogError && <p role="alert" className="ob-message">{state.catalogError}</p>}
         <button className="ob-text-button" disabled={state.loading} onClick={state.reload}><RefreshCw size={14} /> {state.loading ? 'Načítání katalogu…' : 'Obnovit nabídku kabelů'}</button>
-        {scenario.sections.map((row, i) => <article className="ob-row" key={row.id}>
+        {scenario.sections.map((row, i) => <article className="ob-row" id={`budget-row-${row.id}`} tabIndex={-1} key={row.id}>
           <div className="ob-row-heading"><strong>Úsek {i + 1}</strong><button className="ob-remove" aria-label={`Odebrat úsek ${i + 1}`} disabled={scenario.sections.length <= 1} onClick={() => remove('sections', row.id)}><Trash2 size={16} /></button></div>
           <label>Převzít kabel z katalogu<select aria-label={`Kabel pro úsek ${i + 1}`} value="" disabled={state.loading} onChange={event => {
             const cable = state.cables.find(item => item.id === event.target.value)
@@ -83,7 +83,7 @@ export function OpticalBudgetPage({ incoming, onIncomingHandled }: {
       <section className="ob-panel"><div className="ob-section-heading"><h2>2. Spoje a pasivní prvky</h2><button disabled={scenario.elements.length >= 100} onClick={() => setScenario({ ...scenario, elements: [...scenario.elements, newElement()] })}><Plus size={16} /> Přidat prvek</button></div>
         <p className="ob-muted">Konektorový spoj je jeden spojený pár konektorů. U splitteru zadejte ztrátu konkrétní vstupní–výstupní cesty z technického listu, nikoli počet jeho výstupů.</p>
         {scenario.elements.length === 0 && <p className="ob-empty">Zatím žádné prvky. Pokud jsou na cestě svary, konektorové spoje nebo splittery, přidejte je sem.</p>}
-        {scenario.elements.map((row, i) => <article className="ob-row" key={row.id}><div className="ob-row-heading"><strong>Prvek {i + 1}</strong><button className="ob-remove" aria-label={`Odebrat prvek ${i + 1}`} onClick={() => remove('elements', row.id)}><Trash2 size={16} /></button></div>
+        {scenario.elements.map((row, i) => <article className="ob-row" id={`budget-row-${row.id}`} tabIndex={-1} key={row.id}><div className="ob-row-heading"><strong>Prvek {i + 1}</strong><button className="ob-remove" aria-label={`Odebrat prvek ${i + 1}`} onClick={() => remove('elements', row.id)}><Trash2 size={16} /></button></div>
           {row.source && <p className="ob-source">Zdroj hodnot: {row.source}</p>}
           <div className="ob-fields"><label>Typ prvku<select aria-label={`Typ prvku ${i + 1}`} value={row.kind} onChange={event => patchElement(row.id, { kind: event.target.value as Element['kind'] })}>{Object.entries(kinds).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select></label>
             <label>Označení<input aria-label={`Označení prvku ${i + 1}`} maxLength={200} placeholder="Nepovinné" value={row.name} onChange={event => patchElement(row.id, { name: event.target.value })} /></label></div>

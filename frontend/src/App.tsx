@@ -8,6 +8,7 @@ import { OpticalBudgetPage } from './features/optical-budget/OpticalBudgetPage'
 import type { Scenario } from './features/optical-budget/model'
 import './App.css'
 import './features/map/networkSchematic.css'
+import './features/map/workspacePolish.css'
 
 function App() {
   const [demo, setDemo] = useState(false)
