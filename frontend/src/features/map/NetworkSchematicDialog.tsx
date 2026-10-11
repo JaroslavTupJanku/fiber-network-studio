@@ -119,16 +119,16 @@ export function NetworkSchematicDialog({ open, points, routes, installations, eq
       <aside className="scheme-inspector" aria-label="Vybraný prvek">
         {selected ? <>
           <div className="scheme-inspector-heading"><span>VYBRANÝ PRVEK</span><button type="button" aria-label="Zrušit výběr" onClick={() => setSelected(null)}><X size={16} /></button></div>
-          <span className="scheme-inspector-icon">{selected.routeId ? <Route size={24} /> : <Box size={24} />}</span>
+          <span className="scheme-inspector-icon">{selected.routeId ? <Route size={24} /> : mode === 'optical' ? <Network size={24} /> : <Box size={24} />}</span>
           <h3>{selected.label}</h3><p className="scheme-inspector-kind">{selected.detail}</p>
           {selectedRoute && <dl className="scheme-endpoints"><div><dt>Odkud</dt><dd>{pointName(selectedRoute.startPointId)}</dd></div><div><dt>Kam</dt><dd>{pointName(selectedRoute.endPointId)}</dd></div></dl>}
           <div className="scheme-inspector-actions">
             <button type="button" className="scheme-action-primary" onClick={() => selected.pointId ? onOpenPoint(selected.pointId) : selected.routeId && onOpenRoute(selected.routeId)}><ArrowUpRight size={16} />Otevřít detail</button>
-            {selected.pointId && <button type="button" onClick={() => onMovePoint(selected.pointId!)}><Crosshair size={16} />Přesunout na mapě</button>}
+            {selected.pointId && mode === 'physical' && <button type="button" onClick={() => onMovePoint(selected.pointId!)}><Crosshair size={16} />Přesunout na mapě</button>}
             {selected.routeId && <button type="button" onClick={() => onEditRoute(selected.routeId!)}><Route size={16} />Upravit průběh trasy</button>}
           </div>
           {selected.pointId && <section className="scheme-related"><h4>Navazující trasy <span>{connectedRoutes.length}</span></h4>{connectedRoutes.length ? connectedRoutes.map(route => <button type="button" key={route.id} onClick={() => setSelected({ id: route.id, label: route.name, detail: 'Trasa sítě', routeId: route.id })}><Route size={14} /><span>{route.name}</span><ArrowUpRight size={14} /></button>) : <p>Objekt zatím nemá navazující trasu.</p>}</section>}
-          <p className="scheme-inspector-note">{selected.pointId ? 'Polohu změníte na mapě. Zapojení a vybavení upravíte v detailu objektu.' : 'Průběh trasy upravíte na mapě. Kabely a chráničky najdete v jejím detailu.'}</p>
+          <p className="scheme-inspector-note">{selected.pointId ? mode === 'optical' ? 'Zapojení vláken a portů upravíte v detailu objektu.' : 'Polohu změníte na mapě. Zapojení a vybavení upravíte v detailu objektu.' : 'Průběh trasy upravíte na mapě. Kabely a chráničky najdete v jejím detailu.'}</p>
         </> : <div className="scheme-inspector-empty"><span className="scheme-inspector-icon"><MousePointer2 size={24} /></span><h3>Prozkoumejte síť</h3><p>Klikněte na objekt nebo trasu. Zobrazí se podrobnosti, návaznosti a dostupné úpravy.</p><div><span><Box size={16} />Objekty sítě</span><span><Route size={16} />Navazující trasy</span><span><Cable size={16} />Optické propojení</span></div></div>}
       </aside>
     </div>
