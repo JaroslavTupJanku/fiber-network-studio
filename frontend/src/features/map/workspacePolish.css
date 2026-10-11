@@ -100,3 +100,5 @@
 .map-mode-badge span { font-size: 11px; line-height: 1.4; }
 .workspace .map-region.route-drawing-mode::after, .workspace .map-region.point-placement-mode::after { z-index: 2; border-width: 5px; border-color: #c37532; }
 @media (max-width: 850px) { .map-mode-badge { top: auto; bottom: 160px; left: 14px; right: 14px; max-width: none; transform: none; }.cable-catalog .cc-page-heading { padding: 18px; } }
+
+.point-move-notice { margin: 0; padding: 12px 14px; border: 1px solid #c7dfd0; border-radius: 8px; background: #edf7f0; color: #285b42; font-size: 12px; line-height: 1.5; }

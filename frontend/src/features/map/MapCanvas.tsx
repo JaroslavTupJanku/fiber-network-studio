@@ -906,8 +906,8 @@ export function MapCanvas({ points, routes, installations, splices, installation
         {hoverLabel.pointId ? points.find(point => point.id === hoverLabel.pointId)?.name : routes.find(route => route.id === hoverLabel.routeId)?.name}
       </div>}
       {(drawingRoute || placementActive || routePaused) && <div className="map-mode-badge" role="status">
-        <strong>{routePaused ? 'Kreslení trasy pozastaveno · přidání objektu' : drawingRoute ? routeDraft?.id ? 'Upravujete průběh trasy' : 'Kreslíte novou trasu' : 'Umisťujete objekt'}</strong>
-        <span>Dokončete práci v mapě, nebo ji zrušte tlačítkem Zrušit / Esc.</span>
+        <strong>{routePaused ? 'Kreslení trasy pozastaveno · přidání objektu' : drawingRoute ? routeDraft?.id ? 'Upravujete průběh trasy' : 'Kreslíte novou trasu' : activeTool ? 'Umisťujete nový objekt' : 'Přesouváte objekt'}</strong>
+        <span>{placementActive && !activeTool ? 'Klikněte na nové místo. Poloha a navázané trasy se uloží ihned. Zrušení: Esc.' : 'Dokončete práci v mapě, nebo ji zrušte tlačítkem Zrušit / Esc.'}</span>
       </div>}
       {placementActive && (
         <div className="placement-guide" role="status">
