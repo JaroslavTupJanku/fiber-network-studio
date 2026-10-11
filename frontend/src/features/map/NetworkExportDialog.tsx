@@ -10,10 +10,13 @@ import type { MapSnapshot } from './MapCanvas'
 import { downloadMapPng } from './exportMapPng'
 import { pathExportRows, routeExportRows, spliceExportRows, toCzechCsv, type ExportRow } from './networkExports'
 import './networkExports.css'
+import { SchemePrint } from './SchemePrint'
+import { ConnectionDiagram } from './ConnectionDiagram'
+import { opticalScheme, physicalScheme, schemeComponents } from './networkSchematic'
 import { useOpticalSnapshot } from './useOpticalSnapshot'
 import { opticalConnections, connectionExportRows } from './opticalConnections'
 
-type Output = 'map' | 'infrastructure' | 'splices' | 'report'
+type Output = 'map' | 'scheme' | 'infrastructure' | 'splices' | 'report'
 type Report = 'connections' | 'route' | 'splices' | 'path'
 
 function download(content: BlobPart, name: string, type: string) {
@@ -33,27 +36,6 @@ function TablePreview({ rows }: { rows: ExportRow[] }) {
   </table></div> : <p className="network-export-empty">Pro tento výstup zatím nejsou evidované údaje.</p>
 }
 
-function SpliceDiagram({ splice, installations, routes }: { splice: OpticalSpliceDocument;
-  installations: RouteInstallationDocument[]; routes: UndergroundRoute[] }) {
-  const routeNames = new Map(routes.map(route => [route.id, route.name]))
-  const cableNames = new Map(installations.flatMap(document => document.items.filter(item => item.cable)
-    .map(item => [item.id, `${item.label} · ${routeNames.get(document.routeId) ?? 'Úsek'}`] as const)))
-  const groups = new Map<string, { left: string; right: string; count: number }>()
-  for (const connection of splice.connections) {
-    const left = cableNames.get(connection.left.itemId) ?? 'Neznámý kabel'
-    const right = cableNames.get(connection.right.itemId) ?? 'Neznámý kabel'
-    const key = [connection.left.itemId, connection.right.itemId].sort().join(':')
-    const group = groups.get(key)
-    if (group) group.count += 1
-    else groups.set(key, { left, right, count: 1 })
-  }
-  return groups.size ? <div className="network-export-splice-diagram" aria-label="Přehled propojených kabelů">
-    {[...groups.values()].map((group, index) => <div key={index} className="network-export-splice-link">
-      <span>{group.left}</span><strong>↔<small>{group.count} {group.count === 1 ? 'spoj' : group.count < 5 ? 'spoje' : 'spojů'}</small></strong><span>{group.right}</span>
-    </div>)}
-  </div> : null
-}
-
 export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, routes, installations: initialInstallations,
   splices: initialSplices, tracedPath, initialRouteId, initialPointId }: {
   onClose: () => void; onRefreshMap: () => void; snapshot: MapSnapshot | null
@@ -67,6 +49,9 @@ export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, r
   const connections = useMemo(() => optical ? opticalConnections(points, routes, optical.installations, optical.equipment,
     optical.splices, optical.distributions, optical.allocations) : [], [points, routes, optical])
   const dialogRef = useRef<HTMLDialogElement>(null)
+  const [schemeMode, setSchemeMode] = useState<'physical' | 'optical'>('optical')
+  const [schemePart, setSchemePart] = useState('all')
+  const [includeFree, setIncludeFree] = useState(false)
   const [output, setOutput] = useState<Output>('map')
   const [report, setReport] = useState<Report>('connections')
   const [routeId, setRouteId] = useState(initialRouteId ?? routes[0]?.id ?? '')
@@ -84,8 +69,20 @@ export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, r
     : report === 'splices' && splice ? spliceExportRows(splice, installations, routes)
       : report === 'path' && tracedPath ? pathExportRows(tracedPath) : [],
   [report, route, splice, tracedPath, points, installations, routes, connections])
+  const fullScheme = useMemo(() => !optical ? { nodes: [], edges: [] } : schemeMode === 'physical'
+    ? physicalScheme(points, routes, optical.installations)
+    : opticalScheme(points, routes, optical.installations, optical.equipment, optical.splices, optical.distributions), [optical, schemeMode, points, routes])
+  const visibleScheme = useMemo(() => {
+    if (schemeMode === 'physical' || includeFree) return fullScheme
+    const keep = new Set(schemeComponents(fullScheme).flatMap(ids => ids.some(id => !id.startsWith('fiber:'))
+      || fullScheme.edges.some(e => ids.includes(e.from) && e.kind !== 'cable') ? ids : []))
+    return { nodes: fullScheme.nodes.filter(n => keep.has(n.id)), edges: fullScheme.edges.filter(e => keep.has(e.from)) }
+  }, [fullScheme, includeFree, schemeMode])
+  const parts = schemeComponents(visibleScheme)
+  const keep = schemePart === 'all' ? null : new Set(parts[Number(schemePart)] ?? [])
+  const printScheme = keep ? { nodes: visibleScheme.nodes.filter(n => keep.has(n.id)), edges: visibleScheme.edges.filter(e => keep.has(e.from) && keep.has(e.to)) } : visibleScheme
   const columns = [...new Set(rows.flatMap(row => Object.keys(row)))]
-  const currentName = output === 'map' ? 'Aktuální mapa' : output === 'infrastructure' ? 'Schéma infrastruktury'
+  const currentName = output === 'map' ? 'Aktuální mapa' : output === 'scheme' ? schemeMode === 'optical' ? 'Optické schéma sítě' : 'Body a trasy sítě' : output === 'infrastructure' ? 'Schéma infrastruktury'
     : output === 'splices' ? 'Schéma spojky' : 'Přehled sítě'
   const canPrint = output === 'map' ? !!snapshot && 'image' in snapshot : !!optical && !opticalError
   const exportCsv = () => download(toCzechCsv(rows, columns), `sit-${report}-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -98,12 +95,15 @@ export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, r
       <p>Nejdřív zkontrolujte náhled. Tisk lze v prohlížeči uložit jako PDF.</p></div>
       <button type="button" className="icon-button" onClick={onClose} aria-label="Zavřít výstupy"><X size={20} /></button></header>
     <nav className="network-export-tabs" aria-label="Typ výstupu">
-      {([['map', 'Mapa'], ['infrastructure', 'Infrastruktura'], ['splices', 'Spojka'], ['report', 'Tabulka']] as const)
+      {([['map', 'Mapa'], ['scheme', 'Schéma sítě'], ['infrastructure', 'Infrastruktura'], ['splices', 'Spojka'], ['report', 'Tabulka']] as const)
         .map(([id, label]) => <button key={id} type="button" aria-pressed={output === id} onClick={() => setOutput(id)}>{label}</button>)}
     </nav>
     <div className="network-export-body">
       <div className="network-export-options">
-        {output === 'map' ? <><strong>Aktuální výřez mapy</strong><p>Výstup zachytí právě zobrazené vrstvy a polohu. Nastavení mapy můžete změnit po zavření tohoto okna.</p>
+        {output === 'scheme' ? <><label>Pohled<select value={schemeMode} onChange={e => { setSchemeMode(e.target.value as 'physical' | 'optical'); setSchemePart('all') }}><option value="optical">Optické propojení</option><option value="physical">Body a trasy</option></select></label>
+          <label>Část sítě<select value={schemePart} onChange={e => setSchemePart(e.target.value)}><option value="all">Celá síť</option>{parts.map((ids, i) => <option key={i} value={i}>Část {i + 1} · {visibleScheme.nodes.find(n => n.id === ids[0])?.label}</option>)}</select></label>
+          {schemeMode === 'optical' && <label className="network-export-checkbox"><input type="checkbox" checked={includeFree} onChange={e => { setIncludeFree(e.target.checked); setSchemePart('all') }} /> I nezapojená vlákna</label>}
+          <p>Schéma se dělí na čitelné listy. Propojení mezi listy mají vzájemné odkazy.</p></> : output === 'map' ? <><strong>Aktuální výřez mapy</strong><p>Výstup zachytí právě zobrazené vrstvy a polohu. Nastavení mapy můžete změnit po zavření tohoto okna.</p>
           <button type="button" className="move-button" onClick={onRefreshMap}><RefreshCw size={15} /> Obnovit snímek</button></>
         : output === 'infrastructure' || output === 'report' && report === 'route' ? <label>Trasa sítě
           <select value={routeId} onChange={event => setRouteId(event.target.value)}>
@@ -137,6 +137,7 @@ export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, r
           <small>Snímek {snapshot.capturedAt} · Podklad: {snapshot.baseMap === 'Uliční mapa' ? 'OpenFreeMap © OpenMapTiles Data from OpenStreetMap' : '© ČÚZK – Ortofoto ČR'}{snapshot.cadastre ? ' · Katastr: ČÚZK' : ''}.
             Měřítko a délky jsou orientační.</small>
         </> : <p className="network-export-empty">{snapshot && 'error' in snapshot ? snapshot.error : 'Připravuji snímek mapy…'}</p>)}
+        {output === 'scheme' && optical && <SchemePrint scheme={printScheme} />}
         {output === 'infrastructure' && (route ? <>
           <p className="network-export-diagram-intro">Fyzický úsek mezi evidovanými body. Obsah osazení je uveden v pořadí podle evidence.</p>
           <div className="network-export-route-diagram"><span>{names.get(route.startPointId) ?? 'Neznámý bod'}</span>
@@ -146,7 +147,7 @@ export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, r
         </> : <p className="network-export-empty">Zatím není evidována žádná trasa.</p>)}
         {output === 'splices' && (splice ? <><p className="network-export-diagram-intro">{splice.name} · {names.get(splice.pointId) ?? 'Šachta'}.
           Spojení vláken v evidované optické spojce.</p>
-          <SpliceDiagram splice={splice} installations={installations} routes={routes} />
+          <ConnectionDiagram connections={connections.filter(c => c.pointId === splice.pointId && ['Svar', 'Konektor', 'Vstup splitteru', 'Výstup splitteru'].includes(c.kind))} />
           <TablePreview rows={spliceExportRows(splice, installations, routes)} />
           {splice.splitters.length > 0 && <p>Pasivní splittery: {splice.splitters.map(item => `${item.name} (1:${item.outputCount})`).join(', ')}</p>}
         </> : <p className="network-export-empty">Zatím není evidována žádná optická spojka.</p>)}

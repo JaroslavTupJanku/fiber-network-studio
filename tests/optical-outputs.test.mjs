@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { opticalConnections, connectionExportRows } from '../frontend/src/features/map/opticalConnections.ts'
 import { toCzechCsv } from '../frontend/src/features/map/networkExports.ts'
+import { paginateScheme } from '../frontend/src/features/map/schemePrintLayout.ts'
 
 const points = [{ id: 'a', name: 'Uzel A' }, { id: 'b', name: 'Uzel B' }, { id: 'c', name: 'Uzel C' }]
 const routes = [{ id: 'ab', name: 'A-B', startPointId: 'a', endPointId: 'b' }, { id: 'bc', name: 'B-C', startPointId: 'b', endPointId: 'c' }]
@@ -44,4 +45,22 @@ test('continuous cable exports individual fibers without inventing splices or re
   assert.equal(rows[0].right.allocation, 'Rezervováno: Zákazník A')
   assert.equal(rows[1].left.allocation, undefined)
   assert.equal(rows[1].left.fiber, 2)
+})
+
+test('print pagination preserves every node and cross-page connection, including loops and isolated nodes', () => {
+  const nodes = Array.from({ length: 40 }, (_, i) => ({ id: String(i), label: `Prvek ${i}`, detail: 'Detail' }))
+  const edges = nodes.slice(0, 38).map((n, i) => ({ id: `e${i}`, from: n.id, to: String(i + 1), label: 'Kabel' }))
+  edges.push({ id: 'loop', from: '30', to: '0', label: 'Smyčka' })
+  const { pages, references } = paginateScheme({ nodes, edges })
+  assert.ok(pages.length > 1)
+  assert.equal(pages.flatMap(p => p.nodes).length, 40)
+  assert.equal(references.size, 40)
+  for (const page of pages) {
+    assert.ok(page.nodes.length <= 6)
+    for (const pos of page.positions.values()) assert.ok(pos.y >= 0 && pos.y + 130 < 350)
+  }
+  for (const e of edges) {
+    assert.ok(references.has(e.from)); assert.ok(references.has(e.to))
+    assert.ok(pages.some(p => p.positions.has(e.from) || p.positions.has(e.to)))
+  }
 })
