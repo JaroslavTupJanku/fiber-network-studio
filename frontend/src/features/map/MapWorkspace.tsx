@@ -30,8 +30,9 @@ const pointKindLabel = (point: Pick<NetworkPoint, 'kind' | 'buildingType'>) =>
 const countLabel = (count: number, one: string, few: string, many: string) =>
   `${count} ${count === 1 ? one : count >= 2 && count <= 4 ? few : many}`
 
-export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpenBudget, onOpenCalculator }: {
+export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpenBudget, onOpenCalculator, onInteractionChange }: {
   active: boolean
+  onInteractionChange: (active: boolean) => void
   onOpenCalculator: () => void
   customerMapFocus: { id: string; sequence: number } | null
   onOpenCustomers: (buildingId: string | null) => void
@@ -108,6 +109,8 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
     return () => cancelAnimationFrame(frame)
   }, [active, customerMapFocus, handlePointSelect])
   const routeDraft = route.draft
+  const interactionActive = route.drawing || !!activeTool || moving || splitActive || splitBusy
+  useEffect(() => { onInteractionChange(interactionActive) }, [interactionActive, onInteractionChange])
   useEffect(() => {
     if (editor?.kind) detailsPanelRef.current?.scrollTo({ top: 0 })
   }, [editor?.id, editor?.kind])
@@ -242,7 +245,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
     setMoving(false)
     setActiveTool(null)
     setActionError('')
-    setSideTab(routeDraft ? 'routes' : 'objects')
+    setSideTab(route.drawing ? 'infrastructure' : routeDraft ? 'routes' : 'objects')
   }
   const filteredRoutes = route.visibleRoutes.filter(item => item.name.toLocaleLowerCase('cs').includes(query.toLocaleLowerCase('cs')))
   const visibleBuildings = visiblePoints.filter(point => point.kind === 'building')
@@ -322,9 +325,9 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             <PanelRightOpen size={19} aria-hidden="true" /><span>Panel sítě</span></button>
         </div>}
         {panelOpen && <nav className="side-workspace-tabs" aria-label="Panel sítě">
-          <button type="button" aria-pressed={activeSideTab === 'objects'} onClick={() => selectSideTab('objects')}><Box size={15} />Objekty</button>
-          <button type="button" aria-pressed={activeSideTab === 'routes'} onClick={() => selectSideTab('routes')}><RouteIcon size={15} />Trasy</button>
-          <button type="button" aria-pressed={activeSideTab === 'outputs'} onClick={() => selectSideTab('outputs')}><FileDown size={15} />Výstupy</button>
+          <button type="button" disabled={interactionActive} aria-pressed={activeSideTab === 'objects'} onClick={() => selectSideTab('objects')}><Box size={15} />Objekty</button>
+          <button type="button" disabled={interactionActive} aria-pressed={activeSideTab === 'routes'} onClick={() => selectSideTab('routes')}><RouteIcon size={15} />Trasy</button>
+          <button type="button" disabled={interactionActive} aria-pressed={activeSideTab === 'outputs'} onClick={() => selectSideTab('outputs')}><FileDown size={15} />Výstupy</button>
           {(editor || routeDraft || selectedLocation || activeTool) && <button type="button" aria-pressed={activeSideTab === 'infrastructure'} onClick={() => selectSideTab('infrastructure')}><List size={15} />Detail</button>}
           <button type="button" className="side-workspace-collapse" title="Sbalit panel" aria-label="Sbalit panel" onClick={togglePanel}>
             <PanelRightClose size={17} /></button>
@@ -357,8 +360,8 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             <span className="section-label">{editor && route.drawing ? 'Přidat během kreslení' : routeDraft?.id && !editor ? routeKindLabel(routeDraft) : selectedLocation && selectedParcel ? 'Katastr' : 'Infrastruktura'}</span>
             <h1>{editor ? editor.id ? pointKindLabel(editor) : editor.kind === 'cabinet' ? 'Nová optická skříň' : editor.kind === 'pole' ? 'Nový sloup' : `Nová ${editor.kind === 'building' ? 'budova' : 'šachta'}` : routeDraft ? routeDraft.id ? routeDraft.name || routeKindLabel(routeDraft) : `Nová ${routeKind(routeDraft) === 'aerial' ? 'nadzemní' : 'podzemní'} trasa` : selectedLocation ? selectedParcel ? `Parcela ${selectedParcel.number}` : 'Detail místa' : 'Objekty sítě'}</h1>
           </div>
-          <button type="button" className="move-button" disabled={route.drawing || saving || !!editor && (!editor.id || editor.name !== points.find(point => point.id === editor.id)?.name)} title="Schéma používá uloženou síť. Nejprve dokončete rozpracované změny." onClick={() => setSchemeOpen(true)}><Network size={16} /> Schéma sítě</button>
-          <button type="button" className="panel-export-button move-button" title="Tisk a export mapy, schémat a přehledů"
+          <button type="button" className="move-button" disabled={interactionActive || saving || !!editor && (!editor.id || editor.name !== points.find(point => point.id === editor.id)?.name)} title="Schéma používá uloženou síť. Nejprve dokončete rozpracované změny." onClick={() => setSchemeOpen(true)}><Network size={16} /> Schéma sítě</button>
+          <button type="button" className="panel-export-button move-button" disabled={interactionActive} title="Tisk a export mapy, schémat a přehledů"
             onClick={() => { setExportInitialOutput('map'); setMapSnapshot(null); setSnapshotRequest(value => value + 1); setExportOpen(true) }}>
             <FileDown size={16} /> Výstupy</button>
         </div>
@@ -585,7 +588,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
                   : 'Zatím bez přípojných míst'}</p></div></div>
               <div className="chamber-splice-actions"><button type="button" className="move-button" onClick={() => setDistributionOpen(true)}>
                 {selectedDistribution ? 'Otevřít přípojná místa' : 'Přidat přípojné místo'}</button>
-                <button type="button" className="move-button" onClick={() => onOpenCustomers(editor.id!)}>Zákazníci této budovy</button></div>
+                <button type="button" className="move-button" disabled={interactionActive} onClick={() => onOpenCustomers(editor.id!)}>Zákazníci této budovy</button></div>
               <p className="equipment-note">Zde založíte přípojné místo (HP) a přiřadíte mu vlákno. Kontakty a komunikaci zákazníka vedete v evidenci Zákazníci.</p>
             </section>}
             {editor.id && (editor.kind === 'chamber' || editor.kind === 'pole') && <section className="chamber-splice-card" aria-labelledby="chamber-splice-heading">
@@ -695,9 +698,9 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
         )}
         {activeSideTab === 'outputs' && <section className="network-panel-tools" aria-label="Výstupy a nástroje sítě">
           <header className="network-panel-heading"><span className="section-label">Přehledy a výpočty</span><h1>Výstupy sítě</h1><p>Prohlédněte si zapojení, připravte výstup nebo spočítejte optickou cestu.</p></header>
-          <button type="button" disabled={route.drawing || saving || !!editor && (!editor.id || editor.name !== points.find(point => point.id === editor.id)?.name)} onClick={() => setSchemeOpen(true)}><Network size={20} /><span><strong>Schéma sítě</strong><small>Body, trasy a propojení jednotlivých vláken</small></span></button>
-          <button type="button" onClick={() => { setExportInitialOutput('map'); setMapSnapshot(null); setSnapshotRequest(value => value + 1); setExportOpen(true) }}><FileDown size={20} /><span><strong>Tisk a export</strong><small>Mapa, schémata a tabulky celé sítě</small></span></button>
-          <button type="button" onClick={onOpenCalculator}><Calculator size={20} /><span><strong>Výpočet optických ztrát</strong><small>Ověření útlumu a rezervy optické cesty</small></span></button>
+          <button type="button" disabled={interactionActive || saving || !!editor && (!editor.id || editor.name !== points.find(point => point.id === editor.id)?.name)} onClick={() => setSchemeOpen(true)}><Network size={20} /><span><strong>Schéma sítě</strong><small>Body, trasy a propojení jednotlivých vláken</small></span></button>
+          <button type="button" disabled={interactionActive} onClick={() => { setExportInitialOutput('map'); setMapSnapshot(null); setSnapshotRequest(value => value + 1); setExportOpen(true) }}><FileDown size={20} /><span><strong>Tisk a export</strong><small>Mapa, schémata a tabulky celé sítě</small></span></button>
+          <button type="button" disabled={interactionActive} onClick={onOpenCalculator}><Calculator size={20} /><span><strong>Výpočet optických ztrát</strong><small>Ověření útlumu a rezervy optické cesty</small></span></button>
         </section>}
       </aside>
       <NetworkSchematicDialog onPrint={view => { setSchemeOpen(false); setExportInitialScheme(view); setExportInitialOutput('scheme'); setExportOpen(true) }} open={schemeOpen} points={points} routes={route.routes} installations={installations.documents}

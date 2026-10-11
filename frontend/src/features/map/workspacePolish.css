@@ -83,3 +83,20 @@
 .network-panel-tools > button > span { display: grid; gap: 5px; }
 .network-panel-tools strong { font-size: 13px; }
 .network-panel-tools small { color: #71847b; font-size: 11px; line-height: 1.5; }
+.cable-catalog .cc-page-heading { align-items: flex-start; gap: 24px; padding: 24px; border: 1px solid #dce6e1; border-radius: 14px; background: #fff; }
+.cable-catalog .cc-page-heading > div:first-child { min-width: 0; }
+.cc-page-heading .catalog-navigation { margin: 18px 0 0; }
+.cc-page-heading .dc-create-actions { flex-wrap: wrap; gap: 8px; }
+.cc-detail > * + * { margin-top: 16px; }
+.details-panel .equipment-note { margin-top: 12px; }
+.installation-preview-hint { margin: 14px 0; }
+.chamber-splice-actions + p, .chamber-conduit-intro + .chamber-splice-actions { margin-top: 12px; }
+.equipment-empty + button, .equipment-note + button, .ob-muted + button { margin-top: 12px; }
+.building-distribution-dialog section + section, .equipment-detail > section + section { margin-top: 20px; }
+.details-panel .side-workspace-tabs button:disabled, .workspace-navigation button:disabled { opacity: .4; cursor: not-allowed; }
+.map-object-tooltip { position: absolute; z-index: 5; max-width: 230px; padding: 9px 12px; border: 1px solid #d6e3dc; border-radius: 8px; background: #fff; color: #234b3d; box-shadow: 0 4px 18px rgb(21 51 39 / 18%); font-size: 12px; font-weight: 650; line-height: 1.4; overflow-wrap: anywhere; pointer-events: none; }
+.map-mode-badge { position: absolute; top: 14px; left: 50%; z-index: 4; display: grid; gap: 5px; max-width: calc(100% - 330px); padding: 12px 18px; border: 2px solid #c37532; border-radius: 10px; background: #fff2dc; color: #77461b; box-shadow: 0 4px 18px rgb(89 49 16 / 20%); transform: translateX(-35%); pointer-events: none; }
+.map-mode-badge strong { font-size: 14px; }
+.map-mode-badge span { font-size: 11px; line-height: 1.4; }
+.workspace .map-region.route-drawing-mode::after, .workspace .map-region.point-placement-mode::after { z-index: 2; border-width: 5px; border-color: #c37532; }
+@media (max-width: 850px) { .map-mode-badge { top: auto; bottom: 160px; left: 14px; right: 14px; max-width: none; transform: none; }.cable-catalog .cc-page-heading { padding: 18px; } }

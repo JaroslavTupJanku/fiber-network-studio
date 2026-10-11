@@ -45,9 +45,8 @@ export function CableCatalogPage({ navigation }: { navigation?: ReactNode }) {
   const customCount = catalog.items.filter(item => !item.isPreset).length
 
   return <main className="cable-catalog" aria-label="Katalog kabelů">
-    {navigation}
     <div className="cc-page-heading"><div><span className="cc-eyebrow">KNIHOVNA SÍTĚ</span><h1>Katalog kabelů</h1>
-      <p>Typy kabelů, jejich tuby a vlákna na jednom místě.</p></div>
+      <p>Typy kabelů, jejich tuby a vlákna na jednom místě.</p>{navigation}</div>
       <button type="button" className="cc-button cc-primary" disabled={catalog.loading || catalog.busy || catalog.items.length === 0}
         onClick={catalog.create}><Plus size={18} /> Nový typ kabelu</button></div>
     <div className="cc-layout">

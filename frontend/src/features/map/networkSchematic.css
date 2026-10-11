@@ -5,15 +5,28 @@
 .scheme-eyebrow { display: block; margin-bottom: 7px; color: #73877f; font-size: 10px; letter-spacing: .16em; font-weight: 750; }
 .network-scheme-dialog h2 { font-size: 26px; letter-spacing: -.8px; color: #213e36; }
 .network-scheme-dialog header p { margin: 6px 0 0; color: #74847e; }
-.network-scheme-dialog > .network-scheme-controls { padding: 14px 28px; margin: 0; gap: 12px; border-block: 1px solid #edf1ef; align-items: center; background: #fcfdfc; }
-.network-scheme-dialog .scheme-view-switch { display: flex; padding: 4px; background: #edf2f0; border-radius: 10px; }
+.network-scheme-dialog > .network-scheme-controls { display: grid; grid-template-columns: minmax(240px, 1fr) minmax(220px, 1.2fr) 110px; padding: 16px 28px; margin: 0; gap: 16px; border-block: 1px solid #edf1ef; align-items: end; background: #fcfdfc; }
+.network-scheme-dialog .scheme-view-switch { display: flex; align-self: end; min-height: 38px; padding: 4px; background: #edf2f0; border-radius: 10px; }
+.network-scheme-dialog .scheme-view-switch > button { flex: 1; }
 .network-scheme-dialog .scheme-view-switch button { border: 0; background: transparent; color: #6a7c74; border-radius: 7px; font-size: 12px; }
 .network-scheme-dialog .scheme-view-switch button[aria-pressed="true"] { background: white; color: #226954; box-shadow: 0 2px 5px #1d463617; }
 .network-scheme-dialog .network-scheme-controls label { color: #74847e; font-size: 10px; gap: 4px; }
 .network-scheme-dialog .network-scheme-controls select { color: #365448; font-size: 12px; border-color: #e0e8e3; border-radius: 8px; padding: 8px; }
 .network-scheme-dialog .network-scheme-controls > button { border-color: #e0e8e3; font-size: 11px; border-radius: 8px; }
 .network-scheme-dialog > .network-scheme-help { padding: 10px 28px; margin: 0; font-size: 11px; color: #75867f; border-bottom: 1px solid #edf1ef; }
-.network-scheme-dialog .network-scheme-canvas { height: min(57vh, 620px); border: 0; border-radius: 0; background-color: #f7f9f8; background-image: radial-gradient(#dce5df .8px, transparent .8px); background-size: 20px 20px; }
+.network-scheme-dialog .network-scheme-canvas { height: min(57vh, 620px); border: 0; border-radius: 0; background: #f7f9f8; }
+.network-scheme-dialog .network-scheme-canvas.arranging { background-image: radial-gradient(#c6dace .8px, transparent .8px); background-size: 20px 20px; }
+.network-scheme-canvas.arranging .scheme-node { cursor: grab; touch-action: none; }
+.network-scheme-canvas.arranging .scheme-node:active { cursor: grabbing; }
+.network-scheme-canvas.arranging .scheme-card { cursor: inherit; }
+.network-scheme-canvas.arranging .scheme-edge { cursor: default; }
+.scheme-toolbar-actions { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 8px; }
+.scheme-toolbar-actions button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-height: 34px; }
+.network-scheme-controls .scheme-free-toggle { grid-column: 1 / -1; }
+.scheme-free-toggle span { display: flex; align-items: center; gap: 7px; }
+.scheme-interaction-help { flex-shrink: 0; margin: 0; padding: 10px 28px; background: #f2f7f4; color: #557466; font-size: 11px; }
+.scheme-interaction-help.arranging { color: #805122; background: #fff5e6; border-block: 1px solid #eed6b3; }
+@media (max-width: 850px) { .network-scheme-dialog > .network-scheme-controls { grid-template-columns: minmax(0, 1fr) 110px; }.network-scheme-controls .scheme-view-switch { grid-column: 1 / -1; }.scheme-interaction-help { padding-inline: 18px; } }
 .network-scheme-dialog .network-scheme-canvas { flex: 1; min-height: 180px; }
 .network-scheme-dialog .network-scheme-canvas svg { margin-inline: auto; }
 .scheme-edge-line { fill: none; stroke: #9bb6ac; stroke-width: 2; }
