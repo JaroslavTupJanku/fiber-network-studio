@@ -57,6 +57,17 @@ builder.Services.AddHttpClient<BuildingFootprintLookup>(client => client.Timeout
 var app = builder.Build();
 var splitService = app.Services.GetRequiredService<RouteSplitService>();
 await splitService.RecoverAsync();
+// The HTML entry point must be revalidated after each deployment; asset names are hashed.
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        if (context.Response.ContentType?.StartsWith("text/html", StringComparison.OrdinalIgnoreCase) == true)
+            context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+        return Task.CompletedTask;
+    });
+    await next();
+});
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.Use(async (context, next) =>
