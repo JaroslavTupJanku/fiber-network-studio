@@ -30,14 +30,16 @@ export function SchemePrint({ scheme }: { scheme: Scheme }) {
             <text x="12" y="20" className="scheme-print-ref">{ref.code}</text>
             {wrapSchemeText(node.label, 32).slice(0, 2).map((line, i) => <text key={i} x="12" y={40 + i * 16} className="scheme-print-title">{line}</text>)}
             {wrapSchemeText(node.detail, 39).slice(0, 3).map((line, i) => <text key={i} x="12" y={76 + i * 14} className="scheme-print-detail">{line}</text>)}
+            {node.usage && <text x="12" y="121" className={`scheme-print-usage usage-${node.usage.status}`}>{node.usage.status === 'used' ? 'Obsazeno službou' : 'Rezervováno'} · viz seznam</text>}
           </g>
         })}
       </svg>
-      <dl className="scheme-print-index">{page.nodes.map(node => <div key={node.id}><dt>{references.get(node.id)?.code}</dt><dd><strong>{node.label}</strong> · {node.detail}</dd></div>)}</dl>
+      <dl className="scheme-print-index">{page.nodes.map(node => <div key={node.id}><dt>{references.get(node.id)?.code}</dt><dd><strong>{node.label}</strong> · {node.detail}
+        {node.id.startsWith('fiber:') && <span className={`scheme-print-index-usage usage-${node.usage?.status ?? 'none'}`}>{node.usage ? `${node.usage.status === 'used' ? 'Obsazeno' : 'Rezervováno'}: ${node.usage.label}` : 'Bez evidované služby'}</span>}</dd></div>)}</dl>
       <table className="network-export-table scheme-print-links"><thead><tr><th>Od</th><th>Propojení / trasa</th><th>Do</th></tr></thead><tbody>
         {[...local, ...external].map(edge => <tr key={edge.id}><td>{description(edge.from)}</td><td>{edge.label}</td><td>{description(edge.to)}</td></tr>)}
       </tbody></table>
-      <p className="scheme-print-key">N = označení prvku. Spoj na jiném listu dohledáte podle označení a čísla listu. Úplné názvy jsou v tabulce.</p>
+      <p className="scheme-print-key">N = označení prvku. Spoj na jiném listu dohledáte podle označení a čísla listu. Úplné názvy jsou v tabulce. Bez evidované služby neznamená ověřeně volné vlákno.</p>
     </section>
   })}</div>
 }

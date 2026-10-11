@@ -5,10 +5,13 @@ import type { BuildingEquipmentDocument } from './buildingEquipment'
 import type { BuildingDistributionDocument } from './buildingDistribution'
 import type { OpticalSpliceDocument } from './opticalSplices'
 import { buildOpticalGraph } from './traceOpticalPath.ts'
+import { allocatedFiberKey, type FiberAllocationDocument } from './fiberAllocations.ts'
 
-export type SchemeNode = { id: string; label: string; detail: string; pointId?: string; routeId?: string }
+export type SchemeNode = { id: string; label: string; detail: string; pointId?: string; routeId?: string;
+  usage?: { label: string; status: 'reserved' | 'used' } }
 export type SchemeEdge = { id: string; from: string; to: string; label: string; routeId?: string; kind?: string }
 export type Scheme = { nodes: SchemeNode[]; edges: SchemeEdge[] }
+export type SchemeView = { mode: 'physical' | 'optical'; component: string; includeFree: boolean }
 
 export function physicalScheme(points: NetworkPoint[], routes: UndergroundRoute[], installations: RouteInstallationDocument[]): Scheme {
   return { nodes: points.map(point => ({ id: point.id, label: point.name, pointId: point.id,
@@ -19,7 +22,8 @@ export function physicalScheme(points: NetworkPoint[], routes: UndergroundRoute[
 
 // Keep optical fiber nodes separate even when their cables share a trench or a point.
 export function opticalScheme(points: NetworkPoint[], routes: UndergroundRoute[], installations: RouteInstallationDocument[],
-  equipment: BuildingEquipmentDocument[], splices: OpticalSpliceDocument[], distributions: BuildingDistributionDocument[]): Scheme {
+  equipment: BuildingEquipmentDocument[], splices: OpticalSpliceDocument[], distributions: BuildingDistributionDocument[],
+  allocations: FiberAllocationDocument = { version: 0, allocations: [] }): Scheme {
   const { graph, oltPortIds } = buildOpticalGraph(equipment, routes, installations, splices, distributions)
   const names = new Map(points.map(point => [point.id, point.name]))
   const cables = new Map(installations.flatMap(doc => doc.items.map(item => [item.id, item] as const)))
@@ -53,7 +57,26 @@ export function opticalScheme(points: NetworkPoint[], routes: UndergroundRoute[]
   for (const doc of distributions) for (const premise of doc.premises) if (!graph.has(`premise:${premise.id}`))
     nodes.push({ id: `premise:${premise.id}`, pointId: doc.pointId, label: names.get(doc.pointId) ?? 'Budova', detail: `${premise.label} · bez propojení` })
   nodes.sort((a, b) => Number(oltPortIds.has(b.id.slice(5))) - Number(oltPortIds.has(a.id.slice(5))))
-  return { nodes, edges }
+  return withSchemeAllocations({ nodes, edges }, installations, allocations)
+}
+
+export function withSchemeAllocations(scheme: Scheme, installations: RouteInstallationDocument[], allocations: FiberAllocationDocument): Scheme {
+  const cables = new Map(installations.flatMap(doc => doc.items.map(item => [item.id, item.runId] as const)))
+  const assigned = new Map(allocations.allocations.flatMap(a => a.fibers.map(f => [allocatedFiberKey(f), { label: a.label, status: a.status }] as const)))
+  return { ...scheme, nodes: scheme.nodes.map(node => {
+    if (!node.id.startsWith('fiber:')) return node
+    const [, , itemId, ti, fi] = node.id.split(':')
+    const runId = cables.get(itemId)
+    return { ...node, usage: runId ? assigned.get(allocatedFiberKey({ runId, tubeIndex: Number(ti), fiberIndex: Number(fi) })) : undefined }
+  }) }
+}
+
+export function visibleOpticalScheme(scheme: Scheme, includeFree: boolean): Scheme {
+  if (includeFree) return scheme
+  const used = new Set(scheme.nodes.filter(n => n.usage).map(n => n.id))
+  const keep = new Set(schemeComponents(scheme).flatMap(ids => ids.some(id => !id.startsWith('fiber:') || used.has(id))
+    || scheme.edges.some(e => ids.includes(e.from) && e.kind !== 'cable') ? ids : []))
+  return { nodes: scheme.nodes.filter(n => keep.has(n.id)), edges: scheme.edges.filter(e => keep.has(e.from)) }
 }
 
 export function schemeComponents(scheme: Scheme): string[][] {

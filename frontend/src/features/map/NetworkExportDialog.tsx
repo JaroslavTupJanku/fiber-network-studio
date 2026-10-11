@@ -12,9 +12,9 @@ import { pathExportRows, routeExportRows, spliceExportRows, toCzechCsv, type Exp
 import './networkExports.css'
 import { SchemePrint } from './SchemePrint'
 import { ConnectionDiagram } from './ConnectionDiagram'
-import { opticalScheme, physicalScheme, schemeComponents } from './networkSchematic'
+import { opticalScheme, physicalScheme, schemeComponents, visibleOpticalScheme, type SchemeView } from './networkSchematic'
 import { useOpticalSnapshot } from './useOpticalSnapshot'
-import { opticalConnections, connectionExportRows } from './opticalConnections'
+import { opticalConnections, connectionExportRows, connectionPreviewRows } from './opticalConnections'
 
 type Output = 'map' | 'scheme' | 'infrastructure' | 'splices' | 'report'
 type Report = 'connections' | 'route' | 'splices' | 'path'
@@ -37,8 +37,8 @@ function TablePreview({ rows }: { rows: ExportRow[] }) {
 }
 
 export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, routes, installations: initialInstallations,
-  splices: initialSplices, tracedPath, initialRouteId, initialPointId }: {
-  onClose: () => void; onRefreshMap: () => void; snapshot: MapSnapshot | null
+  splices: initialSplices, tracedPath, initialRouteId, initialPointId, initialOutput = 'map', initialScheme }: {
+  initialScheme?: SchemeView; initialOutput?: Output; onClose: () => void; onRefreshMap: () => void; snapshot: MapSnapshot | null
   points: NetworkPoint[]; routes: UndergroundRoute[]; installations: RouteInstallationDocument[]
   splices: OpticalSpliceDocument[]; tracedPath: OpticalPath | null
   initialRouteId: string | null; initialPointId: string | null
@@ -49,10 +49,10 @@ export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, r
   const connections = useMemo(() => optical ? opticalConnections(points, routes, optical.installations, optical.equipment,
     optical.splices, optical.distributions, optical.allocations) : [], [points, routes, optical])
   const dialogRef = useRef<HTMLDialogElement>(null)
-  const [schemeMode, setSchemeMode] = useState<'physical' | 'optical'>('optical')
-  const [schemePart, setSchemePart] = useState('all')
-  const [includeFree, setIncludeFree] = useState(false)
-  const [output, setOutput] = useState<Output>('map')
+  const [schemeMode, setSchemeMode] = useState<'physical' | 'optical'>(initialScheme?.mode ?? 'optical')
+  const [schemePart, setSchemePart] = useState(initialScheme?.component ?? 'all')
+  const [includeFree, setIncludeFree] = useState(initialScheme?.includeFree ?? false)
+  const [output, setOutput] = useState<Output>(initialOutput)
   const [report, setReport] = useState<Report>('connections')
   const [routeId, setRouteId] = useState(initialRouteId ?? routes[0]?.id ?? '')
   const [pointId, setPointId] = useState(initialPointId && splices.some(item => item.pointId === initialPointId)
@@ -71,13 +71,8 @@ export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, r
   [report, route, splice, tracedPath, points, installations, routes, connections])
   const fullScheme = useMemo(() => !optical ? { nodes: [], edges: [] } : schemeMode === 'physical'
     ? physicalScheme(points, routes, optical.installations)
-    : opticalScheme(points, routes, optical.installations, optical.equipment, optical.splices, optical.distributions), [optical, schemeMode, points, routes])
-  const visibleScheme = useMemo(() => {
-    if (schemeMode === 'physical' || includeFree) return fullScheme
-    const keep = new Set(schemeComponents(fullScheme).flatMap(ids => ids.some(id => !id.startsWith('fiber:'))
-      || fullScheme.edges.some(e => ids.includes(e.from) && e.kind !== 'cable') ? ids : []))
-    return { nodes: fullScheme.nodes.filter(n => keep.has(n.id)), edges: fullScheme.edges.filter(e => keep.has(e.from)) }
-  }, [fullScheme, includeFree, schemeMode])
+    : opticalScheme(points, routes, optical.installations, optical.equipment, optical.splices, optical.distributions, optical.allocations), [optical, schemeMode, points, routes])
+  const visibleScheme = useMemo(() => schemeMode === 'physical' ? fullScheme : visibleOpticalScheme(fullScheme, includeFree), [fullScheme, includeFree, schemeMode])
   const parts = schemeComponents(visibleScheme)
   const keep = schemePart === 'all' ? null : new Set(parts[Number(schemePart)] ?? [])
   const printScheme = keep ? { nodes: visibleScheme.nodes.filter(n => keep.has(n.id)), edges: visibleScheme.edges.filter(e => keep.has(e.from) && keep.has(e.to)) } : visibleScheme
@@ -153,7 +148,7 @@ export function NetworkExportDialog({ onClose, onRefreshMap, snapshot, points, r
         </> : <p className="network-export-empty">Zatím není evidována žádná optická spojka.</p>)}
         {output === 'report' && <><p className="network-export-diagram-intro">{report === 'connections' ? 'Všechny uzly · svary, ODF, propojky, splittery, přípojná místa a průchozí kabely' : report === 'route' ? route?.name ?? 'Trasa není vybrána'
           : report === 'splices' ? splice?.name ?? 'Spojka není vybrána' : tracedPath?.message ?? 'Cesta není vybrána'}</p>
-          <TablePreview rows={rows} /></>}
+          <TablePreview rows={report === 'connections' ? connectionPreviewRows(connections) : rows} /></>}
         <footer className="network-export-sheet-foot">Zdroj: evidence Fiber Network Studio · {new Date().toLocaleDateString('cs-CZ')}</footer>
       </article>
     </div>

@@ -6,6 +6,7 @@ function End({ end }: { end: ConnectionEnd | null }) {
     <strong>{end?.label ?? 'Nezapojeno'}</strong>
     {end?.fiber !== undefined && <span>Tuba {end.tube} · vlákno {end.fiber}</span>}
     {end?.allocation && <small>{end.allocation}</small>}
+    {end?.incomplete && <small>Údaje konce nebyly nalezeny</small>}
   </div>
 }
 export function ConnectionDiagram({ connections }: { connections: OpticalConnection[] }) {

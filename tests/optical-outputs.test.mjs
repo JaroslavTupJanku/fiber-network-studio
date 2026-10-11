@@ -3,6 +3,7 @@ import { test } from 'node:test'
 import { opticalConnections, connectionExportRows } from '../frontend/src/features/map/opticalConnections.ts'
 import { toCzechCsv } from '../frontend/src/features/map/networkExports.ts'
 import { paginateScheme } from '../frontend/src/features/map/schemePrintLayout.ts'
+import { withSchemeAllocations, visibleOpticalScheme } from '../frontend/src/features/map/networkSchematic.ts'
 
 const points = [{ id: 'a', name: 'Uzel A' }, { id: 'b', name: 'Uzel B' }, { id: 'c', name: 'Uzel C' }]
 const routes = [{ id: 'ab', name: 'A-B', startPointId: 'a', endPointId: 'b' }, { id: 'bc', name: 'B-C', startPointId: 'b', endPointId: 'c' }]
@@ -63,4 +64,25 @@ test('print pagination preserves every node and cross-page connection, including
     assert.ok(references.has(e.from)); assert.ok(references.has(e.to))
     assert.ok(pages.some(p => p.positions.has(e.from) || p.positions.has(e.to)))
   }
+})
+
+test('scheme usage follows run identity across sections and does not hide a reserved unconnected fiber', () => {
+  const continued = structuredClone(installations); continued[1].items[0].runId = 'run1'
+  const nodes = ['fiber:a:i1:0:0', 'fiber:b:i1:0:0', 'fiber:b:i2:0:0', 'fiber:c:i2:0:0', 'fiber:a:i1:0:1', 'fiber:b:i1:0:1']
+    .map(id => ({ id, label: id, detail: '' }))
+  const edges = [{ id: 'a', from: nodes[0].id, to: nodes[1].id, kind: 'cable' },
+    { id: 'b', from: nodes[2].id, to: nodes[3].id, kind: 'cable' }, { id: 'free', from: nodes[4].id, to: nodes[5].id, kind: 'cable' }]
+  const reserved = withSchemeAllocations({ nodes, edges }, continued, allocations)
+  assert.ok(reserved.nodes.slice(0, 4).every(n => n.usage.status === 'reserved' && n.usage.label === 'Zákazník A'))
+  assert.ok(reserved.nodes.slice(4).every(n => !n.usage))
+  assert.equal(visibleOpticalScheme(reserved, false).nodes.length, 4)
+  assert.equal(visibleOpticalScheme(reserved, true).nodes.length, 6)
+  const released = withSchemeAllocations(reserved, continued, { allocations: [] })
+  assert.ok(released.nodes.every(n => !n.usage), 'fresh allocations must remove stale usage')
+  assert.equal(visibleOpticalScheme(released, false).nodes.length, 0)
+})
+
+test('dangling connection references are marked incomplete instead of claiming a valid connection', () => {
+  const rows = connectionExportRows(opticalConnections(points, routes, [], equipment, [], [], { allocations: [] }))
+  assert.equal(rows.find(r => r['Typ'] === 'Ukončení ODF')['Stav'], 'Neúplné údaje')
 })

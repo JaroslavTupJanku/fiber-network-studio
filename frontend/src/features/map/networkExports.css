@@ -78,6 +78,11 @@
 .scheme-print-links { table-layout: fixed; }
 .scheme-print-links td { overflow-wrap: anywhere; }
 .scheme-print-key { color: #6c8277; font-size: 10px; }
+.scheme-print-usage { fill: #795d20; font-size: 10px; font-weight: 700; }
+.scheme-print-usage.usage-used { fill: #275a8d; }
+.scheme-print-index-usage { display: block; margin-top: 3px; color: #687d72; }
+.scheme-print-index-usage.usage-reserved { color: #80601b; }
+.scheme-print-index-usage.usage-used { color: #275a8d; }
 .network-export-sheet-foot { margin-top: 24px; padding-top: 10px; border-top: 1px solid #e1e9e4; color: #71867b; font-size: 10px; }
 .network-export-actions { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 13px 24px; border-top: 1px solid #dce8e1; background: #fff; color: #6a8176; font-size: 12px; }
 .network-export-actions > div { display: flex; flex-wrap: wrap; gap: 8px; }

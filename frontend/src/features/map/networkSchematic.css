@@ -26,6 +26,14 @@
 .scheme-card-icon { display: grid; place-items: center; width: 23px; height: 23px; border-radius: 6px; background: #eaf3ee; color: #47856b; }
 .scheme-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 650 13px/1.3 system-ui; }
 .scheme-card-detail { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; font: 11px/1.4 system-ui; color: #7a8b82; }
+.scheme-card.has-usage { gap: 3px; padding: 8px 12px; }
+.scheme-card.has-usage .scheme-card-detail { -webkit-line-clamp: 1; }
+.scheme-card.has-usage .scheme-card-icon { width: 19px; height: 19px; }
+.scheme-usage { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; border-radius: 4px; padding: 2px 5px; background: #f0f3f1; color: #738278; font: 600 10px/1.3 system-ui; }
+.scheme-usage.usage-used, .scheme-usage-legend .usage-used { color: #275a8d; background: #eaf2fc; }
+.scheme-usage.usage-reserved, .scheme-usage-legend .usage-reserved { color: #80601b; background: #fff4d9; }
+.scheme-usage-legend { flex-shrink: 0; display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 28px; font-size: 10px; color: #78897f; border-bottom: 1px solid #edf1ef; }
+.scheme-usage-legend span { padding: 3px 6px; border-radius: 4px; }
 .scheme-node-fiber .scheme-card-icon { background: #f1ecf8; color: #9673b9; }
 .scheme-node-fiber .scheme-card-type { color: #947fac; }
 .scheme-node-premise .scheme-card-icon { background: #fcf2e4; color: #bc8a45; }

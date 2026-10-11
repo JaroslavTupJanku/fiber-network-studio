@@ -17,9 +17,12 @@ export function useOpticalSnapshot(open: boolean) {
   useEffect(() => {
     if (!open) return
     let live = true
-    setSnapshot(null); setError('')
-    loadOpticalSnapshot().then(value => { if (live) setSnapshot(value) })
-      .catch(reason => { if (live) setError(reason instanceof Error ? reason.message : 'Zapojení se nenačetlo.') })
+    void Promise.resolve().then(async () => {
+      if (!live) return
+      setSnapshot(null); setError('')
+      try { const value = await loadOpticalSnapshot(); if (live) setSnapshot(value) }
+      catch (reason) { if (live) setError(reason instanceof Error ? reason.message : 'Zapojení se nenačetlo.') }
+    })
     return () => { live = false }
   }, [open, attempt])
   return { snapshot, error, retry: () => setAttempt(a => a + 1) }

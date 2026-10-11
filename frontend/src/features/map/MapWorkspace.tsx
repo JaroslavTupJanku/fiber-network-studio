@@ -6,6 +6,7 @@ import { NetworkSchematicDialog } from './NetworkSchematicDialog'
 import { FiberTraceDialog } from './FiberTraceDialog'
 import { InfrastructureSchematic } from './InfrastructureSchematic'
 import { NetworkExportDialog } from './NetworkExportDialog'
+import type { SchemeView } from './networkSchematic'
 import { RouteInstallationPanel } from './RouteInstallationPanel'
 import { OpticalSpliceEditor } from './OpticalSpliceEditor'
 import { BuildingEquipmentEditor } from './BuildingEquipmentEditor'
@@ -43,6 +44,8 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
   const [distributionOpen, setDistributionOpen] = useState(false)
   const [schemeOpen, setSchemeOpen] = useState(false)
   const [fiberTrace, setFiberTrace] = useState<{ routeId?: string; pointId?: string } | null>(null)
+  const [exportInitialOutput, setExportInitialOutput] = useState<'map' | 'scheme'>('map')
+  const [exportInitialScheme, setExportInitialScheme] = useState<SchemeView | undefined>()
   const [exportOpen, setExportOpen] = useState(false)
   const [snapshotRequest, setSnapshotRequest] = useState(0)
   const [mapSnapshot, setMapSnapshot] = useState<MapSnapshot | null>(null)
@@ -328,7 +331,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           </div>
           <button type="button" className="move-button" disabled={route.drawing || saving || !!editor && (!editor.id || editor.name !== points.find(point => point.id === editor.id)?.name)} title="Schéma používá uloženou síť. Nejprve dokončete rozpracované změny." onClick={() => setSchemeOpen(true)}><Network size={16} /> Schéma sítě</button>
           <button type="button" className="panel-export-button move-button" title="Tisk a export mapy, schémat a přehledů"
-            onClick={() => { setMapSnapshot(null); setSnapshotRequest(value => value + 1); setExportOpen(true) }}>
+            onClick={() => { setExportInitialOutput('map'); setMapSnapshot(null); setSnapshotRequest(value => value + 1); setExportOpen(true) }}>
             <FileDown size={16} /> Výstupy</button>
         </div>
 
@@ -682,7 +685,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           onOpenCustomers={onOpenCustomers} />
         </div>
       </aside>
-      <NetworkSchematicDialog open={schemeOpen} points={points} routes={route.routes} installations={installations.documents}
+      <NetworkSchematicDialog onPrint={view => { setSchemeOpen(false); setExportInitialScheme(view); setExportInitialOutput('scheme'); setExportOpen(true) }} open={schemeOpen} points={points} routes={route.routes} installations={installations.documents}
         equipment={equipment} splices={splices} distributions={distributions} onClose={() => setSchemeOpen(false)}
         onOpenPoint={id => { setSchemeOpen(false); handlePointSelect(id); setPointFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
         onOpenRoute={id => { setSchemeOpen(false); selectSavedRoute(id); setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }} />
@@ -724,7 +727,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
         onViewMap={() => setDistributionOpen(false)}
         onBudget={path => { onOpenBudget(scenarioFromOpticalPath(path, installations.documents)); setDistributionOpen(false) }} />}
-      {exportOpen && <NetworkExportDialog onClose={() => setExportOpen(false)}
+      {exportOpen && <NetworkExportDialog initialScheme={exportInitialScheme} initialOutput={exportInitialOutput} onClose={() => setExportOpen(false)}
         onRefreshMap={() => { setMapSnapshot(null); setSnapshotRequest(value => value + 1) }} snapshot={mapSnapshot}
         points={points} routes={route.routes} installations={installations.documents} splices={splices}
         tracedPath={tracedPath} initialRouteId={selectedSavedRoute?.id ?? null} initialPointId={editor?.id ?? null} />}

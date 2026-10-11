@@ -6,7 +6,7 @@ import type { BuildingDistributionDocument } from './buildingDistribution'
 import type { FiberEnd, OpticalSpliceDocument } from './opticalSplices'
 import { allocatedFiberKey, type FiberAllocationDocument } from './fiberAllocations.ts'
 
-export type ConnectionEnd = { label: string; tube?: number; fiber?: number; color?: string; allocation?: string }
+export type ConnectionEnd = { label: string; tube?: number; fiber?: number; color?: string; allocation?: string; incomplete?: boolean }
 export type OpticalConnection = { id: string; pointId: string; point: string; kind: string; left: ConnectionEnd | null; right: ConnectionEnd | null }
 
 export function opticalConnections(points: NetworkPoint[], routes: UndergroundRoute[], installations: RouteInstallationDocument[],
@@ -21,7 +21,7 @@ export function opticalConnections(points: NetworkPoint[], routes: UndergroundRo
     if (!f) return null
     const item = cables.get(f.itemId), fiber = item?.cable?.tubes[f.tubeIndex]?.fibers[f.fiberIndex]
     return { label: item ? `${item.label} · ${routeNames.get(item.routeId) ?? 'Neznámá trasa'}` : `Neznámý kabel (${f.itemId})`,
-      tube: f.tubeIndex + 1, fiber: f.fiberIndex + 1, color: fiber?.transparent ? undefined : fiber?.color,
+      tube: f.tubeIndex + 1, fiber: f.fiberIndex + 1, color: fiber?.transparent ? undefined : fiber?.color, incomplete: !fiber,
       allocation: item ? assigned.get(allocatedFiberKey({ runId: item.runId, tubeIndex: f.tubeIndex, fiberIndex: f.fiberIndex })) : undefined }
   }
   const rows: OpticalConnection[] = []
@@ -41,7 +41,7 @@ export function opticalConnections(points: NetworkPoint[], routes: UndergroundRo
       const card = doc.cards.find(c => c.id === port?.parentId)
       const shelf = doc.shelves.find(s => s.id === (card?.shelfId ?? port?.parentId))
       const rack = doc.racks.find(r => r.id === shelf?.rackId)
-      return { label: port ? [rack?.name, shelf?.name, card?.name, `Port ${port.label}`].filter(Boolean).join(' / ') : `Neznámý port (${id})` }
+      return { label: port ? [rack?.name, shelf?.name, card?.name, `Port ${port.label}`].filter(Boolean).join(' / ') : `Neznámý port (${id})`, incomplete: !port }
     }
     const patches = new Set<string>()
     for (const port of doc.ports) {
@@ -71,9 +71,16 @@ export function opticalConnections(points: NetworkPoint[], routes: UndergroundRo
 }
 
 export function connectionExportRows(connections: OpticalConnection[]) {
-  return connections.map(c => ({ 'Uzel': c.point, 'Typ': c.kind, 'Stav': c.left && c.right ? 'Propojeno' : 'Nezapojeno',
+  return connections.map(c => ({ 'Uzel': c.point, 'Typ': c.kind, 'Stav': c.left?.incomplete || c.right?.incomplete ? 'Neúplné údaje' : c.left && c.right ? 'Propojeno' : 'Nezapojeno',
     'Od': c.left?.label ?? null, 'Tuba od': c.left?.tube ?? null, 'Vlákno od': c.left?.fiber ?? null,
     'Barva od': c.left?.color ?? null, 'Služba / rezervace od': c.left?.allocation ?? null,
     'Do': c.right?.label ?? null, 'Tuba do': c.right?.tube ?? null, 'Vlákno do': c.right?.fiber ?? null,
     'Barva do': c.right?.color ?? null, 'Služba / rezervace do': c.right?.allocation ?? null }))
+}
+
+export function connectionPreviewRows(connections: OpticalConnection[]) {
+  const describe = (end: ConnectionEnd | null) => end ? `${end.label}${end.fiber !== undefined ? ` · tuba ${end.tube} / vlákno ${end.fiber}` : ''}${end.incomplete ? ' · údaje nenalezeny' : ''}` : 'Nezapojeno'
+  return connections.map(c => ({ 'Uzel': c.point, 'Spojení': c.kind,
+    'Od': describe(c.left), 'Do': describe(c.right),
+    'Služba / rezervace': [...new Set([c.left?.allocation, c.right?.allocation].filter(Boolean))].join(' · ') || 'Bez evidence' }))
 }
