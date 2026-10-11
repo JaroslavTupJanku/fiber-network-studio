@@ -48,7 +48,7 @@ export function NetworkSchematicDialog({ open, points, routes, installations, eq
     if (!open || !canvas.current) return
     const element = canvas.current
     const observer = new ResizeObserver(() => {
-      setZoom(Math.max(0.25, Math.min(1, (element.clientWidth - 48) / layout.width, (element.clientHeight - 48) / layout.height)))
+      setZoom(Math.max(0.65, Math.min(1, (element.clientWidth - 48) / layout.width, (element.clientHeight - 48) / layout.height)))
       element.scrollTo(0, 0)
     })
     observer.observe(element)
