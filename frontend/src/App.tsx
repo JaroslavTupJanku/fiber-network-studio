@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Calculator, Cable, Layers3, MapPin, Network, Users } from 'lucide-react'
+import { Calculator, Cable, Layers3, MapPin, Network, Users, Library } from 'lucide-react'
 import { CableCatalogPage } from './features/cable-catalog/CableCatalogPage'
 import { DuctCatalogPage } from './features/duct-catalog/DuctCatalogPage'
 import { MapWorkspace } from './features/map/MapWorkspace'
@@ -17,6 +17,10 @@ function App() {
       .then(value => setDemo(value?.enabled === true)).catch(() => { /* optional demo badge */ })
   }, [])
   const [section, setSection] = useState<'map' | 'catalog' | 'ducts' | 'budget' | 'customers'>('map')
+  const [networkSection, setNetworkSection] = useState<'map' | 'budget'>('map')
+  const [catalogSection, setCatalogSection] = useState<'catalog' | 'ducts'>('catalog')
+  const inNetwork = section === 'map' || section === 'budget'
+  const inCatalogs = section === 'catalog' || section === 'ducts'
   const [customerScope, setCustomerScope] = useState<string | null>(null)
   const [customerVisit, setCustomerVisit] = useState(0)
   const [customerDirty, setCustomerDirty] = useState(false)
@@ -36,6 +40,8 @@ function App() {
     if (section === 'customers' && customerDirty
       && !window.confirm('Zahodit neuložené změny zákazníka?')) return false
     setCustomerDirty(false)
+    if (next === 'map' || next === 'budget') setNetworkSection(next)
+    else setCatalogSection(next)
     setSection(next)
     return true
   }
@@ -46,27 +52,36 @@ function App() {
         <div className="app-brand"><Network size={21} strokeWidth={2} aria-hidden="true" /><span>Fiber Network Studio</span></div>
         {demo && <a className="demo-guide-link" href="/demo.html" target="_blank" rel="noopener noreferrer">Ukázková síť · Jak začít</a>}
         <nav className="workspace-navigation" aria-label="Hlavní navigace" ref={navigationRef}>
-          <button type="button" aria-pressed={section === 'map'} onClick={() => navigate('map')}><MapPin size={15} />Mapa</button>
-          <button type="button" aria-pressed={section === 'catalog'} onClick={() => { if (navigate('catalog')) setCatalogOpened(true) }}><Cable size={15} />Katalog kabelů</button>
-          <button type="button" aria-pressed={section === 'ducts'} onClick={() => { if (navigate('ducts')) setDuctsOpened(true) }}><Layers3 size={15} />Chráničky</button>
-          <button type="button" aria-pressed={section === 'budget'} onClick={() => { if (navigate('budget')) setBudgetOpened(true) }}><Calculator size={15} />Optické ztráty</button>
+          <button type="button" aria-pressed={inNetwork} onClick={() => navigate(networkSection)}><Network size={15} />Síť</button>
           <button type="button" aria-pressed={section === 'customers'} onClick={() => { if (section === 'customers') return; setCustomerScope(null); setCustomerVisit(value => value + 1); setSection('customers') }}><Users size={15} />Zákazníci</button>
+          <button type="button" aria-pressed={inCatalogs} onClick={() => { if (navigate(catalogSection)) { if (catalogSection === 'catalog') setCatalogOpened(true); else setDuctsOpened(true) } }}><Library size={15} />Katalogy</button>
         </nav>
       </header>
-
+      <div className="app-content">
+      {inNetwork && <nav className="section-navigation" aria-label="Práce se sítí">
+        <span>Síť</span>
+        <button type="button" aria-pressed={section === 'map'} onClick={() => navigate('map')}><MapPin size={15} />Mapa</button>
+        <button type="button" aria-pressed={section === 'budget'} onClick={() => { if (navigate('budget')) setBudgetOpened(true) }}><Calculator size={15} />Výpočet ztrát</button>
+      </nav>}
+      {inCatalogs && <nav className="section-navigation" aria-label="Katalogy materiálu">
+        <span>Katalogy</span>
+        <button type="button" aria-pressed={section === 'catalog'} onClick={() => { if (navigate('catalog')) setCatalogOpened(true) }}><Cable size={15} />Kabely</button>
+        <button type="button" aria-pressed={section === 'ducts'} onClick={() => { if (navigate('ducts')) setDuctsOpened(true) }}><Layers3 size={15} />Chráničky</button>
+      </nav>}
       <MapWorkspace active={section === 'map'} customerMapFocus={customerMapFocus} onOpenCustomers={buildingId => {
         setCustomerScope(buildingId); setCustomerVisit(value => value + 1); setSection('customers')
       }} onOpenBudget={scenario => {
         setIncomingBudget({ id: crypto.randomUUID(), scenario })
-        setBudgetOpened(true); setSection('budget')
-      }} />
+        setNetworkSection('budget'); setBudgetOpened(true); setSection('budget')
+      }} onOpenCalculator={() => { setBudgetOpened(true); navigate('budget') }} />
       {catalogOpened && <div className="catalog-view" hidden={section !== 'catalog'}><CableCatalogPage /></div>}
       {ductsOpened && <div className="catalog-view" hidden={section !== 'ducts'}><DuctCatalogPage active={section === 'ducts'} /></div>}
       {budgetOpened && <div className="budget-view" hidden={section !== 'budget'}><OpticalBudgetPage
         incoming={incomingBudget} onIncomingHandled={() => setIncomingBudget(null)} /></div>}
       {section === 'customers' && <CustomerWorkspace key={customerVisit} buildingId={customerScope}
         onDirtyChange={setCustomerDirty}
-        onShowBuilding={id => { setCustomerDirty(false); setCustomerMapFocus(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })); setSection('map') }} />}
+        onShowBuilding={id => { setCustomerDirty(false); setCustomerMapFocus(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })); setNetworkSection('map'); setSection('map') }} />}
+      </div>
     </div>
   )
 }

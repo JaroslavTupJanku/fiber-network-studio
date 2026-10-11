@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { ArrowLeft, Box, Building2, Cable, ChevronDown, CircleDot, UtilityPole, Copy, Crosshair, FileDown, House, MapPin, Network, PanelRightClose, PanelRightOpen, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, Users, X } from 'lucide-react'
-import { CustomerQuickPanel } from '../customers/CustomerQuickPanel'
+import { ArrowLeft, Box, Building2, Cable, ChevronDown, CircleDot, UtilityPole, Copy, Crosshair, FileDown, House, MapPin, Network, PanelRightClose, PanelRightOpen, Calculator, List, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
 import { MapCanvas, type MapSnapshot } from './MapCanvas'
 import { NetworkSchematicDialog } from './NetworkSchematicDialog'
 import { FiberTraceDialog } from './FiberTraceDialog'
@@ -31,14 +30,15 @@ const pointKindLabel = (point: Pick<NetworkPoint, 'kind' | 'buildingType'>) =>
 const countLabel = (count: number, one: string, few: string, many: string) =>
   `${count} ${count === 1 ? one : count >= 2 && count <= 4 ? few : many}`
 
-export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpenBudget }: {
+export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpenBudget, onOpenCalculator }: {
   active: boolean
+  onOpenCalculator: () => void
   customerMapFocus: { id: string; sequence: number } | null
   onOpenCustomers: (buildingId: string | null) => void
   onOpenBudget: (scenario: Scenario) => void
 }) {
   const [panelOpen, setPanelOpen] = useState(true)
-  const [sideTab, setSideTab] = useState<'infrastructure' | 'customers'>('infrastructure')
+  const [sideTab, setSideTab] = useState<'infrastructure' | 'objects' | 'routes' | 'outputs'>('objects')
   const [spliceOpen, setSpliceOpen] = useState(false)
   const [equipmentOpen, setEquipmentOpen] = useState(false)
   const [distributionOpen, setDistributionOpen] = useState(false)
@@ -73,6 +73,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
   const [splitBusy, setSplitBusy] = useState(false)
   const [splitError, setSplitError] = useState('')
   const detailsPanelRef = useRef<HTMLElement>(null)
+  const panelScroll = useRef<Record<string, number>>({})
   const lastRouteId = useRef<string | null>(null)
   const lastCustomerFocusSequence = useRef(0)
   const [listHoveredPointId, setListHoveredPointId] = useState<string | null>(null)
@@ -176,6 +177,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
   const beginRouteContinuation = (pointId: string) => {
     const started = route.continueFrom(pointId)
     selectRouteTab('route')
+    setSideTab('infrastructure')
     if (started) setPointFocusRequest(current => ({ id: pointId, sequence: (current?.sequence ?? 0) + 1 }))
   }
   const beginSplit = () => {
@@ -229,6 +231,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
     document.getElementById(`route-tab-${next}`)?.focus()
   }
   const backFromDetail = () => {
+    if (!route.drawing && !splitActive) { selectSideTab(routeDraft ? 'routes' : 'objects'); return }
     cancelSplit()
     if (editor && route.drawing) setEditor(null)
     else if (route.drawing) route.cancelDrawing()
@@ -239,12 +242,21 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
     setMoving(false)
     setActiveTool(null)
     setActionError('')
+    setSideTab(routeDraft ? 'routes' : 'objects')
   }
   const filteredRoutes = route.visibleRoutes.filter(item => item.name.toLocaleLowerCase('cs').includes(query.toLocaleLowerCase('cs')))
   const visibleBuildings = visiblePoints.filter(point => point.kind === 'building')
   const visibleChambers = visiblePoints.filter(point => point.kind === 'chamber')
   const visibleCabinets = visiblePoints.filter(point => point.kind === 'cabinet')
   const visiblePoles = visiblePoints.filter(point => point.kind === 'pole')
+  const activeSideTab = sideTab === 'infrastructure' && !editor && !routeDraft && !selectedLocation && !activeTool ? 'objects' : sideTab
+  const selectSideTab = (next: typeof sideTab) => {
+    panelScroll.current[activeSideTab] = detailsPanelRef.current?.scrollTop ?? 0
+    setSideTab(next)
+    requestAnimationFrame(() => detailsPanelRef.current?.scrollTo({ top: panelScroll.current[next] ?? 0 }))
+    setListHoveredPointId(null)
+    setListHoveredRouteId(null)
+  }
 
   return (
     <main className={`workspace${panelOpen ? '' : ' panel-collapsed'}`} hidden={!active}>
@@ -274,7 +286,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           routeNearbyBuildings={route.nearbyBuildings}
           routeCheckingBuildings={route.checkingBuildings}
           pointMoveError={actionError}
-          onRouteToolChange={kind => { selectRouteTab('route'); handleRouteToolChange(kind) }}
+          onRouteToolChange={kind => { setPanelOpen(true); setSideTab('infrastructure'); selectRouteTab('route'); handleRouteToolChange(kind) }}
           onRouteSelect={selectSavedRoute}
           onRouteEdit={editSavedRoute}
           onRouteWaypointInsert={route.insertWaypoint}
@@ -291,10 +303,10 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           activeTool={activeTool}
           placementActive={activeTool !== null || moving}
           toolsDisabled={loading || loadError || splitActive || splitBusy || Boolean(editor && !editor.id)}
-          onToolChange={handleToolChange}
+          onToolChange={kind => { setPanelOpen(true); setSideTab('infrastructure'); handleToolChange(kind) }}
           onToolDrop={(kind, location) => { setPanelOpen(true); setSideTab('infrastructure'); handleToolDrop(kind, location) }}
           onLocationClick={(location, lookupParcel) => { setPanelOpen(true); setSideTab('infrastructure'); handleLocationClick(location, lookupParcel) }}
-          onPointSelect={id => { setPanelOpen(true); if (points.find(point => point.id === id)?.kind !== 'building') setSideTab('infrastructure'); handlePointSelect(id) }}
+          onPointSelect={id => { setPanelOpen(true); setSideTab('infrastructure'); handlePointSelect(id) }}
           onPointMove={(id, location) => { setPanelOpen(true); return relocatePoint(id, location) }}
           onDraftMove={moveDraft}
           onCadastreDisable={clearParcel}
@@ -305,22 +317,38 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
 
       <aside className={`details-panel${panelOpen ? '' : ' collapsed'}`} aria-label="Boční panel" ref={detailsPanelRef}>
         {!panelOpen && <div className="details-rail-tabs">
-          <button className="details-rail-toggle" type="button" onClick={() => { setSideTab('infrastructure'); setPanelOpen(true) }}
-            aria-label="Rozbalit Infrastrukturu" title="Rozbalit Infrastrukturu">
-            <PanelRightOpen size={19} aria-hidden="true" /><span>Infrastruktura</span></button>
-          <button className="details-rail-toggle" type="button" onClick={() => { setSideTab('customers'); setPanelOpen(true) }}
-            aria-label="Rozbalit Zákazníky" title="Rozbalit Zákazníky">
-            <Users size={19} aria-hidden="true" /><span>Zákazníci</span></button>
+          <button className="details-rail-toggle" type="button" onClick={() => setPanelOpen(true)}
+            aria-label="Rozbalit panel sítě" title="Rozbalit panel sítě">
+            <PanelRightOpen size={19} aria-hidden="true" /><span>Panel sítě</span></button>
         </div>}
-        {panelOpen && <nav className="side-workspace-tabs" aria-label="Boční pracovní plocha">
-          <button type="button" aria-pressed={sideTab === 'infrastructure'} onClick={() => { setSideTab('infrastructure'); detailsPanelRef.current?.scrollTo({ top: 0 }) }}>
-            <Network size={15} /> Infrastruktura</button>
-          <button type="button" aria-pressed={sideTab === 'customers'} onClick={() => { setSideTab('customers'); detailsPanelRef.current?.scrollTo({ top: 0 }) }}>
-            <Users size={15} /> Zákazníci</button>
+        {panelOpen && <nav className="side-workspace-tabs" aria-label="Panel sítě">
+          <button type="button" aria-pressed={activeSideTab === 'objects'} onClick={() => selectSideTab('objects')}><Box size={15} />Objekty</button>
+          <button type="button" aria-pressed={activeSideTab === 'routes'} onClick={() => selectSideTab('routes')}><RouteIcon size={15} />Trasy</button>
+          <button type="button" aria-pressed={activeSideTab === 'outputs'} onClick={() => selectSideTab('outputs')}><FileDown size={15} />Výstupy</button>
+          {(editor || routeDraft || selectedLocation || activeTool) && <button type="button" aria-pressed={activeSideTab === 'infrastructure'} onClick={() => selectSideTab('infrastructure')}><List size={15} />Detail</button>}
           <button type="button" className="side-workspace-collapse" title="Sbalit panel" aria-label="Sbalit panel" onClick={togglePanel}>
             <PanelRightClose size={17} /></button>
         </nav>}
-        <div hidden={sideTab !== 'infrastructure'}>
+        {route.loadError && (
+          <div className="panel-error" role="alert"><span>Trasy se nenačetly.</span>
+            <button type="button" className="icon-button" title="Načíst trasy znovu" aria-label="Načíst trasy znovu" onClick={() => {
+              route.setLoading(true)
+              route.setReloadVersion(value => value + 1)
+            }}><RefreshCw size={16} /></button></div>
+        )}
+
+        {loadError && (
+          <div className="panel-error" role="alert">
+            <span>API není dostupné. Objekty se nenačetly.</span>
+            <button type="button" className="icon-button" title="Načíst znovu" aria-label="Načíst objekty znovu" onClick={() => {
+              setLoading(true)
+              setReloadVersion((value) => value + 1)
+            }}><RefreshCw size={16} /></button>
+          </div>
+        )}
+
+        <div hidden={activeSideTab !== 'infrastructure'}>
+        {!editor && !routeDraft && !selectedLocation && <p className="empty-selection">Vyberte místo na mapě pro nový objekt.</p>}
         <div className="panel-heading">
           <div>
             {(editor || selectedLocation || routeDraft) && <button className="panel-back-button" type="button" onClick={backFromDetail}>
@@ -342,24 +370,6 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           <span><CircleDot size={15} aria-hidden="true" /> Šachty <strong>{chambers}</strong></span>
           <span><RouteIcon size={15} aria-hidden="true" /> Trasy <strong>{route.routes.length}</strong></span>
         </div>}
-
-        {route.loadError && (
-          <div className="panel-error" role="alert"><span>Trasy se nenačetly.</span>
-            <button type="button" className="icon-button" title="Načíst trasy znovu" aria-label="Načíst trasy znovu" onClick={() => {
-              route.setLoading(true)
-              route.setReloadVersion(value => value + 1)
-            }}><RefreshCw size={16} /></button></div>
-        )}
-
-        {loadError && (
-          <div className="panel-error" role="alert">
-            <span>API není dostupné. Objekty se nenačetly.</span>
-            <button type="button" className="icon-button" title="Načíst znovu" aria-label="Načíst objekty znovu" onClick={() => {
-              setLoading(true)
-              setReloadVersion((value) => value + 1)
-            }}><RefreshCw size={16} /></button>
-          </div>
-        )}
 
         {selectedSavedRoute && !editor && <>
           <div className="route-tab-context">
@@ -619,15 +629,21 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           </div>
         )}
 
-        {!routeDraft && !editor && !selectedLocation && !loadError && (
+        </div>
+        {(activeSideTab === 'objects' || activeSideTab === 'routes') && <header className="network-panel-heading">
+          <span className="section-label">Síť na mapě</span>
+          <h1>{activeSideTab === 'objects' ? 'Objekty sítě' : 'Trasy sítě'}</h1>
+          <p>{activeSideTab === 'objects' ? 'Vyberte objekt ze seznamu nebo přímo v mapě.' : 'Vyberte trasu a prohlédněte si její kabely a chráničky.'}</p>
+        </header>}
+        {(activeSideTab === 'objects' || activeSideTab === 'routes') && !loadError && (
           <div className="point-list">
             <label className="search-field"><Search size={16} aria-hidden="true" /><input value={query} onChange={(event) => {
               setQuery(event.target.value)
               if (event.target.value.trim()) setExpandedLists({ building: true, chamber: true, pole: true, cabinet: true, route: true })
             }} placeholder="Hledat objekt nebo trasu" aria-label="Hledat objekt nebo trasu" /></label>
-            {loading ? <p className="empty-selection">Načítání objektů…</p> : query && visiblePoints.length + filteredRoutes.length === 0
+            {loading ? <p className="empty-selection">Načítání objektů…</p> : query && (activeSideTab === 'objects' ? visiblePoints.length : filteredRoutes.length) === 0
               ? <p className="empty-selection">Nic nenalezeno.</p> : <>
-              {([{ key: 'building', title: 'Budovy', items: visibleBuildings },
+              {activeSideTab === 'objects' && ([{ key: 'building', title: 'Budovy', items: visibleBuildings },
                 { key: 'chamber', title: 'Šachty', items: visibleChambers },
                 { key: 'cabinet', title: 'Optické skříně', items: visibleCabinets },
                 { key: 'pole', title: 'Sloupy', items: visiblePoles }] as const).map(group => {
@@ -643,13 +659,13 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
                       : <ul>{group.items.map(point => <li key={point.id}><button type="button" className={mapHoveredPointId === point.id ? 'map-linked-hover' : undefined}
                         onMouseEnter={() => setListHoveredPointId(point.id)} onMouseLeave={() => setListHoveredPointId(null)}
                         onFocus={() => setListHoveredPointId(point.id)} onBlur={() => setListHoveredPointId(null)}
-                        onClick={() => { setListHoveredPointId(null); handlePointSelect(point.id) }}>{point.kind === 'building' && point.buildingType === 'apartment'
+                        onClick={() => { setListHoveredPointId(null); setSideTab('infrastructure'); handlePointSelect(point.id) }}>{point.kind === 'building' && point.buildingType === 'apartment'
                           ? <Building2 className="point-list-building-icon" size={17} aria-hidden="true" /> : <span className={`kind-dot ${point.kind}`} />}
                           <span className="point-list-text"><strong>{point.name}</strong><small>{pointKindLabel(point)}{splices.some(splice => splice.pointId === point.id) ? ' · optická spojka' : ''}</small></span></button></li>)}</ul>}
                   </div>
                 </section>
               })}
-              {(!query || filteredRoutes.length > 0) && <section className="network-list-group route-list">
+              {activeSideTab === 'routes' && (!query || filteredRoutes.length > 0) && <section className="network-list-group route-list">
                 <button type="button" className="network-list-toggle" aria-expanded={expandedLists.route}
                   aria-controls="network-list-route" onClick={() => setExpandedLists(current => ({ ...current, route: !current.route }))}>
                   <span>Trasy sítě</span><span className="network-list-count">{filteredRoutes.length}</span>
@@ -677,17 +693,16 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             </>}
           </div>
         )}
-        </div>
-        <div hidden={sideTab !== 'customers'}><CustomerQuickPanel active={active && sideTab === 'customers'}
-          buildingId={editor?.id && editor.kind === 'building' ? editor.id : null}
-          buildingName={editor?.id && editor.kind === 'building' ? editor.name : null}
-          buildings={points.filter(point => point.kind === 'building').map(point => ({ id: point.id, name: point.name }))}
-          onOpenCustomers={onOpenCustomers} />
-        </div>
+        {activeSideTab === 'outputs' && <section className="network-panel-tools" aria-label="Výstupy a nástroje sítě">
+          <header className="network-panel-heading"><span className="section-label">Přehledy a výpočty</span><h1>Výstupy sítě</h1><p>Prohlédněte si zapojení, připravte výstup nebo spočítejte optickou cestu.</p></header>
+          <button type="button" disabled={route.drawing || saving || !!editor && (!editor.id || editor.name !== points.find(point => point.id === editor.id)?.name)} onClick={() => setSchemeOpen(true)}><Network size={20} /><span><strong>Schéma sítě</strong><small>Body, trasy a propojení jednotlivých vláken</small></span></button>
+          <button type="button" onClick={() => { setExportInitialOutput('map'); setMapSnapshot(null); setSnapshotRequest(value => value + 1); setExportOpen(true) }}><FileDown size={20} /><span><strong>Tisk a export</strong><small>Mapa, schémata a tabulky celé sítě</small></span></button>
+          <button type="button" onClick={onOpenCalculator}><Calculator size={20} /><span><strong>Výpočet optických ztrát</strong><small>Ověření útlumu a rezervy optické cesty</small></span></button>
+        </section>}
       </aside>
       <NetworkSchematicDialog onPrint={view => { setSchemeOpen(false); setExportInitialScheme(view); setExportInitialOutput('scheme'); setExportOpen(true) }} open={schemeOpen} points={points} routes={route.routes} installations={installations.documents}
         equipment={equipment} splices={splices} distributions={distributions} onClose={() => setSchemeOpen(false)}
-        onOpenPoint={id => { setSchemeOpen(false); handlePointSelect(id); setPointFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
+        onOpenPoint={id => { setSchemeOpen(false); setPanelOpen(true); setSideTab('infrastructure'); handlePointSelect(id); setPointFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
         onOpenRoute={id => { setSchemeOpen(false); selectSavedRoute(id); setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }} />
       {fiberTrace && <FiberTraceDialog points={points} routes={route.routes} installations={installations.documents}
         initialPointId={fiberTrace.pointId} initialRouteId={fiberTrace.routeId} onTrace={setTracedPath}
