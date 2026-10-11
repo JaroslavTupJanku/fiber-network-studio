@@ -68,3 +68,18 @@
   .trace-result .equipment-path-schematic li button { margin-left: 42px; }
   .trace-actions { flex-direction: column; align-items: stretch; }
 }
+.details-panel .side-workspace-tabs { display: flex; flex-wrap: wrap; gap: 3px; padding: 4px; position: sticky; top: -24px; z-index: 2; }
+.details-panel .side-workspace-tabs > button { flex: 1; gap: 4px; padding: 6px; font-size: 11px; }
+.details-panel .side-workspace-tabs > .side-workspace-collapse { flex: 0 0 25px; }
+.network-panel-heading { margin-bottom: 20px; }
+.network-panel-heading h1 { margin: 8px 0; color: #23483e; font-size: 23px; }
+.network-panel-heading p { margin: 0; color: #6b8075; font-size: 12px; line-height: 1.6; }
+.network-panel-tools { display: grid; gap: 12px; }
+.network-panel-tools .network-panel-heading { margin-bottom: 4px; }
+.network-panel-tools > button { display: flex; align-items: center; gap: 12px; width: 100%; padding: 16px; border: 1px solid #dce6e1; border-radius: 12px; background: #fff; color: #2d6a57; text-align: left; font: inherit; cursor: pointer; }
+.network-panel-tools > button:hover { background: #f1f7f3; border-color: #b6d1c3; }
+.network-panel-tools > button:disabled { opacity: .5; cursor: not-allowed; }
+.network-panel-tools > button > svg { flex: none; }
+.network-panel-tools > button > span { display: grid; gap: 5px; }
+.network-panel-tools strong { font-size: 13px; }
+.network-panel-tools small { color: #71847b; font-size: 11px; line-height: 1.5; }
