@@ -22,6 +22,7 @@ export function useMapWorkspace() {
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [actionError, setActionError] = useState('')
+  const [moveNotice, setMoveNotice] = useState('')
   const [saving, setSaving] = useState(false)
   const [reloadVersion, setReloadVersion] = useState(0)
   const [activeTool, setActiveTool] = useState<NetworkPointKind | null>(null)
@@ -62,6 +63,7 @@ export function useMapWorkspace() {
   const relocatePoint = useCallback(async (id: string, location: Coordinates) => {
     const point = points.find(item => item.id === id)
     if (!point || saving) return
+    setMoveNotice('')
     setSaving(true)
     setActionError('')
     const movedPoints = points.map(item => item.id === id ? { ...item, ...location } : item)
@@ -107,6 +109,7 @@ export function useMapWorkspace() {
       }
       const saved = await updateNetworkPoint({ ...point, ...location })
       setPoints(current => current.map(item => item.id === id ? saved : item))
+      setMoveNotice('Nová poloha byla uložena. Navázané trasy se přizpůsobily.')
     } catch {
       let rollbackFailed = false
       for (const entry of changedOnServer.reverse()) {
@@ -129,6 +132,7 @@ export function useMapWorkspace() {
   }, [points, route, clearParcel, saving])
 
   const handleToolChange = useCallback((kind: NetworkPointKind | null) => {
+    setMoveNotice('')
     setActiveTool(kind)
     setMoving(false)
     setActionError('')
@@ -177,6 +181,7 @@ export function useMapWorkspace() {
   }, [activeTool, moving, editor, clearParcel, route, relocatePoint])
 
   const handlePointSelect = useCallback((id: string, location?: Coordinates) => {
+    setMoveNotice('')
     if (route.drawing && editor && !editor.id) return
     if (route.drawing) { route.addPoint(id); return }
     const point = points.find((item) => item.id === id)
@@ -315,7 +320,7 @@ export function useMapWorkspace() {
     ? editor : selectedLocation
 
   return {
-    points, loading, loadError, actionError, saving, activeTool, moving, editor, route,
+    points, loading, loadError, actionError, moveNotice, saving, activeTool, moving, editor, route,
     selectedLocation, selectedParcel, parcelStatus, query, visiblePoints,
     buildings, chambers, poles, preview, setQuery, setEditor, setSelectedLocation,
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,

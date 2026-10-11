@@ -89,7 +89,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
     return () => cancelAnimationFrame(frame)
   }, [active, panelOpen])
   const {
-    points, loading, loadError, actionError, saving, activeTool, moving, editor, route,
+    points, loading, loadError, actionError, moveNotice, saving, activeTool, moving, editor, route,
     selectedLocation, selectedParcel, parcelStatus, query, visiblePoints,
     buildings, chambers, poles, preview, setQuery, setEditor, setSelectedLocation,
     setMoving, setActiveTool, setLoading, setReloadVersion, setActionError,
@@ -117,7 +117,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
   useEffect(() => {
     const id = routeDraft?.id ?? null
     if (id && id !== lastRouteId.current) {
-      setRouteTab('installations')
+      setRouteTab(route.drawing ? 'route' : 'installations')
       detailsPanelRef.current?.scrollTo({ top: 0 })
     }
     if (id !== lastRouteId.current) {
@@ -126,7 +126,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
       setSplitError('')
     }
     lastRouteId.current = id
-  }, [routeDraft?.id])
+  }, [routeDraft?.id, route.drawing])
   const selectedSavedRoute = routeDraft?.id ? route.routes.find(item => item.id === routeDraft.id) : null
   const splitOptions = useMemo<AerialSplitOptions | undefined>(() => splitMode === 'count' ? { poleCount: splitCount }
     : splitMode === 'distance' ? { maxSpanMeters: splitDistance } : undefined, [splitMode, splitCount, splitDistance])
@@ -543,6 +543,11 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               <button className="primary-button" type="submit" disabled={saving || !editor.name.trim()}><Save size={16} aria-hidden="true" /> {saving ? 'Ukládání…' : 'Uložit'}</button>
             {editor.id && <button className="danger-button" type="button" disabled={saving} onClick={removePoint} title="Smazat objekt"><Trash2 size={16} aria-hidden="true" /> Smazat</button>}
             </div>
+            <button type="button" className={moving ? 'move-button active' : 'move-button'} disabled={saving || route.drawing} onClick={() => {
+              setMoving((value) => !value)
+              setActiveTool(null)
+            }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Zrušit přesun' : 'Přesunout objekt na mapě'}</button>
+            {moveNotice && <p className="point-move-notice" role="status">{moveNotice}</p>}
             <details className="point-position" open={!editor.id || moving}><summary>Poloha na mapě</summary>
             <div className="coordinates-row">
               <span>{editor.latitude.toFixed(6)}°, {editor.longitude.toFixed(6)}°</span>
@@ -554,10 +559,6 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
                   : 'Po uložení bude tento objekt začátkem rozkreslené trasy.' : editor.id
               ? `Přetažením nebo kliknutím na nové místo se poloha uloží hned. Přilehlý průběh trasy se plynule přizpůsobí. ${editor.kind === 'building' ? 'Název a typ budovy' : 'Název'} uložíte tlačítkem Uložit.`
               : 'Polohu doladíte přetažením značky na mapě.'}</p>
-            <button type="button" className={moving ? 'move-button active' : 'move-button'} onClick={() => {
-              setMoving((value) => !value)
-              setActiveTool(null)
-            }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Klikněte na nové místo' : 'Změnit polohu kliknutím'}</button>
             </details>
             <div className="point-section-label">Zapojení a návaznosti</div>
             {editor.id && <button type="button" className="move-button" disabled={saving || editor.name !== points.find(point => point.id === editor.id)?.name} title="Trasování používá uloženou síť. Nejprve uložte změny objektu." onClick={() => setFiberTrace({ pointId: editor.id! })}><Cable size={16} /> Sledovat vlákno</button>}
@@ -706,6 +707,8 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
       <NetworkSchematicDialog onPrint={view => { setSchemeOpen(false); setExportInitialScheme(view); setExportInitialOutput('scheme'); setExportOpen(true) }} open={schemeOpen} points={points} routes={route.routes} installations={installations.documents}
         equipment={equipment} splices={splices} distributions={distributions} onClose={() => setSchemeOpen(false)}
         onOpenPoint={id => { setSchemeOpen(false); setPanelOpen(true); setSideTab('infrastructure'); handlePointSelect(id); setPointFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
+        onMovePoint={id => { setSchemeOpen(false); setPanelOpen(true); setSideTab('infrastructure'); handlePointSelect(id); setActiveTool(null); setMoving(true); setPointFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
+        onEditRoute={id => { setSchemeOpen(false); editSavedRoute(id); setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
         onOpenRoute={id => { setSchemeOpen(false); selectSavedRoute(id); setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }} />
       {fiberTrace && <FiberTraceDialog points={points} routes={route.routes} installations={installations.documents}
         initialPointId={fiberTrace.pointId} initialRouteId={fiberTrace.routeId} onTrace={setTracedPath}
