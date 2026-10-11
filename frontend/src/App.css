@@ -1,12 +1,11 @@
 #root { min-height: 100vh; }
 .app-content { min-width: 0; min-height: 0; }
-.section-navigation { display: flex; align-items: center; gap: 6px; min-height: 44px; padding: 5px 22px; border-bottom: 1px solid #dce6e1; background: #f8faf9; }
-.section-navigation > span { margin-right: 16px; color: #73867d; font-size: 11px; font-weight: 700; }
-.section-navigation button { display: inline-flex; align-items: center; gap: 7px; min-height: 32px; padding: 6px 12px; border: 0; border-radius: 6px; background: transparent; color: #597267; font: inherit; font-size: 12px; cursor: pointer; }
-.section-navigation button[aria-pressed='true'] { background: #e6f1eb; color: #216754; font-weight: 700; }
-.section-navigation button:hover { background: #edf3ef; }
-.app-content > .workspace { height: calc(100dvh - 102px); }
-@media (max-width: 650px) { .section-navigation { padding-inline: 12px; }.section-navigation > span { margin-right: 6px; } }
+.catalog-navigation { display: inline-flex; gap: 4px; margin-bottom: 24px; padding: 4px; border-radius: 9px; background: #edf3ef; }
+.catalog-navigation button { display: inline-flex; align-items: center; gap: 7px; min-height: 34px; padding: 7px 16px; border: 0; border-radius: 6px; background: transparent; color: #597267; font: inherit; font-size: 12px; cursor: pointer; }
+.catalog-navigation button[aria-pressed='true'] { background: #fff; color: #216754; font-weight: 700; box-shadow: 0 1px 4px rgb(24 77 56 / 10%); }
+.catalog-navigation button:hover { color: #216754; }
+.budget-back-button { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 20px; padding: 0; border: 0; background: transparent; color: #39715d; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; }
+.app-content > .workspace { height: calc(100dvh - 58px); }
 .app-shell { display: grid; grid-template-rows: 58px minmax(0, 1fr); min-height: 100vh; }
 .app-header { display: flex; align-items: center; justify-content: space-between; padding: 0 22px; border-bottom: 1px solid #d8e2df; background: #fff; z-index: 2; }
 .app-brand { display: flex; align-items: center; gap: 10px; color: #1e3d38; font-size: 15px; font-weight: 700; }

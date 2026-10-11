@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { ArrowUpRight, Check, Copy, Layers3, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
 import { listCables } from '../cable-catalog/api'
 import type { CableSpecification } from '../cable-catalog/model'
@@ -50,7 +50,7 @@ function DuctDetail({ item, busy, cables, onEdit, onDuplicate, onRemove }: {
   </>
 }
 
-export function DuctCatalogPage({ active }: { active: boolean }) {
+export function DuctCatalogPage({ active, navigation }: { active: boolean; navigation?: ReactNode }) {
   const catalog = useDuctCatalog()
   const [cables, setCables] = useState<CableSpecification[]>([])
   const [query, setQuery] = useState('')
@@ -65,6 +65,7 @@ export function DuctCatalogPage({ active }: { active: boolean }) {
   const matches = catalog.items.filter(item => (filter === 'all' || item.kind === filter)
     && normalize(`${item.name} ${item.manufacturer} ${item.model}`).includes(normalize(query.trim())))
   return <main className="cable-catalog duct-catalog" aria-label="Katalog chrániček a mikrotrubiček">
+    {navigation}
     <div className="cc-page-heading"><div><span className="cc-eyebrow">KNIHOVNA INFRASTRUKTURY</span><h1>Chráničky a mikrotrubičky</h1>
       <p>Typy chrániček, mikrotrubiček a sestav, které můžete vložit do mapových tras.</p></div>
       <div className="dc-create-actions"><button type="button" className="cc-button cc-primary" disabled={catalog.loading || catalog.busy} onClick={() => catalog.create('conduit')}><Plus size={17} /> Chránička</button>

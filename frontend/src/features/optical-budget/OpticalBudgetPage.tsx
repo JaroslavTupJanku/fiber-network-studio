@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Calculator, Download, FlaskConical, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
+import { ArrowLeft, Calculator, Download, FlaskConical, Plus, RefreshCw, Trash2, Upload } from 'lucide-react'
 import { BudgetResult } from './BudgetResult'
 import { changeLimit, demoScenario, emptyLosses, kinds, limitFor, lossKeyFor, newElement, newScenario, newSection, number, type Element, type Section, type Scenario } from './model'
 import { TechnologySettings } from './TechnologySettings'
@@ -14,7 +14,8 @@ function NumberField({ label, value, onChange, unit }: { label: string; value: s
     aria-label={label} aria-invalid={value !== '' && number(value) === null} onChange={event => onChange(event.target.value)} /><span>{unit}</span></span></label>
 }
 
-export function OpticalBudgetPage({ incoming, onIncomingHandled }: {
+export function OpticalBudgetPage({ incoming, onIncomingHandled, onBack }: {
+  onBack?: () => void
   incoming: { id: string; scenario: Scenario } | null; onIncomingHandled: () => void
 }) {
   const state = useOpticalBudget()
@@ -36,6 +37,7 @@ export function OpticalBudgetPage({ incoming, onIncomingHandled }: {
     if (window.confirm('Odebrat tuto položku z výpočtu?')) setScenario(previous => ({ ...previous, [kind]: previous[kind].filter(row => row.id !== id) }))
   }
   return <main className="optical-budget" aria-label="Optické ztráty">
+    {onBack && <button type="button" className="budget-back-button" onClick={onBack}><ArrowLeft size={15} />Zpět na mapu</button>}
     <header className="ob-heading"><div><span className="ob-eyebrow">NÁVRH OPTICKÉ CESTY</span><h1><Calculator size={27} /> Optické ztráty</h1>
       <p>Sestavte optickou cestu a zkontrolujte její ztrátu. Můžete začít ručně nebo cestou z mapy.</p></div>
       <div className="ob-actions"><button onClick={() => state.replace(demoScenario(), 'demo')}><FlaskConical size={16} /> Ukázka</button>
