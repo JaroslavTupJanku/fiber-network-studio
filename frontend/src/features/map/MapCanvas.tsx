@@ -132,6 +132,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
   const [selectedWaypointIndex, setSelectedWaypointIndex] = useState<number | null>(null)
   const [draggingWaypointIndex, setDraggingWaypointIndex] = useState<number | null>(null)
   const [legendOpen, setLegendOpen] = useState(false)
+  const [hoverLabel, setHoverLabel] = useState<{ x: number; y: number; pointId: string | null; routeId: string | null } | null>(null)
   const routeStatuses = useMemo(() => new Set(routeCollection(routes, points, installations)
     .features.map(feature => feature.properties.installationStatus)), [routes, points, installations])
   const routeStartName = points.find(point => point.id === routeDraft?.startPointId)?.name ?? 'neznámý bod'
@@ -339,6 +340,10 @@ export function MapCanvas({ points, routes, installations, splices, installation
       overRoute = Boolean(routeId)
       const nextPointId = dragging || pointDrag || vertexDrag !== null || !pointId ? null : String(pointId)
       const nextRouteId = dragging || pointDrag || vertexDrag !== null || !routeId ? null : String(routeId)
+      setHoverLabel(!activeTool && (nextPointId || nextRouteId) ? {
+        x: Math.min(event.point.x + 16, Math.max(8, map.getContainer().clientWidth - 245)),
+        y: Math.max(8, event.point.y - 48), pointId: nextPointId, routeId: nextRouteId,
+      } : null)
       if (nextPointId !== mapHoverPointId) {
         mapHoverPointId = nextPointId
         interactionRef.current.onMapPointHoverChange(nextPointId)
@@ -364,6 +369,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
       updateCursor()
     }
     const handleMouseLeave = () => {
+      setHoverLabel(null)
       overPoint = false
       overRoute = false
       overRouteVertex = false
@@ -586,7 +592,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
     map.on('mousedown', handlePointMouseDown)
     map.on('mousemove', handleMouseMove)
     canvas.addEventListener('mouseleave', handleMouseLeave)
-    map.on('dragstart', () => { dragging = true; setPlacementPointer(null); updateCursor() })
+    map.on('dragstart', () => { dragging = true; setHoverLabel(null); setPlacementPointer(null); updateCursor() })
     map.on('dragend', () => { dragging = false; updateCursor() })
     canvas.addEventListener('keydown', handleKeyDown)
     map.on('sourcedataloading', handleSourceLoading)
@@ -896,6 +902,13 @@ export function MapCanvas({ points, routes, installations, splices, installation
           <span className="placement-cursor-target" />
         </div>
       )}
+      {hoverLabel && <div className="map-object-tooltip" role="tooltip" style={{ left: hoverLabel.x, top: hoverLabel.y }}>
+        {hoverLabel.pointId ? points.find(point => point.id === hoverLabel.pointId)?.name : routes.find(route => route.id === hoverLabel.routeId)?.name}
+      </div>}
+      {(drawingRoute || placementActive || routePaused) && <div className="map-mode-badge" role="status">
+        <strong>{routePaused ? 'Kreslení trasy pozastaveno · přidání objektu' : drawingRoute ? routeDraft?.id ? 'Upravujete průběh trasy' : 'Kreslíte novou trasu' : 'Umisťujete objekt'}</strong>
+        <span>Dokončete práci v mapě, nebo ji zrušte tlačítkem Zrušit / Esc.</span>
+      </div>}
       {placementActive && (
         <div className="placement-guide" role="status">
           <span>{activeTool ? `${activeTool === 'cabinet' ? 'Optická skříň' : activeTool === 'building' ? 'Budova' : activeTool === 'pole' ? 'Sloup' : 'Šachta'}: klikněte do mapy pro umístění` : 'Přesun objektu: klikněte na nové místo'}</span>

@@ -23,6 +23,7 @@ function App() {
   const [customerScope, setCustomerScope] = useState<string | null>(null)
   const [customerVisit, setCustomerVisit] = useState(0)
   const [customerDirty, setCustomerDirty] = useState(false)
+  const [mapInteraction, setMapInteraction] = useState(false)
   const [customerMapFocus, setCustomerMapFocus] = useState<{ id: string; sequence: number } | null>(null)
   const navigationRef = useRef<HTMLElement>(null)
   const [catalogOpened, setCatalogOpened] = useState(false)
@@ -36,6 +37,7 @@ function App() {
     navigation.scrollTo({ left: selected.offsetLeft - navigation.offsetLeft - 16, behavior: 'smooth' })
   }, [section])
   const navigate = (next: 'map' | 'catalog' | 'ducts' | 'budget') => {
+    if (mapInteraction && next !== 'map') return false
     if (section === 'customers' && customerDirty
       && !window.confirm('Zahodit neuložené změny zákazníka?')) return false
     setCustomerDirty(false)
@@ -55,12 +57,12 @@ function App() {
         {demo && <a className="demo-guide-link" href="/demo.html" target="_blank" rel="noopener noreferrer">Ukázková síť · Jak začít</a>}
         <nav className="workspace-navigation" aria-label="Hlavní navigace" ref={navigationRef}>
           <button type="button" aria-pressed={inNetwork} onClick={() => navigate('map')}><Network size={15} />Síť</button>
-          <button type="button" aria-pressed={section === 'customers'} onClick={() => { if (section === 'customers') return; setCustomerScope(null); setCustomerVisit(value => value + 1); setSection('customers') }}><Users size={15} />Zákazníci</button>
-          <button type="button" aria-pressed={inCatalogs} onClick={() => { if (navigate(catalogSection)) { if (catalogSection === 'catalog') setCatalogOpened(true); else setDuctsOpened(true) } }}><Library size={15} />Katalogy</button>
+          <button type="button" disabled={mapInteraction} title={mapInteraction ? 'Nejprve dokončete nebo zrušte kreslení v mapě.' : undefined} aria-pressed={section === 'customers'} onClick={() => { if (section === 'customers') return; setCustomerScope(null); setCustomerVisit(value => value + 1); setSection('customers') }}><Users size={15} />Zákazníci</button>
+          <button type="button" disabled={mapInteraction} title={mapInteraction ? 'Nejprve dokončete nebo zrušte kreslení v mapě.' : undefined} aria-pressed={inCatalogs} onClick={() => { if (navigate(catalogSection)) { if (catalogSection === 'catalog') setCatalogOpened(true); else setDuctsOpened(true) } }}><Library size={15} />Katalogy</button>
         </nav>
       </header>
       <div className="app-content">
-      <MapWorkspace active={section === 'map'} customerMapFocus={customerMapFocus} onOpenCustomers={buildingId => {
+      <MapWorkspace onInteractionChange={setMapInteraction} active={section === 'map'} customerMapFocus={customerMapFocus} onOpenCustomers={buildingId => {
         setCustomerScope(buildingId); setCustomerVisit(value => value + 1); setSection('customers')
       }} onOpenBudget={scenario => {
         setIncomingBudget({ id: crypto.randomUUID(), scenario })

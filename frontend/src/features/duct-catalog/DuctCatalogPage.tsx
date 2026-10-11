@@ -65,9 +65,8 @@ export function DuctCatalogPage({ active, navigation }: { active: boolean; navig
   const matches = catalog.items.filter(item => (filter === 'all' || item.kind === filter)
     && normalize(`${item.name} ${item.manufacturer} ${item.model}`).includes(normalize(query.trim())))
   return <main className="cable-catalog duct-catalog" aria-label="Katalog chrániček a mikrotrubiček">
-    {navigation}
     <div className="cc-page-heading"><div><span className="cc-eyebrow">KNIHOVNA INFRASTRUKTURY</span><h1>Chráničky a mikrotrubičky</h1>
-      <p>Typy chrániček, mikrotrubiček a sestav, které můžete vložit do mapových tras.</p></div>
+      <p>Typy chrániček, mikrotrubiček a sestav, které můžete vložit do mapových tras.</p>{navigation}</div>
       <div className="dc-create-actions"><button type="button" className="cc-button cc-primary" disabled={catalog.loading || catalog.busy} onClick={() => catalog.create('conduit')}><Plus size={17} /> Chránička</button>
         <button type="button" className="cc-button" disabled={catalog.loading || catalog.busy} onClick={() => catalog.create('microduct')}><Plus size={17} /> Mikrotrubička</button>
         <button type="button" className="cc-button" disabled={catalog.loading || catalog.busy} onClick={() => catalog.create('assembly')}><Plus size={17} /> Sestava</button></div></div>
