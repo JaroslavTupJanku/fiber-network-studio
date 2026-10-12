@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react'
-import { ArrowUpRight, Cable, Check, Copy, Layers, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { ArrowUpRight, Cable, Check, Copy, Layers, Pencil, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { CatalogHeader } from './CatalogHeader'
 import { CableEditor } from './CableEditor'
 import { CableStructure } from './CableStructure'
 import { countFibers, type CableSpecification, type ColorCodeData } from './model'
@@ -45,10 +46,7 @@ export function CableCatalogPage({ navigation }: { navigation?: ReactNode }) {
   const customCount = catalog.items.filter(item => !item.isPreset).length
 
   return <main className="cable-catalog" aria-label="Katalog kabelů">
-    <div className="cc-page-heading"><div><span className="cc-eyebrow">KNIHOVNA SÍTĚ</span><h1>Katalog kabelů</h1>
-      <p>Typy kabelů, jejich tuby a vlákna na jednom místě.</p>{navigation}</div>
-      <button type="button" className="cc-button cc-primary" disabled={catalog.loading || catalog.busy || catalog.items.length === 0}
-        onClick={catalog.create}><Plus size={18} /> Nový typ kabelu</button></div>
+    <CatalogHeader navigation={navigation} disabled={catalog.loading || catalog.busy || catalog.items.length === 0} onCreate={catalog.create} />
     <div className="cc-layout">
       <aside className="cc-sidebar" aria-label="Seznam kabelů">
         <div className="cc-sidebar-top"><h2>Typy kabelů <span>{catalog.items.length}</span></h2>

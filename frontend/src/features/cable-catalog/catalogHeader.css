@@ -1,0 +1,30 @@
+.catalog-page-header { max-width: 1360px; margin: 0 auto 24px; border: 1px solid #dce6e1; border-radius: 12px; background: #fff; }
+.catalog-header-main { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 24px; }
+.catalog-header-title { display: flex; align-items: center; gap: 14px; min-width: 0; }
+.catalog-header-icon { flex: none; display: grid; place-items: center; width: 46px; height: 46px; background: #edf5f0; border-radius: 12px; color: #38755e; }
+.catalog-header-title h1 { margin: 0 0 6px; font-size: 25px; letter-spacing: -.035em; }
+.catalog-header-title p { margin: 0; color: #73877b; font-size: 12px; line-height: 1.5; }
+.catalog-header-main > button { flex: none; min-width: 125px; }
+.catalog-page-header .catalog-navigation { display: flex; gap: 0; margin: 0; padding: 0 24px; border-top: 1px solid #edf1ee; border-radius: 0; background: transparent; }
+.catalog-page-header .catalog-navigation button { flex: 0 0 150px; justify-content: center; min-height: 48px; padding: 12px 16px; border-radius: 0; border-bottom: 3px solid transparent; font-weight: 600; }
+.catalog-page-header .catalog-navigation button[aria-pressed='true'] { background: transparent; box-shadow: none; border-bottom-color: #28745c; font-weight: 600; }
+.catalog-page-header .catalog-navigation button:hover { background: #f5f9f6; }
+.catalog-page-header .catalog-navigation button:focus-visible { outline: 2px solid #80ad98; outline-offset: -5px; }
+.cable-catalog .cc-detail-heading { min-height: 80px; }
+.cable-catalog .cc-cable-card { min-height: 94px; }
+.duct-catalog .dc-specs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0; border: 1px solid #e0e8e2; border-radius: 8px; padding: 19px 0; background: linear-gradient(110deg, #f5f9f6, #fcfdfc); }
+.duct-catalog .dc-specs > div { min-width: 0; border: 0; border-radius: 0; padding: 0 22px; background: transparent; align-content: center; min-height: 56px; }
+.duct-catalog .dc-specs > div + div { border-left: 1px solid #dfe8e1; }
+.duct-catalog .dc-specs strong { font-size: 21px; font-weight: 550; letter-spacing: -.025em; overflow-wrap: anywhere; }
+.duct-catalog .dc-specs span { font-size: 11px; }
+@media (max-width: 760px) {
+  .catalog-header-main { padding: 18px; gap: 14px; }
+  .catalog-header-icon { display: none; }
+  .catalog-header-title h1 { font-size: 21px; }
+  .catalog-header-title p { max-width: 280px; }
+  .catalog-header-main > button { min-width: 105px; }
+  .catalog-page-header .catalog-navigation { padding-inline: 18px; }
+  .catalog-page-header .catalog-navigation button { flex: 1; }
+  .duct-catalog .dc-specs > div { padding-inline: 12px; }
+  .duct-catalog .dc-specs strong { font-size: 17px; }
+}
