@@ -33,8 +33,8 @@ function PortButton({ port, document, selected, onSelect }: {
     onClick={onSelect}><strong>P{port.position}</strong><span>{status}</span></button>
 }
 
-export function BuildingEquipmentEditor({ pointId, pointName, pointKindLabel = 'Budova', pointNames, routes, installations, onClose, onSaved, onTrace, onBudget, onOpenRoute, onViewMap }: {
-  pointId: string; pointName: string; pointKindLabel?: string; routes: UndergroundRoute[]; installations: RouteInstallationDocument[]
+export function BuildingEquipmentEditor({ pointId, pointName, initialShelfId, pointKindLabel = 'Budova', pointNames, routes, installations, onClose, onSaved, onTrace, onBudget, onOpenRoute, onViewMap }: {
+  pointId: string; pointName: string; initialShelfId?: string; pointKindLabel?: string; routes: UndergroundRoute[]; installations: RouteInstallationDocument[]
   pointNames: Record<string, string>
   onClose: () => void; onSaved: (document: BuildingEquipmentDocument) => void
   onTrace: (path: OpticalPath | null) => void; onBudget: (path: OpticalPath) => void
@@ -46,8 +46,8 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointKindLabel = '
   const [splices, setSplices] = useState<OpticalSpliceDocument[]>([])
   const [distributions, setDistributions] = useState<BuildingDistributionDocument[]>([])
   const [allocations, setAllocations] = useState<FiberAllocationDocument | null>(null)
-  const [selection, setSelection] = useState<Selection | null>(null)
-  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
+  const [selection, setSelection] = useState<Selection | null>(initialShelfId ? { kind: 'shelf', id: initialShelfId } : null)
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>(initialShelfId ? 'detail' : 'list')
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [saved, setSaved] = useState(false)
