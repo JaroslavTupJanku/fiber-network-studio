@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
-import { ArrowLeft, ChevronRight, MoreHorizontal, Users, Box, Building2, Cable, ChevronDown, CircleDot, UtilityPole, Copy, Crosshair, FileDown, House, MapPin, Network, PanelRightClose, PanelRightOpen, Calculator, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
+import { ArrowLeft, ChevronRight, MoreHorizontal, Box, Building2, Cable, ChevronDown, CircleDot, UtilityPole, Copy, Crosshair, FileDown, House, MapPin, Network, PanelRightClose, PanelRightOpen, Calculator, RefreshCw, Route as RouteIcon, Save, Search, Trash2, Undo2, X } from 'lucide-react'
+import { BuildingOverview } from './BuildingOverview'
 import { MapCanvas, type MapSnapshot } from './MapCanvas'
 import { NetworkSchematicDialog } from './NetworkSchematicDialog'
 import { FiberTraceDialog } from './FiberTraceDialog'
@@ -35,7 +36,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
   onInteractionChange: (active: boolean) => void
   onOpenCalculator: () => void
   customerMapFocus: { id: string; sequence: number } | null
-  onOpenCustomers: (buildingId: string | null) => void
+  onOpenCustomers: (buildingId: string | null, customerId?: string) => void
   onOpenBudget: (scenario: Scenario) => void
 }) {
   const [panelOpen, setPanelOpen] = useState(true)
@@ -567,7 +568,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             {editor.id && editor.kind === 'chamber' && <ChamberConduitPanel key={editor.id}
               pointId={editor.id} routes={route.routes} documents={installations.documents}
               onUpdated={installations.replaceDocuments} onOpenRoute={selectSavedRoute} />}
-            {editor.id && ['building', 'cabinet', 'chamber'].includes(editor.kind) && <button type="button" className="point-related-link" onClick={() => setEquipmentOpen(true)}>
+            {editor.id && ['cabinet', 'chamber'].includes(editor.kind) && <button type="button" className="point-related-link" onClick={() => setEquipmentOpen(true)}>
               <span className="point-related-icon"><Cable size={17} aria-hidden="true" /></span>
               <span><strong>Optické vybavení</strong><small>{selectedEquipment ? `${countLabel(selectedEquipment.racks.length, 'stojan', 'stojany', 'stojanů')} · ${countLabel(selectedEquipment.ports.length, 'port', 'porty', 'portů')}` : 'Přidat vybavení objektu'}</small></span><ChevronRight size={16} aria-hidden="true" />
             </button>}
@@ -579,10 +580,10 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               <InfrastructureSchematic pointId={editor.id} pointName={editor.name} pointNames={Object.fromEntries(points.map(point => [point.id, point.name]))}
                 routes={route.routes} installations={installations.documents} tracedRouteIds={tracedPath?.routeIds ?? []} onOpenRoute={selectSavedRoute} />
             </section>}
-            {editor.id && editor.kind === 'building' && <><button type="button" className="point-related-link" onClick={() => setDistributionOpen(true)}>
-              <span className="point-related-icon"><Building2 size={17} aria-hidden="true" /></span>
-              <span><strong>Domovní rozvod a přípojná místa</strong><small>{selectedDistribution ? `${selectedDistribution.premises.filter(isConnectedPremise).length}/${selectedDistribution.premises.length} míst s přiřazeným vláknem` : 'Přidat přípojné místo'}</small></span><ChevronRight size={16} aria-hidden="true" />
-            </button><button type="button" className="point-customer-link" disabled={interactionActive} onClick={() => onOpenCustomers(editor.id!)}><Users size={15} />Zákazníci této budovy<ChevronRight size={14} /></button></>}
+            {editor.id && editor.kind === 'building' && <BuildingOverview key={editor.id} pointId={editor.id} active={active}
+              equipmentVersion={selectedEquipment?.version} distributionVersion={selectedDistribution?.version}
+              onEquipment={() => setEquipmentOpen(true)} onDistribution={() => setDistributionOpen(true)}
+              onCustomers={customerId => onOpenCustomers(editor.id!, customerId)} />}
             {editor.id && (editor.kind === 'chamber' || editor.kind === 'pole') && <button type="button" className="point-related-link" onClick={() => setSpliceOpen(true)}>
               <span className="point-related-icon"><Cable size={17} aria-hidden="true" /></span>
               <span><strong>Optická spojka</strong><small>{selectedSplice ? `${selectedSplice.name} · ${spliceConnectionsLabel}` : splicesLoadError ? 'Zkusit načíst spojku' : 'Přidat spojku'}</small></span><ChevronRight size={16} aria-hidden="true" />
