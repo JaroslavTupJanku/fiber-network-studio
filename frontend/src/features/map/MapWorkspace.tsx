@@ -660,7 +660,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
                   </button>
                   <div id={`network-list-${group.key}`} className="network-list-content" hidden={!expanded}>
                     {group.items.length === 0 ? <p className="network-list-empty">Zatím žádné {group.key === 'cabinet' ? 'optické skříně' : group.key === 'building' ? 'budovy' : group.key === 'pole' ? 'sloupy' : 'šachty'}.</p>
-                      : <ul>{group.items.map(point => <li key={point.id}><button type="button" className={mapHoveredPointId === point.id ? 'map-linked-hover' : undefined}
+                      : <ul>{group.items.map(point => <li key={point.id}><button type="button" className={mapHoveredPointId === point.id ? 'map-linked-hover' : undefined} aria-current={editor?.id === point.id ? 'true' : undefined}
                         onMouseEnter={() => setListHoveredPointId(point.id)} onMouseLeave={() => setListHoveredPointId(null)}
                         onFocus={() => setListHoveredPointId(point.id)} onBlur={() => setListHoveredPointId(null)}
                         onClick={() => { setListHoveredPointId(null); setSideTab('infrastructure'); handlePointSelect(point.id) }}>{point.kind === 'building' && point.buildingType === 'apartment'
@@ -680,7 +680,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
                     : <ul>{filteredRoutes.map(item => {
               const summary = installationSummary(installationByRoute.get(item.id))
               const status = installations.loading || installations.loadFailed ? 'unknown' : summary.status
-              return <li key={item.id}><button type="button" className={mapHoveredRouteId === item.id ? 'map-linked-hover' : undefined}
+              return <li key={item.id}><button type="button" className={mapHoveredRouteId === item.id ? 'map-linked-hover' : undefined} aria-current={routeDraft?.id === item.id ? 'true' : undefined}
                 onMouseEnter={() => setListHoveredRouteId(item.id)} onMouseLeave={() => setListHoveredRouteId(null)}
                 onFocus={() => setListHoveredRouteId(item.id)} onBlur={() => setListHoveredRouteId(null)}
                 onClick={() => {

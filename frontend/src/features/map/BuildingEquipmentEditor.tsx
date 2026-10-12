@@ -29,7 +29,7 @@ function PortButton({ port, document, selected, onSelect }: {
 }) {
   const status = portStatus(port)
   return <button type="button" className={`equipment-port${selected ? ' selected' : ''}${status !== 'Volný' ? ' linked' : ''}`}
-    aria-label={`${portLocation(document, port)} · ${status}`} title={`${portLocation(document, port)} · ${status}`}
+    aria-pressed={selected} aria-label={`${portLocation(document, port)} · ${status}`} title={`${portLocation(document, port)} · ${status}`}
     onClick={onSelect}><strong>P{port.position}</strong><span>{status}</span></button>
 }
 
@@ -309,7 +309,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointKindLabel = '
           const shelves = draft.shelves.filter(shelf => shelf.rackId === rack.id && visibleShelf(shelf.id, rackMatches))
           return <section className="equipment-rack" key={rack.id}>
             <div className="equipment-node-heading"><button type="button" className={`equipment-row${selection?.id === rack.id ? ' selected' : ''}`}
-              onClick={() => select({ kind: 'rack', id: rack.id })}><strong>{rack.name}</strong>
+              aria-pressed={selection?.kind === 'rack' && selection.id === rack.id} onClick={() => select({ kind: 'rack', id: rack.id })}><strong>{rack.name}</strong>
                 <small>{countCzech(draft.shelves.filter(shelf => shelf.rackId === rack.id).length, 'zařízení', 'zařízení', 'zařízení')}</small></button>
               {!searchTerm && shelves.length > 0 && <button type="button" className="equipment-toggle" onClick={() => toggleCollapsed(rack.id)}
                 aria-expanded={isExpanded(rack.id)} aria-label={`${isExpanded(rack.id) ? 'Sbalit' : 'Rozbalit'} ${rack.name}`}>
@@ -321,7 +321,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointKindLabel = '
               const childCount = shelf.kind === 'odf' ? shelfPorts.length : cards.length
               return <div className="equipment-shelf" key={shelf.id}>
                 <div className="equipment-node-heading"><button type="button" className={`equipment-row${selection?.id === shelf.id ? ' selected' : ''}`}
-                  onClick={() => select({ kind: 'shelf', id: shelf.id })}><span className="equipment-kind">{shelf.kind.toUpperCase()}</span>
+                  aria-pressed={selection?.kind === 'shelf' && selection.id === shelf.id} onClick={() => select({ kind: 'shelf', id: shelf.id })}><span className="equipment-kind">{shelf.kind.toUpperCase()}</span>
                   <span className="equipment-row-copy"><strong>{shelf.name}</strong><small>{shelf.kind === 'odf'
                     ? countCzech(draft.ports.filter(port => port.parentId === shelf.id).length, 'port', 'porty', 'portů')
                     : countCzech(draft.cards.filter(card => card.shelfId === shelf.id).length, 'karta', 'karty', 'karet')}</small></span></button>
@@ -335,7 +335,7 @@ export function BuildingEquipmentEditor({ pointId, pointName, pointKindLabel = '
                   const ports = draft.ports.filter(port => port.parentId === card.id && visiblePort(port))
                   return <div className="equipment-card" key={card.id}>
                     <div className="equipment-node-heading"><button type="button" className={`equipment-row${selection?.id === card.id ? ' selected' : ''}`}
-                      onClick={() => select({ kind: 'card', id: card.id })}><span className="equipment-row-copy"><strong>{card.name}</strong>
+                      aria-pressed={selection?.kind === 'card' && selection.id === card.id} onClick={() => select({ kind: 'card', id: card.id })}><span className="equipment-row-copy"><strong>{card.name}</strong>
                         <small>{countCzech(draft.ports.filter(port => port.parentId === card.id).length, 'port', 'porty', 'portů')}</small></span></button>
                       {!searchTerm && ports.length > 0 && <button type="button" className="equipment-toggle" onClick={() => toggleCollapsed(card.id)}
                         aria-expanded={isExpanded(card.id)} aria-label={`${isExpanded(card.id) ? 'Sbalit' : 'Rozbalit'} ${card.name}`}>
