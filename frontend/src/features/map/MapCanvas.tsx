@@ -323,9 +323,10 @@ export function MapCanvas({ points, routes, installations, splices, installation
       else onLocationClick({ latitude: event.lngLat.lat, longitude: event.lngLat.lng }, result.lookupParcel)
     }
     const handleDoubleClick = (event: MapMouseEvent) => {
-      const { placementActive, drawingRoute, routeSplitActive, onRouteEdit } = interactionRef.current
-      if (placementActive || drawingRoute || routeSplitActive
-        || pointAt(event.point, false)) return
+      const { placementActive, drawingRoute, routeSplitActive, onRouteEdit, onPointSelect } = interactionRef.current
+      if (placementActive || drawingRoute || routeSplitActive) return
+      const pointId = pointAt(event.point, false)?.properties?.id
+      if (pointId) { event.preventDefault(); onPointSelect(String(pointId)); return }
       const routeId = routeAt(event.point)
       if (!routeId) return
       event.preventDefault()
@@ -906,12 +907,12 @@ export function MapCanvas({ points, routes, installations, splices, installation
         {hoverLabel.pointId ? points.find(point => point.id === hoverLabel.pointId)?.name : routes.find(route => route.id === hoverLabel.routeId)?.name}
       </div>}
       {(drawingRoute || placementActive || routePaused) && <div className="map-mode-badge" role="status">
-        <strong>{routePaused ? 'Kreslení trasy pozastaveno · přidání objektu' : drawingRoute ? routeDraft?.id ? 'Upravujete průběh trasy' : 'Kreslíte novou trasu' : activeTool ? 'Umisťujete nový objekt' : 'Přesouváte objekt'}</strong>
-        <span>{placementActive && !activeTool ? 'Klikněte na nové místo. Poloha a navázané trasy se uloží ihned. Zrušení: Esc.' : 'Dokončete práci v mapě, nebo ji zrušte tlačítkem Zrušit / Esc.'}</span>
+        <strong>{routePaused ? 'Kreslení trasy pozastaveno · přidání objektu' : drawingRoute ? routeDraft?.id ? 'Upravujete průběh trasy' : 'Kreslíte novou trasu' : activeTool || preview?.kind && !selectedPointId ? 'Umisťujete nový objekt' : 'Přesouváte objekt'}</strong>
+        <span>{preview?.kind && !selectedPointId ? 'Kliknutím změňte polohu nebo táhněte za značku. Potom vyplňte název a zvolte Uložit. Zrušení: Esc.' : placementActive && !activeTool ? 'Klikněte na nové místo. Poloha a navázané trasy se uloží ihned. Zrušení: Esc.' : 'Dokončete práci v mapě, nebo ji zrušte tlačítkem Zrušit / Esc.'}</span>
       </div>}
       {placementActive && (
         <div className="placement-guide" role="status">
-          <span>{activeTool ? `${activeTool === 'cabinet' ? 'Optická skříň' : activeTool === 'building' ? 'Budova' : activeTool === 'pole' ? 'Sloup' : 'Šachta'}: klikněte do mapy pro umístění` : 'Přesun objektu: klikněte na nové místo'}</span>
+          <span>{preview?.kind && !selectedPointId ? 'Nový objekt: upravte polohu a uložte jej v panelu' : activeTool ? `${activeTool === 'cabinet' ? 'Optická skříň' : activeTool === 'building' ? 'Budova' : activeTool === 'pole' ? 'Sloup' : 'Šachta'}: klikněte do mapy pro umístění` : 'Přesun objektu: klikněte na nové místo'}</span>
           <button type="button" onClick={() => onToolChange(null)}>Zrušit · Esc</button>
         </div>
       )}
@@ -969,7 +970,7 @@ export function MapCanvas({ points, routes, installations, splices, installation
         </div>
       )}
       <MapToolbox
-        activeTool={activeTool}
+        activeTool={activeTool ?? (!selectedPointId ? preview?.kind ?? null : null)}
         placementActive={placementActive}
         toolsDisabled={toolsDisabled}
         onToolChange={kind => { setLegendOpen(false); onToolChange(kind) }}
