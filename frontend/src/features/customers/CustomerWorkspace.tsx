@@ -3,7 +3,8 @@ import { listBuildingDistribution, type BuildingDistributionDocument } from '../
 import { listNetworkPoints, type NetworkPoint } from '../map/networkPoints'
 import { CustomerPanel } from './CustomerPanel'
 
-export function CustomerWorkspace({ buildingId, onShowBuilding, onDirtyChange }: {
+export function CustomerWorkspace({ buildingId, initialCustomerId, onShowBuilding, onDirtyChange }: {
+  initialCustomerId?: string
   buildingId: string | null
   onShowBuilding: (id: string) => void
   onDirtyChange: (dirty: boolean) => void
@@ -28,7 +29,7 @@ export function CustomerWorkspace({ buildingId, onShowBuilding, onDirtyChange }:
   return <main className="customer-workspace" aria-label="Evidence zákazníků">
     {loading ? <p role="status">Načítání budov a přípojných míst…</p> : error ? <div role="alert"><p>{error}</p>
       <button type="button" className="primary-button" onClick={() => { setLoading(true); setError(''); setReload(value => value + 1) }}>Načíst znovu</button></div>
-      : <CustomerPanel buildingId={buildingId} buildings={buildings} distributions={distributions}
+      : <CustomerPanel initialCustomerId={initialCustomerId} buildingId={buildingId} buildings={buildings} distributions={distributions}
         onShowBuilding={onShowBuilding} onDirtyChange={onDirtyChange} />}
   </main>
 }

@@ -10,6 +10,7 @@ import { categoryLabel, customerError, demoCustomer, newCustomer,
 import './customers.css'
 
 type Props = {
+  initialCustomerId?: string
   buildingId: string | null
   buildings: NetworkPoint[]
   distributions: BuildingDistributionDocument[]
@@ -20,7 +21,7 @@ type Props = {
 const emptyMessageInput = () => ({ subject: '', sender: '', date: new Date().toISOString().slice(0, 10),
   category: 'request' as CustomerMessage['category'], status: 'todo' as MessageStatus, summary: '' })
 
-export function CustomerPanel({ buildingId, buildings, distributions, onShowBuilding, onDirtyChange }: Props) {
+export function CustomerPanel({ buildingId, initialCustomerId, buildings, distributions, onShowBuilding, onDirtyChange }: Props) {
   const [customers, setCustomers] = useState<CustomerRecord[]>([])
   const [draft, setDraft] = useState<CustomerDraft | null>(null)
   const [dirty, setDirty] = useState(false)
@@ -60,10 +61,10 @@ export function CustomerPanel({ buildingId, buildings, distributions, onShowBuil
 
   useEffect(() => {
     let live = true
-    listCustomers().then(items => { if (live) { setCustomers(items); setLoading(false) } })
+    listCustomers().then(items => { if (live) { setCustomers(items); setDraft(items.find(item => item.id === initialCustomerId) ?? null); setLoading(false) } })
       .catch(reason => { if (live) { setError(reason instanceof Error ? reason.message : 'Zákazníci se nenačetli.'); setLoading(false) } })
     return () => { live = false }
-  }, [])
+  }, [initialCustomerId])
 
   const leaveDetail = () => {
     if (unsaved && !window.confirm('Zahodit neuložené změny zákazníka?')) return

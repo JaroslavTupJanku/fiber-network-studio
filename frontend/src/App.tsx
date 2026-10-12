@@ -21,6 +21,7 @@ function App() {
   const inNetwork = section === 'map' || section === 'budget'
   const inCatalogs = section === 'catalog' || section === 'ducts'
   const [customerScope, setCustomerScope] = useState<string | null>(null)
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | undefined>()
   const [customerVisit, setCustomerVisit] = useState(0)
   const [customerDirty, setCustomerDirty] = useState(false)
   const [mapInteraction, setMapInteraction] = useState(false)
@@ -62,8 +63,8 @@ function App() {
         </nav>
       </header>
       <div className="app-content">
-      <MapWorkspace onInteractionChange={setMapInteraction} active={section === 'map'} customerMapFocus={customerMapFocus} onOpenCustomers={buildingId => {
-        setCustomerScope(buildingId); setCustomerVisit(value => value + 1); setSection('customers')
+      <MapWorkspace onInteractionChange={setMapInteraction} active={section === 'map'} customerMapFocus={customerMapFocus} onOpenCustomers={(buildingId, customerId) => {
+        setCustomerScope(buildingId); setSelectedCustomerId(customerId); setCustomerVisit(value => value + 1); setSection('customers')
       }} onOpenBudget={scenario => {
         setIncomingBudget({ id: crypto.randomUUID(), scenario })
         setBudgetOpened(true); setSection('budget')
@@ -72,7 +73,7 @@ function App() {
       {ductsOpened && <div className="catalog-view" hidden={section !== 'ducts'}><DuctCatalogPage active={section === 'ducts'} navigation={catalogNavigation} /></div>}
       {budgetOpened && <div className="budget-view" hidden={section !== 'budget'}><OpticalBudgetPage
         onBack={() => navigate('map')} incoming={incomingBudget} onIncomingHandled={() => setIncomingBudget(null)} /></div>}
-      {section === 'customers' && <CustomerWorkspace key={customerVisit} buildingId={customerScope}
+      {section === 'customers' && <CustomerWorkspace key={customerVisit} buildingId={customerScope} initialCustomerId={selectedCustomerId}
         onDirtyChange={setCustomerDirty}
         onShowBuilding={id => { setCustomerDirty(false); setCustomerMapFocus(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })); setSection('map') }} />}
       </div>

@@ -1,0 +1,22 @@
+.building-overview { display: grid; gap: 10px; }
+.building-overview-section { border: 1px solid #dce6e1; border-radius: 9px; background: #fff; }
+.building-overview-section > summary { display: flex; align-items: center; gap: 10px; padding: 12px; list-style: none; cursor: pointer; color: #315b4c; }
+.building-overview-section > summary::-webkit-details-marker { display: none; }
+.building-overview-section > summary > span:nth-child(2) { display: grid; flex: 1; gap: 4px; min-width: 0; }
+.building-overview-section > summary strong { font-size: 13px; }
+.building-overview-section small { display: block; color: #71847b; font-size: 11px; line-height: 1.5; }
+.building-overview-section > summary > svg { flex: none; color: #678b7b; }
+.building-overview-section[open] > summary > svg { transform: rotate(180deg); }
+.building-overview-section > summary:hover { background: #f5f9f6; border-radius: 9px; }
+.building-overview-section > summary:focus-visible { outline: 2px solid #26766b; outline-offset: -2px; border-radius: 9px; }
+.building-overview-icon { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 8px; background: #edf5f0; color: #38755e; }
+.building-overview-body { padding: 0 12px 12px; color: #526b60; font-size: 12px; line-height: 1.5; }
+.building-overview-body > p { margin: 5px 0 12px; }
+.building-overview-list { max-height: 240px; overflow: auto; list-style: none; padding: 0; margin: 0 0 10px; }
+.building-overview-list > li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; padding: 9px 0; border-top: 1px solid #edf1ee; }
+.building-overview-list > li > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.building-overview-list ul { flex-basis: 100%; list-style: none; margin: 0; padding-left: 10px; border-left: 2px solid #dce9e1; }
+.building-overview-list ul li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; }
+.building-overview-action { display: inline-flex; padding: 3px 0; border: 0; background: transparent; color: #26725c; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; text-align: left; }
+.building-overview-action:hover { text-decoration: underline; }
+.building-overview-action:focus-visible { outline: 2px solid #26766b; outline-offset: 3px; border-radius: 2px; }
