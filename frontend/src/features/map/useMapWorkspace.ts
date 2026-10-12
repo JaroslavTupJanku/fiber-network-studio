@@ -136,18 +136,21 @@ export function useMapWorkspace() {
     setActiveTool(kind)
     setMoving(false)
     setActionError('')
+    if (!kind && editor && !editor.id) { setEditor(null); setSelectedLocation(null) }
     if (kind) {
       if (!route.drawing) route.cancel()
       clearParcel()
       setEditor(null)
       setSelectedLocation(null)
     }
-  }, [clearParcel, route])
+  }, [clearParcel, route, editor])
 
   const handleLocationClick = useCallback((location: Coordinates, lookupParcel: boolean) => {
-    if (route.drawing && editor && !editor.id) { setEditor({ ...editor, ...location }); return }
+    if (editor && !editor.id) { setEditor({ ...editor, ...location }); return }
     if (activeTool) {
       if (!route.drawing) route.cancel()
+      clearParcel()
+      setSelectedLocation(null)
       setEditor({ kind: activeTool, name: '', ...location })
       setActiveTool(null)
       setActionError('')
@@ -182,7 +185,7 @@ export function useMapWorkspace() {
 
   const handlePointSelect = useCallback((id: string, location?: Coordinates) => {
     setMoveNotice('')
-    if (route.drawing && editor && !editor.id) return
+    if (editor && !editor.id) return
     if (route.drawing) { route.addPoint(id); return }
     const point = points.find((item) => item.id === id)
     if (!point) return
@@ -235,7 +238,7 @@ export function useMapWorkspace() {
         setActionError('')
         return
       }
-      if (event.key === 'Escape' && (activeTool || moving)) handleToolChange(null)
+      if (event.key === 'Escape' && (activeTool || moving || editor && !editor.id)) handleToolChange(null)
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)

@@ -109,7 +109,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
     return () => cancelAnimationFrame(frame)
   }, [active, customerMapFocus, handlePointSelect])
   const routeDraft = route.draft
-  const interactionActive = route.drawing || !!activeTool || moving || splitActive || splitBusy
+  const interactionActive = route.drawing || !!activeTool || moving || !!editor && !editor.id || splitActive || splitBusy
   useEffect(() => { onInteractionChange(interactionActive) }, [interactionActive, onInteractionChange])
   useEffect(() => {
     if (editor?.kind) detailsPanelRef.current?.scrollTo({ top: 0 })
@@ -305,7 +305,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           selectedParcel={selectedParcel}
           preview={preview}
           activeTool={activeTool}
-          placementActive={activeTool !== null || moving}
+          placementActive={activeTool !== null || moving || !!editor && !editor.id}
           toolsDisabled={loading || loadError || splitActive || splitBusy || Boolean(editor && !editor.id)}
           onToolChange={kind => { setPanelOpen(true); setSideTab('infrastructure'); handleToolChange(kind) }}
           onToolDrop={(kind, location) => { setPanelOpen(true); setSideTab('infrastructure'); handleToolDrop(kind, location) }}
@@ -354,7 +354,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
         {!editor && !routeDraft && !selectedLocation && <p className="empty-selection">Vyberte místo na mapě pro nový objekt.</p>}
         <div className="panel-heading">
           <div>
-            {(editor || selectedLocation || routeDraft) && <button className="panel-back-button" type="button" onClick={backFromDetail}>
+            {(editor?.id || selectedLocation || routeDraft) && <button className="panel-back-button" type="button" onClick={backFromDetail}>
               <ArrowLeft size={16} aria-hidden="true" /> {editor && route.drawing ? 'Zpět k trase' : route.drawing && routeDraft?.id ? 'Zpět k trase' : routeDraft && !editor ? 'Zpět na trasy' : 'Zpět na objekty'}
             </button>}
             <span className="section-label">{editor && route.drawing ? 'Přidat během kreslení' : routeDraft?.id && !editor ? routeKindLabel(routeDraft) : selectedLocation && selectedParcel ? 'Katastr' : editor?.id ? pointKindLabel(editor) : 'Infrastruktura'}</span>
@@ -536,6 +536,7 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               </select><small>Ikona bytového domu usnadní orientaci na mapě. Domovní rozvod lze evidovat u obou typů.</small></label>}
             </fieldset>
             <div className="form-actions">
+              {!editor.id && <button type="button" className="move-button" onClick={() => handleToolChange(null)}>Zrušit přidání</button>}
               <button className="primary-button" type="submit" disabled={saving || !editor.name.trim()}><Save size={16} aria-hidden="true" /> {saving ? 'Ukládání…' : 'Uložit'}</button>
 
             {editor.id && <details className="point-extra-actions" onKeyDown={event => { if (event.key === 'Escape') { event.stopPropagation(); event.currentTarget.open = false; event.currentTarget.querySelector('summary')?.focus() } }} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget)) event.currentTarget.open = false }}><summary aria-label="Další akce" title="Další akce"><MoreHorizontal size={18} /></summary><div>
@@ -544,10 +545,10 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
             {tracedPath && <button type="button" className="move-button" onClick={() => setTracedPath(null)}>Skrýt zvýraznění cesty</button>}
             </div></details>}
             </div>
-            <button type="button" className={moving ? 'move-button active' : 'move-button'} disabled={saving || route.drawing} onClick={() => {
+            {editor.id && <button type="button" className={moving ? 'move-button active' : 'move-button'} disabled={saving || route.drawing} onClick={() => {
               setMoving((value) => !value)
               setActiveTool(null)
-            }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Zrušit přesun' : 'Přesunout objekt na mapě'}</button>
+            }}><Crosshair size={16} aria-hidden="true" /> {moving ? 'Zrušit přesun' : 'Přesunout objekt na mapě'}</button>}
             {moveNotice && <p className="point-move-notice" role="status">{moveNotice}</p>}
             <details className="point-position" open={!editor.id || moving}><summary>Poloha na mapě</summary>
             <div className="coordinates-row">
