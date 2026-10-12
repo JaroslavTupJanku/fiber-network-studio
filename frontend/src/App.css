@@ -378,12 +378,12 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .network-structure-dialog .distribution-detail, .network-structure-dialog .equipment-detail { display: flex; flex-direction: column; align-items: stretch; background: #fff; }
 .network-structure-dialog .distribution-riser, .network-structure-dialog .equipment-rack { border-color: #d3e3d9; border-radius: 12px; box-shadow: 0 4px 13px rgb(25 64 49 / 6%); }
 .network-structure-dialog .distribution-row, .network-structure-dialog .equipment-row { min-height: 45px; }
-.network-structure-dialog .distribution-riser > .distribution-row, .network-structure-dialog .equipment-rack > .equipment-node-heading > .equipment-row { border-color: #c7dfd0; background: #eef8f1; font-weight: 700; }
-.network-structure-dialog .distribution-box > .distribution-row, .network-structure-dialog .equipment-shelf > .equipment-node-heading > .equipment-row, .network-structure-dialog .equipment-card > .equipment-node-heading > .equipment-row { border-color: #d9e7dd; background: #fff; box-shadow: 0 3px 9px rgb(29 70 49 / 5%); }
+.network-structure-dialog :where(.distribution-riser > .distribution-row, .equipment-rack > .equipment-node-heading > .equipment-row) { border-color: #c7dfd0; background: #eef8f1; font-weight: 700; }
+.network-structure-dialog :where(.distribution-box > .distribution-row, .equipment-shelf > .equipment-node-heading > .equipment-row, .equipment-card > .equipment-node-heading > .equipment-row) { border-color: #d9e7dd; background: #fff; box-shadow: 0 3px 9px rgb(29 70 49 / 5%); }
 .network-structure-dialog .distribution-box, .network-structure-dialog .equipment-shelf { border-left-color: #bbd9c8; }
 .network-structure-dialog .equipment-card { border-left-color: #c2d8e8; }
 .network-structure-dialog .distribution-row:hover, .network-structure-dialog .equipment-row:hover { border-color: #b8d8c9; background: #f6fbf8; }
-.network-structure-dialog .distribution-row.selected, .network-structure-dialog .equipment-row.selected, .network-structure-dialog .distribution-premise.selected, .network-structure-dialog .equipment-port.selected { border-color: #26766b; background: #edf8f2; box-shadow: inset 3px 0 0 #26766b; }
+.network-structure-dialog .distribution-row.selected, .network-structure-dialog .equipment-row.selected, .network-structure-dialog .distribution-premise.selected, .network-structure-dialog .equipment-port.selected { border-color: #26766b; background: #dff2e8; box-shadow: inset 3px 0 0 #26766b; }
 .network-structure-dialog .distribution-detail-heading, .network-structure-dialog .equipment-detail-heading { margin-bottom: 8px; }
 .network-structure-dialog .distribution-detail-heading h3, .network-structure-dialog .equipment-detail-heading h3 { overflow-wrap: anywhere; font-size: 17px; }
 .network-structure-dialog .equipment-location { margin: 0 0 3px; }
@@ -833,3 +833,6 @@ h1 { margin: 5px 0 0; font-size: 20px; line-height: 1.25; font-weight: 650; }
 .fiber-trace-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .fiber-trace-fields label:last-child { grid-column: 1 / -1; }
 @media (max-width: 650px) { .network-scheme-dialog, .fiber-trace-dialog { padding: 12px; } .network-scheme-controls label { width: 100%; } .fiber-trace-fields { grid-template-columns: 1fr; } }
+
+/* Keep the current map selection visible independently of pointer hover. */
+.point-list li button[aria-current="true"], .route-list li button[aria-current="true"] { background: #dff2e8; box-shadow: inset 3px 0 0 #26766b; }

@@ -172,22 +172,22 @@ export function BuildingDistributionEditor({ pointId, pointName, routes, install
         <button type="button" className="distribution-add" disabled={!draft} onClick={() => addPremise(null)}><Plus size={14} /> Přímá přípojka domu</button>
         {draft?.premises.filter(item => item.boxId == null).map(premise =>
           <button type="button" key={premise.id} className={`distribution-premise${selection?.id === premise.id ? ' selected' : ''}${isConnectedPremise(premise) ? ' connected' : ''}`}
-            onClick={() => select({ kind: 'premise', id: premise.id })}>
+            aria-pressed={selection?.id === premise.id} onClick={() => select({ kind: 'premise', id: premise.id })}>
             <span className="distribution-status-dot" /><strong>{premise.label}</strong>
             <small>{isConnectedPremise(premise) ? 'Přiřazené vlákno' : 'Plánováno'}</small></button>)}
         {draft?.risers.length === 0 && draft.premises.length === 0 && <div className="distribution-empty"><Building2 size={28} />
           <strong>Jak je dům připojený?</strong><p>U jednoduchého domu přidejte přímou přípojku. Stoupačku a podlažní boxy přidávejte jen tam, kde skutečně existují. Přípojné místo lze zatím uložit i bez kabelu.</p></div>}
         {draft?.risers.map(riser => <div className="distribution-riser" key={riser.id}>
           <button type="button" className={`distribution-row${selection?.id === riser.id ? ' selected' : ''}`}
-            onClick={() => select({ kind: 'riser', id: riser.id })}><Building2 size={17} /><span><strong>{riser.name}</strong><small>{riser.cableItemId ? 'Přívodní kabel přiřazen' : 'Bez přívodního kabelu'}</small></span></button>
+            aria-pressed={selection?.id === riser.id} onClick={() => select({ kind: 'riser', id: riser.id })}><Building2 size={17} /><span><strong>{riser.name}</strong><small>{riser.cableItemId ? 'Přívodní kabel přiřazen' : 'Bez přívodního kabelu'}</small></span></button>
           {draft.boxes.filter(box => box.riserId === riser.id).sort((a, b) => b.floor - a.floor).map(box =>
             <div className="distribution-box" key={box.id}>
               <button type="button" className={`distribution-row${selection?.id === box.id ? ' selected' : ''}`}
-                onClick={() => select({ kind: 'box', id: box.id })}><span className="distribution-floor">{box.floor}</span>
+                aria-pressed={selection?.id === box.id} onClick={() => select({ kind: 'box', id: box.id })}><span className="distribution-floor">{box.floor}</span>
                 <span><strong>{box.name}</strong><small>{box.floor}. podlaží · {draft.premises.filter(item => item.boxId === box.id).length} HP</small></span></button>
               <div className="distribution-premises">{draft.premises.filter(item => item.boxId === box.id).map(premise =>
                 <button type="button" key={premise.id} className={`distribution-premise${selection?.id === premise.id ? ' selected' : ''}${isConnectedPremise(premise) ? ' connected' : ''}`}
-                  onClick={() => select({ kind: 'premise', id: premise.id })}>
+                  aria-pressed={selection?.id === premise.id} onClick={() => select({ kind: 'premise', id: premise.id })}>
                   <span className="distribution-status-dot" /><strong>{premise.label}</strong>
                   <small>{isConnectedPremise(premise) ? premise.indoorCable ? 'Připojeno · domovní přívod' : 'Připojeno'
                     : premise.status === 'connected' ? 'Vyberte vlákno' : 'Plánováno'}</small></button>)}</div>
