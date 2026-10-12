@@ -69,12 +69,12 @@
   .trace-actions { flex-direction: column; align-items: stretch; }
 }
 /* Main sections and the panel toggle have separate visual roles. */
-.side-workspace-bar { display: flex; align-items: center; gap: 8px; position: sticky; top: -24px; z-index: 2; margin: -10px 0 22px; padding-block: 4px; background: #fff; }
-.details-panel .side-workspace-tabs { display: flex; flex: 1; gap: 3px; margin: 0; padding: 4px; position: static; }
+.side-workspace-bar { display: flex; align-items: center; gap: 0; position: sticky; top: -24px; z-index: 4; margin: -10px 0 22px; padding: 4px; border-radius: 9px; background: #f1f6f2; }
+.details-panel .side-workspace-tabs { display: flex; flex: 1; gap: 3px; margin: 0; padding: 0 5px 0 0; position: static; }
 .details-panel .side-workspace-tabs > button { flex: 1; gap: 5px; padding: 6px; font-size: 11px; }
-.side-workspace-collapse { display: grid; place-items: center; flex: none; width: 30px; height: 36px; padding: 0; border: 1px solid #dce6e1; border-radius: 8px; background: #fff; color: #567368; cursor: pointer; }
-.side-workspace-collapse:hover { background: #f1f7f3; color: #176759; }
-.side-workspace-collapse:focus-visible { outline: 2px solid #26766b; outline-offset: 2px; }
+.side-workspace-collapse { display: grid; place-items: center; flex: none; width: 30px; height: 32px; padding: 0; border: 0; border-left: 1px solid #d8e4dc; border-radius: 0; background: transparent; color: #567368; cursor: pointer; }
+.side-workspace-collapse:hover { color: #176759; background: #e7f0ea; }
+.side-workspace-collapse:focus-visible { outline: 2px solid #26766b; outline-offset: -2px; border-radius: 5px; }
 .network-panel-heading { margin-bottom: 20px; }
 .network-panel-heading h1 { margin: 8px 0; color: #23483e; font-size: 23px; }
 .network-panel-heading p { margin: 0; color: #6b8075; font-size: 12px; line-height: 1.6; }
@@ -109,22 +109,28 @@
 
 /* Reuse one card treatment across object and route details. */
 .details-panel .panel-heading { margin-bottom: 20px; padding-bottom: 18px; border-bottom: 1px solid #e0e7e3; }
-.point-detail-section, .point-extra-actions { margin: 0; border: 1px solid #dce6e1; border-radius: 10px; background: #fff; }
-.point-detail-section > summary, .point-extra-actions > summary { padding: 14px; cursor: pointer; list-style: none; color: #315b4c; }
-.point-detail-section > summary::-webkit-details-marker, .point-extra-actions > summary::-webkit-details-marker { display: none; }
-.point-detail-section > summary::after, .point-extra-actions > summary::after { content: ''; flex: none; width: 7px; height: 7px; margin-left: auto; border-right: 1.5px solid #678b7b; border-bottom: 1.5px solid #678b7b; transform: rotate(45deg); transition: transform .15s; }
-.point-detail-section[open] > summary::after, .point-extra-actions[open] > summary::after { transform: rotate(225deg); }
-.point-detail-section > summary:hover, .point-extra-actions > summary:hover { background: #f5f9f6; border-radius: 10px; }
-.point-detail-section > summary:focus-visible, .point-extra-actions > summary:focus-visible { outline: 2px solid #26766b; outline-offset: -2px; border-radius: 10px; }
-.point-detail-section .chamber-splice-icon { background: #edf5f0; color: #38755e; }
-.point-detail-section .chamber-splice-heading h2 { color: #315b4c; font-size: 13px; line-height: 1.45; }
-.point-detail-section .chamber-splice-heading > div { flex: 1; min-width: 0; }
-.point-detail-section .chamber-splice-heading p { color: #71847b; font-size: 11px; line-height: 1.5; }
-.point-detail-section-body, .point-extra-actions > div { display: grid; gap: 12px; padding: 0 14px 14px; }
-.point-detail-section-body .chamber-splice-actions { display: grid; gap: 8px; }
-.point-detail-section-body button { justify-content: center; width: 100%; }
-.point-extra-actions > summary { display: flex; align-items: center; gap: 10px; font-size: 12px; font-weight: 650; }
-.point-extra-actions > div > button { justify-content: center; width: 100%; min-height: 36px; }
+.point-detail-form > .form-actions { align-items: center; gap: 8px; }
+.point-detail-form > .form-actions > .primary-button { flex: 1; }
+.point-extra-actions { position: relative; flex: none; margin: 0; border: 0; }
+.point-extra-actions > summary { display: grid; place-items: center; width: 38px; height: 38px; padding: 0; list-style: none; border: 1px solid #dce6e1; border-radius: 7px; color: #315b4c; cursor: pointer; }
+.point-extra-actions > summary::-webkit-details-marker { display: none; }
+.point-extra-actions > summary:hover, .point-extra-actions[open] > summary { background: #edf5f0; }
+.point-extra-actions > summary:focus-visible { outline: 2px solid #26766b; outline-offset: 2px; }
+.point-extra-actions > div { position: absolute; top: calc(100% + 6px); right: 0; z-index: 5; display: grid; gap: 4px; width: 225px; padding: 6px; border: 1px solid #dce6e1; border-radius: 9px; background: #fff; box-shadow: 0 8px 24px #193e3029; }
+.point-extra-actions > div > button { justify-content: flex-start; width: 100%; min-height: 34px; margin: 0; padding: 8px 10px; border: 0; border-radius: 5px; background: transparent; font-size: 12px; text-align: left; }
+.point-extra-actions > div > button:hover { background: #f1f6f2; }
+.point-extra-actions > div > .danger-button:hover { background: #fff0ee; }
+.point-related-link { display: flex; align-items: center; gap: 10px; width: 100%; margin: 0; padding: 12px; border: 1px solid #dce6e1; border-radius: 9px; background: #fff; color: #315b4c; text-align: left; font: inherit; cursor: pointer; }
+.point-related-link:hover { border-color: #a8cbbb; background: #f5f9f6; }
+.point-related-link:focus-visible, .point-customer-link:focus-visible { outline: 2px solid #26766b; outline-offset: 2px; }
+.point-related-icon { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: 8px; background: #edf5f0; color: #38755e; }
+.point-related-link > span:nth-child(2) { display: grid; flex: 1; gap: 4px; min-width: 0; }
+.point-related-link strong { font-size: 13px; line-height: 1.4; }
+.point-related-link small { color: #71847b; font-size: 11px; line-height: 1.4; }
+.point-related-link > svg:last-child { flex: none; color: #678b7b; }
+.point-customer-link { display: flex; align-items: center; gap: 8px; padding: 6px 3px; border: 0; background: transparent; color: #39715d; font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.point-customer-link > svg:last-child { margin-left: auto; }
+.point-customer-link:hover { text-decoration: underline; }
 .point-detail-form .point-dependencies { border-radius: 10px; }
 @media (max-width: 850px) { .side-workspace-bar { top: -18px; } }
 
