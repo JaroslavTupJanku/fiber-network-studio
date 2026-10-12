@@ -45,7 +45,7 @@ export function BuildingOverview({ pointId, active, equipmentVersion, distributi
         <ul>{equipment.shelves.filter(shelf => shelf.rackId === rack.id).map(shelf => {
           const cardIds = equipment.cards.filter(card => card.shelfId === shelf.id).map(card => card.id)
           const ports = equipment.ports.filter(port => port.parentId === shelf.id || cardIds.includes(port.parentId))
-          return <li key={shelf.id}><span>{shelf.name} <small>{shelf.kind.toUpperCase()}</small></span><small>{ports.length} portů{cardIds.length ? ` · ${cardIds.length} karet` : ''}</small></li>
+          return <li key={shelf.id}><span>{shelf.name} <small>{shelf.kind.toUpperCase()}</small></span><small>{countCzech(ports.length, 'port', 'porty', 'portů')}{cardIds.length ? ` · ${countCzech(cardIds.length, 'karta', 'karty', 'karet')}` : ''}</small></li>
         })}{!equipment.shelves.some(shelf => shelf.rackId === rack.id) && <li><small>Bez zařízení</small></li>}</ul></li>)}</ul> : <p>V budově zatím není evidované optické vybavení.</p>}
         <button type="button" className="building-overview-action" onClick={onEquipment}>{equipment?.racks.length ? 'Upravit vybavení' : 'Přidat vybavení'}</button></>}
     </OverviewSection>
