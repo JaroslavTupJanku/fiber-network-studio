@@ -13,6 +13,24 @@ function OverviewSection({ title, icon, summary, children }: { title: string; ic
     <div className="building-overview-body">{children}</div></details>
 }
 
+function PreviewList({ items, label }: { items: ReactNode[]; label: string }) {
+  const [expanded, setExpanded] = useState(false)
+  const limit = 4
+  return <><ul className="building-overview-list" aria-label={label}>{expanded ? items : items.slice(0, limit)}</ul>
+    {items.length > limit && <button type="button" className="building-overview-action building-overview-more" aria-expanded={expanded} onClick={() => setExpanded(value => !value)}>
+      {expanded ? 'Zobrazit méně' : `Zobrazit vše (${items.length})`}</button>}</>
+}
+
+function OverviewRow({ name, description, status, tone = 'neutral', action }: {
+  name: string; description: string; status?: string; tone?: 'neutral' | 'ready' | 'pending'; action?: ReactNode
+}) {
+  return <li className="building-overview-row"><strong>{name}</strong>
+    <small className="building-overview-description">{description}</small>
+    {(status || action) && <div className="building-overview-row-footer">
+      {status && <span className={`building-overview-status is-${tone}`}>{status}</span>}{action}
+    </div>}</li>
+}
+
 export function BuildingOverview({ pointId, active, equipmentVersion, distributionVersion, onEquipment, onDistribution, onCustomers }: {
   pointId: string; active: boolean; equipmentVersion?: number; distributionVersion?: number
   onEquipment: () => void; onDistribution: () => void; onCustomers: (customerId?: string) => void
@@ -39,27 +57,49 @@ export function BuildingOverview({ pointId, active, equipmentVersion, distributi
   }, [pointId, active, equipmentVersion, distributionVersion, reload])
   const status = (key: string, text: string) => loading ? 'Načítání…' : errors.includes(key) ? 'Přehled se nenačetl' : text
   const failure = (key: string) => loading ? <p role="status">Načítání přehledu…</p> : errors.includes(key) ? <p role="alert">Přehled se nepodařilo načíst. <button type="button" className="building-overview-action" onClick={() => setReload(value => value + 1)}>Zkusit znovu</button></p> : null
+  const premises = distribution?.premises ?? []
+  const connectedCount = premises.filter(isConnectedPremise).length
+  const premiseCount = countCzech(premises.length, 'přípojné místo', 'přípojná místa', 'přípojných míst')
+  const distributionSummary = premises.length ? `${premiseCount} · vlákno přiřazeno: ${connectedCount}` : 'Zatím bez přípojných míst'
+  const premiseRow = (premise: typeof premises[number]) => <OverviewRow key={premise.id} name={premise.label}
+    description={premise.boxId ? 'Vedení: přes podlažní box' : 'Vedení: přímo do domu'}
+    status={isConnectedPremise(premise) ? 'Vlákno přiřazeno' : 'Čeká na přiřazení vlákna'}
+    tone={isConnectedPremise(premise) ? 'ready' : 'pending'} />
+  const distributionGroups: ReactNode[] = (distribution?.risers ?? []).map(riser => <li className="building-overview-group" key={riser.id}>
+    <h3>{riser.name}</h3>
+    <PreviewList label={`Boxy – ${riser.name}`} items={distribution!.boxes.filter(box => box.riserId === riser.id).sort((a, b) => a.floor - b.floor).map(box => <li className="building-overview-group" key={box.id}>
+      <h4>{box.name}<small>{box.floor}. podlaží</small></h4>
+      {premises.some(premise => premise.boxId === box.id) ? <PreviewList label={`Přípojná místa – ${box.name}`} items={premises.filter(premise => premise.boxId === box.id).map(premiseRow)} /> : <p className="building-overview-empty">Zatím bez přípojných míst.</p>}
+    </li>)} />
+    {!distribution!.boxes.some(box => box.riserId === riser.id) && <p className="building-overview-empty">Zatím bez podlažních boxů.</p>}
+  </li>)
+  const directPremises = premises.filter(premise => !premise.boxId)
+  if (directPremises.length) distributionGroups.push(<li className="building-overview-group" key="direct"><h3>Přímé přípojky</h3><PreviewList label="Přímé přípojky" items={directPremises.map(premiseRow)} /></li>)
+  // Keep imported records with an unknown box visible instead of silently losing them.
+  const unassignedPremises = premises.filter(premise => premise.boxId && !distribution?.boxes.some(box => box.id === premise.boxId && distribution.risers.some(riser => riser.id === box.riserId)))
+  if (unassignedPremises.length) distributionGroups.push(<li className="building-overview-group" key="unassigned"><h3>Nezařazená místa</h3><PreviewList label="Nezařazená místa" items={unassignedPremises.map(premiseRow)} /></li>)
   return <div className="building-overview">
-    <OverviewSection title="Optické vybavení" icon={<Cable size={17} />} summary={status('equipment', `${countCzech(equipment?.racks.length ?? 0, 'stojan', 'stojany', 'stojanů')} · ${countCzech(equipment?.ports.length ?? 0, 'port', 'porty', 'portů')}`)}>
-      {failure('equipment') ?? <>{equipment?.racks.length ? <ul className="building-overview-list">{equipment.racks.map(rack => <li key={rack.id}><strong>{rack.name}</strong>
-        <ul>{equipment.shelves.filter(shelf => shelf.rackId === rack.id).map(shelf => {
-          const cardIds = equipment.cards.filter(card => card.shelfId === shelf.id).map(card => card.id)
-          const ports = equipment.ports.filter(port => port.parentId === shelf.id || cardIds.includes(port.parentId))
-          return <li key={shelf.id}><span>{shelf.name} <small>{shelf.kind.toUpperCase()}</small></span><small>{countCzech(ports.length, 'port', 'porty', 'portů')}{cardIds.length ? ` · ${countCzech(cardIds.length, 'karta', 'karty', 'karet')}` : ''}</small></li>
-        })}{!equipment.shelves.some(shelf => shelf.rackId === rack.id) && <li><small>Bez zařízení</small></li>}</ul></li>)}</ul> : <p>V budově zatím není evidované optické vybavení.</p>}
-        <button type="button" className="building-overview-action" onClick={onEquipment}>{equipment?.racks.length ? 'Upravit vybavení' : 'Přidat vybavení'}</button></>}
+    <OverviewSection title="Optické vybavení" icon={<Cable size={17} />} summary={status('equipment', equipment?.racks.length ? `${countCzech(equipment.racks.length, 'stojan', 'stojany', 'stojanů')} · ${countCzech(equipment.ports.length, 'port', 'porty', 'portů')}` : 'Zatím bez vybavení')}>
+      {failure('equipment') ?? <>{equipment?.racks.length ? <PreviewList label="Stojany" items={equipment.racks.map(rack => <li className="building-overview-group" key={rack.id}><h3>{rack.name}</h3>
+        <PreviewList label={`Zařízení – ${rack.name}`} items={equipment.shelves.filter(shelf => shelf.rackId === rack.id).map(shelf => {
+          const cards = equipment.cards.filter(card => card.shelfId === shelf.id)
+          const ports = equipment.ports.filter(port => port.parentId === shelf.id || cards.some(card => card.id === port.parentId))
+          return <OverviewRow key={shelf.id} name={shelf.name} description={`Typ: ${shelf.kind.toUpperCase()}`}
+            status={`${countCzech(ports.length, 'port', 'porty', 'portů')}${cards.length ? ` · ${countCzech(cards.length, 'karta', 'karty', 'karet')}` : ''}`} />
+        })} />
+        {!equipment.shelves.some(shelf => shelf.rackId === rack.id) && <p className="building-overview-empty">Zatím bez zařízení.</p>}</li>)} /> : <p>V budově zatím není evidované optické vybavení.</p>}
+        <div className="building-overview-actions"><button type="button" className="building-overview-action" onClick={onEquipment}>{equipment?.racks.length ? 'Upravit vybavení' : 'Přidat vybavení'}</button></div></>}
     </OverviewSection>
-    <OverviewSection title="Domovní rozvod" icon={<Building2 size={17} />} summary={status('distribution', `${distribution?.premises.filter(isConnectedPremise).length ?? 0}/${distribution?.premises.length ?? 0} míst s přiřazeným vláknem`)}>
-      {failure('distribution') ?? <>{distribution?.risers.length || distribution?.premises.length ? <ul className="building-overview-list">
-        {distribution.risers.map(riser => <li key={riser.id}><strong>{riser.name}</strong><small>{distribution.boxes.filter(box => box.riserId === riser.id).map(box => `${box.name} (${box.floor}. podlaží)`).join(' · ') || 'Bez podlažních boxů'}</small></li>)}
-        {distribution.premises.map(premise => <li key={premise.id}><span>{premise.label}<small>{distribution.boxes.find(box => box.id === premise.boxId)?.name ?? 'Přímá přípojka'}</small></span><small>{isConnectedPremise(premise) ? 'Přiřazené vlákno' : 'Plánováno'}</small></li>)}</ul> : <p>Zatím nejsou evidovaná přípojná místa ani domovní rozvod.</p>}
-        <button type="button" className="building-overview-action" onClick={onDistribution}>{distribution?.risers.length || distribution?.premises.length ? 'Upravit rozvod' : 'Přidat přípojné místo'}</button></>}
+    <OverviewSection title="Domovní rozvod" icon={<Building2 size={17} />} summary={status('distribution', distributionSummary)}>
+      {failure('distribution') ?? <>{distributionGroups.length ? <PreviewList label="Rozvod v budově" items={distributionGroups} /> : <p>Zatím nejsou evidovaná přípojná místa ani domovní rozvod.</p>}
+        <div className="building-overview-actions"><button type="button" className="building-overview-action" onClick={onDistribution}>{distributionGroups.length ? 'Upravit rozvod' : 'Přidat přípojné místo'}</button></div></>}
     </OverviewSection>
-    <OverviewSection title="Zákazníci" icon={<Users size={17} />} summary={status('customers', `${countCzech(customers.length, 'zákazník', 'zákazníci', 'zákazníků')} v budově`)}>
-      {failure('customers') ?? <>{customers.length ? <ul className="building-overview-list">{customers.map(customer => <li key={customer.id}>
-        <span><strong>{customer.name}</strong><small>{distribution?.premises.find(premise => premise.id === customer.premiseId)?.label ?? 'Bez přiřazeného přípojného místa'} · {customer.status === 'active' ? 'Aktivní' : 'Zájemce'}</small></span>
-        <button type="button" className="building-overview-action" aria-label={`Otevřít zákazníka ${customer.name}`} onClick={() => onCustomers(customer.id)}>Otevřít</button></li>)}</ul> : <p>K této budově zatím není přiřazený žádný zákazník.</p>}
-        <button type="button" className="building-overview-action" onClick={() => onCustomers()}>Spravovat zákazníky budovy</button></>}
+    <OverviewSection title="Zákazníci" icon={<Users size={17} />} summary={status('customers', customers.length ? countCzech(customers.length, 'zákazník', 'zákazníci', 'zákazníků') : 'Zatím bez zákazníků')}>
+      {failure('customers') ?? <>{customers.length ? <PreviewList label="Zákazníci budovy" items={customers.map(customer => <OverviewRow key={customer.id} name={customer.name}
+        description={customer.premiseId ? `Přípojné místo: ${errors.includes('distribution') ? 'údaj se nenačetl' : premises.find(premise => premise.id === customer.premiseId)?.label ?? 'nenalezeno'}` : 'Přípojné místo: nepřiřazeno'}
+        status={customer.status === 'active' ? 'Aktivní zákazník' : 'Zájemce'}
+        action={<button type="button" className="building-overview-action" aria-label={`Otevřít zákazníka ${customer.name}`} onClick={() => onCustomers(customer.id)}>Otevřít kartu</button>} />)} /> : <p>K této budově zatím není přiřazený žádný zákazník.</p>}
+        <div className="building-overview-actions"><button type="button" className="building-overview-action" onClick={() => onCustomers()}>Spravovat zákazníky budovy</button></div></>}
     </OverviewSection>
   </div>
 }
