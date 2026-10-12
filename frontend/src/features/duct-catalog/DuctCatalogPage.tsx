@@ -1,5 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { ArrowUpRight, Check, Copy, Layers3, Pencil, Plus, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { ArrowUpRight, Check, Copy, Layers3, Pencil, RefreshCw, Search, Trash2 } from 'lucide-react'
+import { CatalogHeader } from '../cable-catalog/CatalogHeader'
 import { listCables } from '../cable-catalog/api'
 import type { CableSpecification } from '../cable-catalog/model'
 import { DuctDiagram } from './DuctDiagram'
@@ -35,10 +36,10 @@ function DuctDetail({ item, busy, cables, onEdit, onDuplicate, onRemove }: {
     <div className="cc-detail-actions"><button type="button" className="cc-button cc-primary" disabled={busy} onClick={onDuplicate}><Copy size={16} /> Vytvořit kopii</button>
       {!item.isPreset && <><button type="button" className="cc-button" disabled={busy} onClick={onEdit}><Pencil size={16} /> Upravit</button>
         <button type="button" className="cc-button cc-delete" disabled={busy} onClick={onRemove}><Trash2 size={16} /> Smazat</button></>}</div>
-    <div className="dc-specs"><div><span>Druh</span><strong>{kindLabel(item.kind)}</strong></div>
-      {item.kind === 'assembly' ? <div><span>Rozložení</span><strong>{item.rows} × {item.columns} · {item.slots.length} pozic</strong></div>
-        : <><div><span>Vnější průměr</span><strong>{item.outerDiameterMm === null ? 'Neuveden' : `${item.outerDiameterMm} mm`}</strong></div>
-          <div><span>Vnitřní průměr</span><strong>{item.innerDiameterMm === null ? 'Neuveden' : `${item.innerDiameterMm} mm`}</strong></div></>}</div>
+    <div className="dc-specs"><div><strong>{kindLabel(item.kind)}</strong><span>Druh prvku</span></div>
+      {item.kind === 'assembly' ? <><div><strong>{item.rows} × {item.columns}</strong><span>Rozložení sestavy</span></div><div><strong>{item.slots.length}</strong><span>pozic v sestavě</span></div></>
+        : <><div><strong>{item.outerDiameterMm === null ? 'Neuveden' : `${item.outerDiameterMm} mm`}</strong><span>Vnější průměr</span></div>
+          <div><strong>{item.innerDiameterMm === null ? 'Neuveden' : `${item.innerDiameterMm} mm`}</strong><span>Vnitřní průměr</span></div></>}</div>
     <DuctDiagram item={item} />
     {item.kind === 'assembly' && <div className="dc-slot-list"><h3>Pozice sestavy</h3><div>{item.slots.map((slot, index) => <div key={index}><span className="dc-small-dot" style={{ background: slot.color }} /><strong>{index + 1}. {slot.name}</strong><span>{kindLabel(slot.kind)}</span><span>{slot.outerDiameterMm === null ? 'Ø ?' : `Ø ${slot.outerDiameterMm}`} / {slot.innerDiameterMm === null ? '?' : slot.innerDiameterMm} mm</span></div>)}</div></div>}
     {item.notes && <p className="dc-notes">{item.notes}</p>}
@@ -65,12 +66,8 @@ export function DuctCatalogPage({ active, navigation }: { active: boolean; navig
   const matches = catalog.items.filter(item => (filter === 'all' || item.kind === filter)
     && normalize(`${item.name} ${item.manufacturer} ${item.model}`).includes(normalize(query.trim())))
   return <main className="cable-catalog duct-catalog" aria-label="Katalog chrániček a mikrotrubiček">
-    <div className="cc-page-heading"><div><span className="cc-eyebrow">KNIHOVNA INFRASTRUKTURY</span><h1>Chráničky a mikrotrubičky</h1>
-      <p>Typy chrániček, mikrotrubiček a sestav, které můžete vložit do mapových tras.</p>{navigation}</div>
-      <div className="dc-create-actions"><button type="button" className="cc-button cc-primary" disabled={catalog.loading || catalog.busy} onClick={() => catalog.create('conduit')}><Plus size={17} /> Chránička</button>
-        <button type="button" className="cc-button" disabled={catalog.loading || catalog.busy} onClick={() => catalog.create('microduct')}><Plus size={17} /> Mikrotrubička</button>
-        <button type="button" className="cc-button" disabled={catalog.loading || catalog.busy} onClick={() => catalog.create('assembly')}><Plus size={17} /> Sestava</button></div></div>
-    <div className="cc-layout"><aside className="cc-sidebar" aria-label="Seznam typů"><div className="cc-sidebar-top"><h2>Typy <span>{catalog.items.length}</span></h2>
+    <CatalogHeader navigation={navigation} disabled={catalog.loading || catalog.busy} onCreate={() => catalog.create('conduit')} />
+    <div className="cc-layout"><aside className="cc-sidebar" aria-label="Seznam typů"><div className="cc-sidebar-top"><h2>Typy chrániček <span>{catalog.items.length}</span></h2>
       <button type="button" className="cc-icon-button" disabled={catalog.loading || catalog.busy} title="Načíst znovu" aria-label="Načíst katalog znovu" onClick={catalog.reload}><RefreshCw size={16} /></button></div>
       <label className="cc-search"><Search size={17} /><input aria-label="Hledat typ" placeholder="Název, výrobce, model…" value={query} onChange={event => setQuery(event.target.value)} /></label>
       <div className="dc-filters" aria-label="Filtr druhů">{([['all', 'Vše'], ['conduit', 'Chráničky'], ['microduct', 'Mikrotrubičky'], ['assembly', 'Sestavy']] as const).map(([value, label]) =>

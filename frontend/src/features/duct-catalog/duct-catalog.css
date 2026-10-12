@@ -1,5 +1,3 @@
-.duct-catalog .cc-page-heading { max-width: 1420px; }
-.duct-catalog .cc-layout { max-width: 1420px; }
 .dc-create-actions { display: flex; gap: var(--ui-action-gap); flex-wrap: wrap; }
 .dc-filters { display: flex; gap: 3px; overflow-x: auto; background: #f2f5f3; border-radius: 6px; padding: 3px; margin: 13px 0 15px; }
 .dc-filters button { flex: 1; white-space: nowrap; background: transparent; border: 0; border-radius: 4px; color: #6d8077; padding: 7px 5px; font-size: 10px; font-weight: 600; cursor: pointer; }
