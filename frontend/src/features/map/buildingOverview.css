@@ -32,3 +32,42 @@
 .building-overview-action { display: inline-flex; padding: 3px 0; border: 0; background: transparent; color: #26725c; font: inherit; font-size: 12px; font-weight: 650; cursor: pointer; text-align: left; }
 .building-overview-action:hover { text-decoration: underline; }
 .building-overview-action:focus-visible { outline: 2px solid #26766b; outline-offset: 3px; border-radius: 2px; }
+.building-record-search { display: grid; gap: 6px; margin: 8px 0 12px; font-size: 11px; font-weight: 600; }
+.building-record-search input { width: 100%; min-width: 0; box-sizing: border-box; }
+.building-record-group { border-top: 1px solid #e7eeea; }
+.building-record-group > summary { display: flex; align-items: center; gap: 8px; padding: 11px 0; list-style: none; cursor: pointer; font-weight: 650; }
+.building-record-group > summary::-webkit-details-marker { display: none; }
+.building-record-group > summary > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.building-record-group > summary > small { border-radius: 5px; background: #edf3ef; padding: 2px 6px; }
+.building-record-group[open] > summary > svg { transform: rotate(180deg); }
+.building-record-group .building-record-group { margin-left: 8px; padding-left: 10px; border-left: 2px solid #e4ede7; }
+.building-record-group > summary:focus-visible { outline: 2px solid #26766b; outline-offset: -2px; }
+.building-record-dialog { width: min(980px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: 0; border: 1px solid #ccdbd3; border-radius: 14px; color: #345448; background: #fff; box-sizing: border-box; }
+.building-record-dialog[open] { display: flex; flex-direction: column; }
+.building-record-dialog::backdrop { background: #15392b66; }
+.building-record-dialog > header { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 20px 24px; background: #245f55; color: #fff; }
+.building-record-dialog h2 { margin: 5px 0 0; font-size: 21px; }
+.building-record-dialog > header small { font-size: 12px; }
+.building-record-dialog > header button { background: #ffffff18; color: #fff; padding: 7px; border: 0; border-radius: 6px; cursor: pointer; }
+.building-record-filters { display: flex; flex-wrap: wrap; gap: 12px; align-items: end; padding: 18px 24px; background: #f5f8f6; border-bottom: 1px solid #dce6e1; }
+.building-record-filters label { display: grid; gap: 6px; flex: 1 1 130px; min-width: 0; font-size: 12px; font-weight: 600; }
+.building-record-filters label:first-child { flex: 2 1 230px; }
+.building-record-filters input, .building-record-filters select, .building-record-search input { min-height: 36px; border: 1px solid #bdcfc5; border-radius: 6px; padding: 7px 9px; background: #fff; color: #345448; font: inherit; }
+.building-record-count { margin: 0; padding: 12px 24px; font-size: 12px; border-bottom: 1px solid #e7eeea; }
+.building-record-results { overflow: auto; min-height: 100px; padding: 0 24px; }
+.building-record-dialog .building-overview-row { grid-template-columns: minmax(140px, 1fr) minmax(180px, 1.3fr) minmax(180px, 1fr); align-items: center; gap: 8px 20px; padding: 14px 0; }
+.building-record-dialog .building-overview-row > strong { font-size: 13px; }
+.building-record-dialog .building-overview-row > small { font-size: 12px; color: #65786f; }
+.building-record-dialog .building-overview-row > small:nth-of-type(2) { grid-column: 2; grid-row: 2; }
+.building-record-dialog .building-overview-row-footer { grid-column: 3; grid-row: 1 / span 2; margin: 0; }
+.building-record-dialog > footer { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 24px; border-top: 1px solid #dce6e1; }
+.building-record-dialog nav { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; font-size: 12px; }
+.building-record-dialog footer button { padding: 8px 12px; border: 1px solid #bdcfc5; border-radius: 6px; color: #245f55; background: #fff; font: inherit; font-size: 12px; cursor: pointer; }
+.building-record-dialog footer button:disabled { opacity: .45; cursor: default; }
+.building-record-dialog input:focus-visible, .building-record-dialog select:focus-visible, .building-record-dialog button:focus-visible { outline: 2px solid #26766b; outline-offset: 2px; }
+@media (max-width: 700px) {
+  .building-record-dialog .building-overview-row { display: flex; flex-direction: column; align-items: stretch; gap: 6px; }
+  .building-record-dialog > header, .building-record-filters, .building-record-dialog > footer { padding: 14px 16px; }
+  .building-record-results { padding: 0 16px; }
+  .building-record-dialog > footer { flex-wrap: wrap; }
+}

@@ -44,6 +44,10 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
   const [spliceOpen, setSpliceOpen] = useState(false)
   const [equipmentOpen, setEquipmentOpen] = useState(false)
   const [distributionOpen, setDistributionOpen] = useState(false)
+  const [overviewPremiseId, setOverviewPremiseId] = useState<string>()
+  const [overviewShelfId, setOverviewShelfId] = useState<string>()
+  const closeEquipmentOverview = () => { setEquipmentOpen(false); setOverviewShelfId(undefined) }
+  const closeDistributionOverview = () => { setDistributionOpen(false); setOverviewPremiseId(undefined) }
   const [schemeOpen, setSchemeOpen] = useState(false)
   const [fiberTrace, setFiberTrace] = useState<{ routeId?: string; pointId?: string } | null>(null)
   const [exportInitialOutput, setExportInitialOutput] = useState<'map' | 'scheme'>('map')
@@ -580,9 +584,9 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
               <InfrastructureSchematic pointId={editor.id} pointName={editor.name} pointNames={Object.fromEntries(points.map(point => [point.id, point.name]))}
                 routes={route.routes} installations={installations.documents} tracedRouteIds={tracedPath?.routeIds ?? []} onOpenRoute={selectSavedRoute} />
             </section>}
-            {editor.id && editor.kind === 'building' && <BuildingOverview key={editor.id} pointId={editor.id} active={active}
+            {editor.id && editor.kind === 'building' && <BuildingOverview key={editor.id} pointId={editor.id} pointName={editor.name} active={active}
               equipmentVersion={selectedEquipment?.version} distributionVersion={selectedDistribution?.version}
-              onEquipment={() => setEquipmentOpen(true)} onDistribution={() => setDistributionOpen(true)}
+              onEquipment={id => { setOverviewShelfId(id); setEquipmentOpen(true) }} onDistribution={id => { setOverviewPremiseId(id); setDistributionOpen(true) }}
               onCustomers={customerId => onOpenCustomers(editor.id!, customerId)} />}
             {editor.id && (editor.kind === 'chamber' || editor.kind === 'pole') && <button type="button" className="point-related-link" onClick={() => setSpliceOpen(true)}>
               <span className="point-related-icon"><Cable size={17} aria-hidden="true" /></span>
@@ -707,28 +711,28 @@ export function MapWorkspace({ active, customerMapFocus, onOpenCustomers, onOpen
           setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
         onSaved={document => setSplices(current => [...current.filter(item => item.pointId !== document.pointId), document])}
         onDeleted={pointId => setSplices(current => current.filter(item => item.pointId !== pointId))} />}
-      {equipmentOpen && editor?.id && ['building', 'cabinet', 'chamber'].includes(editor.kind) && <BuildingEquipmentEditor key={editor.id}
+      {equipmentOpen && editor?.id && ['building', 'cabinet', 'chamber'].includes(editor.kind) && <BuildingEquipmentEditor key={editor.id} initialShelfId={overviewShelfId}
         pointKindLabel={kindLabel(editor.kind)} pointId={editor.id} pointName={editor.name}
         pointNames={Object.fromEntries(points.map(point => [point.id, point.name]))}
         routes={route.routes} installations={installations.documents}
-        onClose={() => setEquipmentOpen(false)}
+        onClose={() => closeEquipmentOverview()}
         onSaved={document => setEquipment(current => [...current.filter(item => item.pointId !== document.pointId),
           ...(document.racks.length ? [document] : [])])}
         onTrace={path => setTracedPath(path)}
-        onOpenRoute={id => { setEquipmentOpen(false); selectSavedRoute(id)
+        onOpenRoute={id => { closeEquipmentOverview(); selectSavedRoute(id)
           setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
-        onViewMap={() => setEquipmentOpen(false)}
-        onBudget={path => { onOpenBudget(scenarioFromOpticalPath(path, installations.documents)); setEquipmentOpen(false) }} />}
-      {distributionOpen && editor?.id && editor.kind === 'building' && <BuildingDistributionEditor key={editor.id}
+        onViewMap={() => closeEquipmentOverview()}
+        onBudget={path => { onOpenBudget(scenarioFromOpticalPath(path, installations.documents)); closeEquipmentOverview() }} />}
+      {distributionOpen && editor?.id && editor.kind === 'building' && <BuildingDistributionEditor key={editor.id} initialPremiseId={overviewPremiseId}
         pointId={editor.id} pointName={editor.name} routes={route.routes} installations={installations.documents}
-        onClose={() => setDistributionOpen(false)}
+        onClose={() => closeDistributionOverview()}
         onSaved={document => setDistributions(current => [...current.filter(item => item.pointId !== document.pointId),
           ...(document.risers.length || document.premises.length ? [document] : [])])}
         onTrace={path => setTracedPath(path)}
-        onOpenRoute={id => { setDistributionOpen(false); selectSavedRoute(id)
+        onOpenRoute={id => { closeDistributionOverview(); selectSavedRoute(id)
           setRouteFocusRequest(current => ({ id, sequence: (current?.sequence ?? 0) + 1 })) }}
-        onViewMap={() => setDistributionOpen(false)}
-        onBudget={path => { onOpenBudget(scenarioFromOpticalPath(path, installations.documents)); setDistributionOpen(false) }} />}
+        onViewMap={() => closeDistributionOverview()}
+        onBudget={path => { onOpenBudget(scenarioFromOpticalPath(path, installations.documents)); closeDistributionOverview() }} />}
       {exportOpen && <NetworkExportDialog initialScheme={exportInitialScheme} initialOutput={exportInitialOutput} onClose={() => setExportOpen(false)}
         onRefreshMap={() => { setMapSnapshot(null); setSnapshotRequest(value => value + 1) }} snapshot={mapSnapshot}
         points={points} routes={route.routes} installations={installations.documents} splices={splices}

@@ -19,16 +19,16 @@ import type { UndergroundRoute } from './undergroundRoutes'
 
 type Selection = { kind: 'riser' | 'box' | 'premise'; id: string }
 
-export function BuildingDistributionEditor({ pointId, pointName, routes, installations, onClose, onSaved, onTrace, onBudget, onOpenRoute, onViewMap }: {
-  pointId: string; pointName: string; routes: UndergroundRoute[]; installations: RouteInstallationDocument[];
+export function BuildingDistributionEditor({ pointId, pointName, initialPremiseId, routes, installations, onClose, onSaved, onTrace, onBudget, onOpenRoute, onViewMap }: {
+  pointId: string; pointName: string; initialPremiseId?: string; routes: UndergroundRoute[]; installations: RouteInstallationDocument[];
   onClose: () => void; onSaved: (document: BuildingDistributionDocument) => void;
   onTrace: (path: OpticalPath | null) => void; onBudget: (path: OpticalPath) => void
   onOpenRoute: (routeId: string) => void; onViewMap: () => void
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const [draft, setDraft] = useState<BuildingDistributionDocument | null>(null)
-  const [selection, setSelection] = useState<Selection | null>(null)
-  const [mobileView, setMobileView] = useState<'list' | 'detail'>('list')
+  const [selection, setSelection] = useState<Selection | null>(initialPremiseId ? { kind: 'premise', id: initialPremiseId } : null)
+  const [mobileView, setMobileView] = useState<'list' | 'detail'>(initialPremiseId ? 'detail' : 'list')
   const [reservedByEquipment, setReservedByEquipment] = useState<Set<string>>(new Set())
   const [dirty, setDirty] = useState(false)
   const [busy, setBusy] = useState(false)
